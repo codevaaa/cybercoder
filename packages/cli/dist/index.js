@@ -2082,7 +2082,7 @@ var Onboarding = ({ onComplete }) => {
         return;
       }
       if (key.return) {
-        const url = "https://cybermindcli.info/login?redirect=cli";
+        const url = "https://cybermindcli.info/subscribe?redirect=cli";
         openBrowser(url);
         markOnboardingComplete("cybercli");
         onComplete("cybercli");
@@ -2101,19 +2101,15 @@ var Onboarding = ({ onComplete }) => {
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
       /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
       /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
-        /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Sign in to CyberCli" }),
+        /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "CyberCli subscription required" }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Browser didn't open? Use the url below to sign in (c to copy)" }),
+        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "A Pro, Max, or Team subscription is required to use CyberCli Code." }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "cyan", children: "https://cybermindcli.info/login?redirect=cli" }),
+        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Browser didn't open? Use the url below:" }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
-          "Paste code here if prompted ",
-          ">",
-          " "
-        ] }),
+        /* @__PURE__ */ jsx4(Text4, { color: "cyan", children: "https://cybermindcli.info/subscribe?redirect=cli" }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Press Enter to open browser, ESC to go back" })
+        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Press Enter to choose a plan, ESC to go back" })
       ] })
     ] });
   }
