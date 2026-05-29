@@ -124,7 +124,7 @@ function createLogger(scope) {
 }
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.15";
+var CYBERMIND_VERSION = "0.1.16";
 var CYBERMIND_NAME = "CyberMind";
 
 // ../shared/src/checkpoint.ts
@@ -1612,8 +1612,8 @@ var CustomServerManager = class {
 var log9 = createLogger("auto-agent");
 
 // src/app.tsx
-import { Box as Box7, useApp, useInput as useInput2 } from "ink";
-import { useCallback, useMemo, useRef, useState as useState2 } from "react";
+import { Box as Box10, useApp, useInput as useInput5 } from "ink";
+import { useCallback, useMemo, useRef, useState as useState5 } from "react";
 
 // src/components/Welcome.tsx
 import { Box, Text as Text2 } from "ink";
@@ -1625,22 +1625,34 @@ import { jsx, jsxs } from "react/jsx-runtime";
 var Mascot = () => {
   return /* @__PURE__ */ jsxs(Text, { children: [
     /* @__PURE__ */ jsxs(Text, { color: "cyan", children: [
-      "  \u259F\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2599",
+      "    \u259B\u2588\u2588\u2588\u259C",
       "\n"
     ] }),
     /* @__PURE__ */ jsxs(Text, { color: "cyan", children: [
-      "  \u2588  \u25C9  \u25C9  \u2588",
+      "   \u259F\u2588\u2588\u2588\u2588\u2588\u2599",
       "\n"
     ] }),
     /* @__PURE__ */ jsxs(Text, { color: "cyan", children: [
-      "  \u2588   \u2573   \u2588",
+      "  \u2590\u259B     \u259C\u258C",
       "\n"
     ] }),
     /* @__PURE__ */ jsxs(Text, { color: "cyan", children: [
-      "  \u259C\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u259B",
+      "  \u2590  \u25C9 \u25C9  \u258C",
       "\n"
     ] }),
-    /* @__PURE__ */ jsx(Text, { color: "magentaBright", children: "    \u2503\u2503 \u2503\u2503   " })
+    /* @__PURE__ */ jsxs(Text, { color: "cyan", children: [
+      "  \u2590   \u2573   \u258C",
+      "\n"
+    ] }),
+    /* @__PURE__ */ jsxs(Text, { color: "cyan", children: [
+      "   \u259C\u2588\u2588\u2588\u2588\u2588\u259B",
+      "\n"
+    ] }),
+    /* @__PURE__ */ jsxs(Text, { color: "magentaBright", children: [
+      "    \u259F\u2599   \u259F\u2599",
+      "\n"
+    ] }),
+    /* @__PURE__ */ jsx(Text, { color: "magentaBright", children: "    \u2588    \u2588" })
   ] });
 };
 
@@ -1710,29 +1722,321 @@ var Welcome = ({ provider = "auto", model = "auto" }) => {
   ] });
 };
 
-// src/components/Prompt.tsx
+// src/components/Onboarding.tsx
 import { useState } from "react";
-import { Box as Box2, Text as Text3 } from "ink";
-import TextInput from "ink-text-input";
+import { Box as Box2, Text as Text3, useInput } from "ink";
+import gradient2 from "gradient-string";
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+var cyber2 = gradient2(["#00e5ff", "#7b5cff", "#ff5c8a"]);
+var LOGIN_METHODS = [
+  {
+    id: "cybercli",
+    label: "CyberCli account with subscription",
+    desc: "Pro, Max, Team, or Enterprise"
+  },
+  {
+    id: "apikey",
+    label: "API key (BYOK)",
+    desc: "Bring Your Own Key \u2014 API usage billing"
+  },
+  {
+    id: "thirdparty",
+    label: "3rd-party platform",
+    desc: "OpenRouter, Groq, or local Ollama"
+  }
+];
+var Onboarding = ({ onComplete }) => {
+  const [selected, setSelected] = useState(0);
+  useInput((_, key) => {
+    if (key.upArrow) {
+      setSelected((s) => Math.max(0, s - 1));
+    } else if (key.downArrow) {
+      setSelected((s) => Math.min(LOGIN_METHODS.length - 1, s + 1));
+    } else if (key.return) {
+      const method = LOGIN_METHODS[selected];
+      if (method) onComplete(method.id);
+    }
+  });
+  return /* @__PURE__ */ jsxs3(Box2, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx3(Text3, { children: cyber2(`\u256D\u2500 Welcome to ${CYBERMIND_NAME} Code v${CYBERMIND_VERSION} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E`) }),
+    /* @__PURE__ */ jsxs3(Box2, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx3(Box2, { flexDirection: "column", width: 28, paddingLeft: 2, children: /* @__PURE__ */ jsx3(Mascot, {}) }),
+      /* @__PURE__ */ jsxs3(Box2, { flexDirection: "column", flexGrow: 1, paddingRight: 2, children: [
+        /* @__PURE__ */ jsxs3(Text3, { bold: true, color: "white", children: [
+          CYBERMIND_NAME,
+          " Code can be used with your CyberCli subscription or billed based on API usage through your own keys."
+        ] }),
+        /* @__PURE__ */ jsx3(Box2, { marginTop: 1 }),
+        /* @__PURE__ */ jsx3(Text3, { bold: true, color: "#D97736", children: "Select login method:" }),
+        /* @__PURE__ */ jsx3(Box2, { marginTop: 1 }),
+        LOGIN_METHODS.map((method, i) => /* @__PURE__ */ jsxs3(Box2, { flexDirection: "row", marginBottom: 1, children: [
+          /* @__PURE__ */ jsxs3(Text3, { children: [
+            i === selected ? /* @__PURE__ */ jsx3(Text3, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx3(Text3, { color: "gray", children: "  " }),
+            /* @__PURE__ */ jsxs3(Text3, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
+              i + 1,
+              ". ",
+              method.label
+            ] })
+          ] }),
+          /* @__PURE__ */ jsx3(Box2, { marginTop: 0 }),
+          /* @__PURE__ */ jsxs3(Text3, { color: "gray", children: [
+            "   ",
+            method.desc
+          ] })
+        ] }, method.id)),
+        /* @__PURE__ */ jsx3(Box2, { marginTop: 1 }),
+        /* @__PURE__ */ jsx3(Text3, { color: "gray", children: "Use arrow keys to navigate, Enter to select" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx3(Text3, { children: cyber2("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+  ] });
+};
+
+// src/components/ThemePicker.tsx
+import { useState as useState2 } from "react";
+import { Box as Box3, Text as Text4, useInput as useInput2 } from "ink";
+import gradient3 from "gradient-string";
+import { Fragment, jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
+var cyber3 = gradient3(["#00e5ff", "#7b5cff", "#ff5c8a"]);
+var THEMES = [
+  { id: "auto", label: "Auto (match terminal)" },
+  { id: "dark", label: "Dark mode" },
+  { id: "light", label: "Light mode" },
+  { id: "dark-colorblind", label: "Dark mode (colorblind-friendly)" },
+  { id: "light-colorblind", label: "Light mode (colorblind-friendly)" },
+  { id: "dark-ansi", label: "Dark mode (ANSI colors only)" },
+  { id: "light-ansi", label: "Light mode (ANSI colors only)" }
+];
+var SYNTAX_THEMES = [
+  "Monokai Extended",
+  "Dracula",
+  "One Dark",
+  "Solarized Dark",
+  "GitHub Light"
+];
+var ThemePicker = ({ onComplete }) => {
+  const [selected, setSelected] = useState2(1);
+  const [syntaxIdx, setSyntaxIdx] = useState2(0);
+  const [stage, setStage] = useState2("theme");
+  useInput2((_, key) => {
+    if (stage === "theme") {
+      if (key.upArrow) {
+        setSelected((s) => Math.max(0, s - 1));
+      } else if (key.downArrow) {
+        setSelected((s) => Math.min(THEMES.length - 1, s + 1));
+      } else if (key.return) {
+        setStage("syntax");
+      }
+    } else {
+      if (key.upArrow) {
+        setSyntaxIdx((s) => Math.max(0, s - 1));
+      } else if (key.downArrow) {
+        setSyntaxIdx((s) => Math.min(SYNTAX_THEMES.length - 1, s + 1));
+      } else if (key.return) {
+        const theme = THEMES[selected];
+        const syntax = SYNTAX_THEMES[syntaxIdx];
+        if (theme && syntax) {
+          onComplete({
+            mode: theme.id,
+            syntaxTheme: syntax
+          });
+        }
+      }
+    }
+  });
+  const previewLines = [
+    { line: 1, text: "function greet() {", color: "cyan" },
+    { line: 2, text: '  console.log("Hello, World!");', old: true },
+    { line: 2, text: '  console.log("Hello, CyberCoder!");', new: true },
+    { line: 3, text: "}", color: "cyan" }
+  ];
+  return /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx4(Text4, { children: cyber3("\u256D\u2500 Theme Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
+    /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Let's get started." }),
+      /* @__PURE__ */ jsx4(Box3, { marginTop: 1 }),
+      /* @__PURE__ */ jsx4(Text4, { bold: true, color: "#D97736", children: "Choose the text style that looks best with your terminal" }),
+      /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "To change this later, run /theme" }),
+      /* @__PURE__ */ jsx4(Box3, { marginTop: 1 }),
+      stage === "theme" && /* @__PURE__ */ jsxs4(Fragment, { children: [
+        THEMES.map((t, i) => /* @__PURE__ */ jsx4(Box3, { flexDirection: "row", children: /* @__PURE__ */ jsxs4(Text4, { children: [
+          i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
+          /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
+            i + 1,
+            ". ",
+            t.label
+          ] }),
+          i === selected && /* @__PURE__ */ jsx4(Text4, { color: "green", children: "  \u2713" })
+        ] }) }, t.id)),
+        /* @__PURE__ */ jsx4(Box3, { marginTop: 1 }),
+        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Use arrow keys, Enter to confirm" })
+      ] }),
+      stage === "syntax" && /* @__PURE__ */ jsxs4(Fragment, { children: [
+        /* @__PURE__ */ jsx4(Text4, { bold: true, color: "#D97736", children: "Choose syntax highlighting theme:" }),
+        /* @__PURE__ */ jsx4(Box3, { marginTop: 1 }),
+        SYNTAX_THEMES.map((t, i) => /* @__PURE__ */ jsx4(Box3, { flexDirection: "row", children: /* @__PURE__ */ jsxs4(Text4, { children: [
+          i === syntaxIdx ? /* @__PURE__ */ jsx4(Text4, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
+          /* @__PURE__ */ jsxs4(Text4, { color: i === syntaxIdx ? "white" : "gray", bold: i === syntaxIdx, children: [
+            i + 1,
+            ". ",
+            t
+          ] })
+        ] }) }, t)),
+        /* @__PURE__ */ jsx4(Box3, { marginTop: 1 }),
+        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Use arrow keys, Enter to confirm" })
+      ] }),
+      /* @__PURE__ */ jsx4(Box3, { marginTop: 1 }),
+      /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500" }),
+      previewLines.map((p, idx) => /* @__PURE__ */ jsxs4(Box3, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
+          p.line.toString().padStart(2),
+          " "
+        ] }),
+        "old" in p && p.old && /* @__PURE__ */ jsxs4(Text4, { color: "red", children: [
+          "- ",
+          p.text
+        ] }),
+        "new" in p && p.new && /* @__PURE__ */ jsxs4(Text4, { color: "green", children: [
+          "+ ",
+          p.text
+        ] }),
+        "color" in p && /* @__PURE__ */ jsxs4(Text4, { color: p.color, children: [
+          "  ",
+          p.text
+        ] })
+      ] }, idx)),
+      /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500" }),
+      /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
+        "Syntax theme: ",
+        SYNTAX_THEMES[syntaxIdx],
+        " (ctrl+t to disable)"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx4(Text4, { children: cyber3("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+  ] });
+};
+
+// src/components/Settings.tsx
+import { useState as useState3 } from "react";
+import { Box as Box4, Text as Text5, useInput as useInput3 } from "ink";
+import gradient4 from "gradient-string";
+import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+var cyber4 = gradient4(["#00e5ff", "#7b5cff", "#ff5c8a"]);
+var SETTINGS_CATEGORIES = [
+  {
+    id: "general",
+    label: "General",
+    items: [
+      { key: "welcome", label: "Show welcome screen on startup", value: true },
+      { key: "auto_approve", label: "Auto-approve non-destructive changes", value: false },
+      { key: "telemetry", label: "Enable telemetry", value: true }
+    ]
+  },
+  {
+    id: "appearance",
+    label: "Appearance",
+    items: [
+      { key: "theme", label: "Theme", value: "Dark mode" },
+      { key: "syntax", label: "Syntax highlighting", value: "Monokai Extended" },
+      { key: "mascot", label: "Show mascot", value: true }
+    ]
+  },
+  {
+    id: "ai",
+    label: "AI & Providers",
+    items: [
+      { key: "default_provider", label: "Default provider", value: "auto" },
+      { key: "default_model", label: "Default model", value: "auto" },
+      { key: "council_mode", label: "Council Mode default", value: false }
+    ]
+  },
+  {
+    id: "safety",
+    label: "Safety",
+    items: [
+      { key: "confirm_destructive", label: "Confirm destructive operations", value: true },
+      { key: "max_tokens", label: "Max tokens per request", value: "4096" }
+    ]
+  }
+];
+var Settings = ({ onClose }) => {
+  const [catIdx, setCatIdx] = useState3(0);
+  const [itemIdx, setItemIdx] = useState3(0);
+  const currentCat = SETTINGS_CATEGORIES[catIdx];
+  useInput3((_, key) => {
+    if (key.escape || key.ctrl && _ === "c") {
+      onClose();
+      return;
+    }
+    if (!currentCat) return;
+    if (key.upArrow) {
+      setItemIdx((i) => Math.max(0, i - 1));
+    } else if (key.downArrow) {
+      setItemIdx((i) => Math.min(currentCat.items.length - 1, i + 1));
+    } else if (key.leftArrow) {
+      setCatIdx((c) => Math.max(0, c - 1));
+      setItemIdx(0);
+    } else if (key.rightArrow) {
+      setCatIdx((c) => Math.min(SETTINGS_CATEGORIES.length - 1, c + 1));
+      setItemIdx(0);
+    } else if (key.return) {
+      const item = currentCat.items[itemIdx];
+      if (item && typeof item.value === "boolean") {
+        item.value = !item.value;
+        setItemIdx((i) => i);
+      }
+    }
+  });
+  return /* @__PURE__ */ jsxs5(Box4, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx5(Text5, { children: cyber4("\u256D\u2500 Settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
+    /* @__PURE__ */ jsxs5(Box4, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx5(Box4, { flexDirection: "row", marginBottom: 1, children: SETTINGS_CATEGORIES.map((cat, i) => /* @__PURE__ */ jsxs5(Text5, { children: [
+        /* @__PURE__ */ jsxs5(Text5, { color: i === catIdx ? "#D97736" : "gray", bold: i === catIdx, children: [
+          " ",
+          cat.label,
+          " "
+        ] }),
+        i < SETTINGS_CATEGORIES.length - 1 && /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "\u2502" })
+      ] }, cat.id)) }),
+      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "\u2500".repeat(50) }),
+      currentCat && currentCat.items.map((item, i) => /* @__PURE__ */ jsxs5(Box4, { flexDirection: "row", marginY: 1, children: [
+        /* @__PURE__ */ jsxs5(Text5, { children: [
+          i === itemIdx ? /* @__PURE__ */ jsx5(Text5, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  " }),
+          /* @__PURE__ */ jsx5(Text5, { color: i === itemIdx ? "white" : "gray", bold: i === itemIdx, children: item.label })
+        ] }),
+        /* @__PURE__ */ jsx5(Box4, { flexGrow: 1 }),
+        /* @__PURE__ */ jsx5(Text5, { color: typeof item.value === "boolean" ? item.value ? "green" : "red" : "cyan", children: typeof item.value === "boolean" ? item.value ? "\u2713 enabled" : "\u2717 disabled" : item.value })
+      ] }, item.key)),
+      /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
+      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "Arrow keys to navigate, Enter to toggle, ESC to close" })
+    ] }),
+    /* @__PURE__ */ jsx5(Text5, { children: cyber4("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+  ] });
+};
+
+// src/components/Prompt.tsx
+import { useState as useState4 } from "react";
+import { Box as Box5, Text as Text6 } from "ink";
+import TextInput from "ink-text-input";
+import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 var Prompt = ({ onSubmit, disabled }) => {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState4("");
   const handleSubmit = (text) => {
     onSubmit(text);
     setValue("");
   };
   if (disabled) {
-    return /* @__PURE__ */ jsx3(Box2, { children: /* @__PURE__ */ jsx3(Text3, { color: "gray", children: "\u23F3 (waiting\u2026)" }) });
+    return /* @__PURE__ */ jsx6(Box5, { children: /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "\u23F3 (waiting\u2026)" }) });
   }
-  return /* @__PURE__ */ jsxs3(Box2, { children: [
-    /* @__PURE__ */ jsx3(Text3, { color: "cyan", children: "\u203A " }),
-    /* @__PURE__ */ jsx3(TextInput, { value, onChange: setValue, onSubmit: handleSubmit, placeholder: "Try /help or describe what you want\u2026" })
+  return /* @__PURE__ */ jsxs6(Box5, { children: [
+    /* @__PURE__ */ jsx6(Text6, { color: "cyan", children: "\u203A " }),
+    /* @__PURE__ */ jsx6(TextInput, { value, onChange: setValue, onSubmit: handleSubmit, placeholder: "Try /help or describe what you want\u2026" })
   ] });
 };
 
 // src/components/MessageList.tsx
-import { Box as Box3, Text as Text4 } from "ink";
-import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Box as Box6, Text as Text7 } from "ink";
+import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var ROLE_COLOR = {
   user: "cyan",
   assistant: "white",
@@ -1747,15 +2051,15 @@ var ROLE_LABEL = {
 };
 var MessageList = ({ messages }) => {
   if (messages.length === 0) return null;
-  return /* @__PURE__ */ jsx4(Box3, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx4(Text4, { color: ROLE_COLOR[m.role], bold: true, children: ROLE_LABEL[m.role] }),
-    /* @__PURE__ */ jsx4(Text4, { color: m.role === "system" ? "gray" : void 0, children: m.content })
+  return /* @__PURE__ */ jsx7(Box6, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => /* @__PURE__ */ jsxs7(Box6, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx7(Text7, { color: ROLE_COLOR[m.role], bold: true, children: ROLE_LABEL[m.role] }),
+    /* @__PURE__ */ jsx7(Text7, { color: m.role === "system" ? "gray" : void 0, children: m.content })
   ] }, m.id)) });
 };
 
 // src/components/StatusBar.tsx
-import { Box as Box4, Text as Text5 } from "ink";
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Box as Box7, Text as Text8 } from "ink";
+import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 var STATUS_LABEL = {
   idle: "ready",
   thinking: "thinking\u2026",
@@ -1769,45 +2073,45 @@ var STATUS_COLOR = {
   error: "red"
 };
 var StatusBar = ({ status, model, provider }) => {
-  return /* @__PURE__ */ jsxs5(Box4, { marginTop: 1, children: [
-    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "[" }),
-    /* @__PURE__ */ jsx5(Text5, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
-    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "] " }),
-    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "provider=" }),
-    /* @__PURE__ */ jsx5(Text5, { color: "cyan", children: provider }),
-    /* @__PURE__ */ jsxs5(Text5, { color: "gray", children: [
+  return /* @__PURE__ */ jsxs8(Box7, { marginTop: 1, children: [
+    /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "[" }),
+    /* @__PURE__ */ jsx8(Text8, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
+    /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "] " }),
+    /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "provider=" }),
+    /* @__PURE__ */ jsx8(Text8, { color: "cyan", children: provider }),
+    /* @__PURE__ */ jsxs8(Text8, { color: "gray", children: [
       "  ",
       "model="
     ] }),
-    /* @__PURE__ */ jsx5(Text5, { color: "cyan", children: model }),
-    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  \xB7 \xB7 for shortcuts" })
+    /* @__PURE__ */ jsx8(Text8, { color: "cyan", children: model }),
+    /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "  \xB7 \xB7 for shortcuts" })
   ] });
 };
 
 // src/components/ExitConfirm.tsx
-import { Box as Box5, Text as Text6 } from "ink";
-import { jsx as jsx6 } from "react/jsx-runtime";
-var ExitConfirm = () => /* @__PURE__ */ jsx6(Box5, { marginTop: 1, children: /* @__PURE__ */ jsx6(Text6, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
+import { Box as Box8, Text as Text9 } from "ink";
+import { jsx as jsx9 } from "react/jsx-runtime";
+var ExitConfirm = () => /* @__PURE__ */ jsx9(Box8, { marginTop: 1, children: /* @__PURE__ */ jsx9(Text9, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
 
 // src/components/ApprovalDialog.tsx
-import { Box as Box6, Text as Text7, useInput } from "ink";
-import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { Box as Box9, Text as Text10, useInput as useInput4 } from "ink";
+import { jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 var ApprovalDialog = ({ pending }) => {
-  useInput((input) => {
+  useInput4((input) => {
     const key = input.toLowerCase();
     if (key === "y") pending.resolve("allow");
     else if (key === "s") pending.resolve("allow-session");
     else if (key === "t") pending.resolve("allow-persistent");
     else if (key === "n") pending.resolve("deny");
   });
-  return /* @__PURE__ */ jsxs6(Box6, { flexDirection: "column", borderStyle: "round", borderColor: pending.destructive ? "red" : "yellow", paddingX: 1, children: [
-    /* @__PURE__ */ jsxs6(Text7, { bold: true, children: [
+  return /* @__PURE__ */ jsxs9(Box9, { flexDirection: "column", borderStyle: "round", borderColor: pending.destructive ? "red" : "yellow", paddingX: 1, children: [
+    /* @__PURE__ */ jsxs9(Text10, { bold: true, children: [
       pending.destructive ? "\u26A0 " : "",
       "Approve tool: ",
-      /* @__PURE__ */ jsx7(Text7, { color: "cyan", children: pending.toolName })
+      /* @__PURE__ */ jsx10(Text10, { color: "cyan", children: pending.toolName })
     ] }),
-    /* @__PURE__ */ jsx7(Text7, { children: pending.summary }),
-    /* @__PURE__ */ jsx7(Box6, { marginTop: 1, children: /* @__PURE__ */ jsx7(Text7, { dimColor: true, children: "[y] allow once \xB7 [s] allow this session \xB7 [t] trust persistently \xB7 [n] deny" }) })
+    /* @__PURE__ */ jsx10(Text10, { children: pending.summary }),
+    /* @__PURE__ */ jsx10(Box9, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { dimColor: true, children: "[y] allow once \xB7 [s] allow this session \xB7 [t] trust persistently \xB7 [n] deny" }) })
   ] });
 };
 
@@ -3689,6 +3993,47 @@ function buildColorCommand(ctx) {
       }
       ctx.setPromptColor(name);
       reply(`Accent color set to ${name}.`);
+    }
+  };
+}
+function buildThemeCommand(ctx) {
+  return {
+    name: "theme",
+    description: "Open the interactive theme picker (dark/light mode + syntax highlighting).",
+    category: "config",
+    usage: "/theme",
+    run: () => {
+      if (ctx.setScreen) {
+        ctx.setScreen("theme");
+      } else {
+        ctx.appendMessage({
+          id: `theme-${Date.now()}`,
+          role: "system",
+          content: "Theme picker is not available in this context.",
+          createdAt: Date.now()
+        });
+      }
+    }
+  };
+}
+function buildSettingsCommand(ctx) {
+  return {
+    name: "settings",
+    description: "Open the settings screen (general, appearance, AI, safety).",
+    category: "config",
+    usage: "/settings",
+    aliases: ["config"],
+    run: () => {
+      if (ctx.setScreen) {
+        ctx.setScreen("settings");
+      } else {
+        ctx.appendMessage({
+          id: `settings-${Date.now()}`,
+          role: "system",
+          content: "Settings are not available in this context.",
+          createdAt: Date.now()
+        });
+      }
     }
   };
 }
@@ -6079,6 +6424,8 @@ function buildCommandRegistry(ctx) {
     buildProviderCommand(ctx),
     buildConsensusCommand(ctx),
     buildColorCommand(ctx),
+    buildThemeCommand(ctx),
+    buildSettingsCommand(ctx),
     buildWorkflowCommand(ctx),
     buildRewindCommand(ctx),
     buildDiffCommand(ctx),
@@ -6126,17 +6473,20 @@ function buildCommandRegistry(ctx) {
 }
 
 // src/app.tsx
-import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs10 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp();
-  const [messages, setMessages] = useState2([]);
-  const [status, setStatus] = useState2("idle");
-  const [model, setModel] = useState2(initialModel ?? "auto");
-  const [provider, setProvider] = useState2(initialProvider ?? "auto");
-  const [, setPromptColor] = useState2("cyan");
-  const [welcomeVisible, setWelcomeVisible] = useState2(showWelcome);
-  const [exitConfirm, setExitConfirm] = useState2(false);
-  const [pendingApproval, setPendingApproval] = useState2(null);
+  const hasCompletedOnboarding = false;
+  const [screen, setScreen] = useState5(hasCompletedOnboarding ? "welcome" : "onboarding");
+  const [themeConfig, setThemeConfig] = useState5({ mode: "dark", syntaxTheme: "Monokai Extended" });
+  const [messages, setMessages] = useState5([]);
+  const [status, setStatus] = useState5("idle");
+  const [model, setModel] = useState5(initialModel ?? "auto");
+  const [provider, setProvider] = useState5(initialProvider ?? "auto");
+  const [, setPromptColor] = useState5("cyan");
+  const [welcomeVisible, setWelcomeVisible] = useState5(showWelcome);
+  const [exitConfirm, setExitConfirm] = useState5(false);
+  const [pendingApproval, setPendingApproval] = useState5(null);
   const streamingIdRef = useRef(null);
   const driveChatRef = useRef(async () => {
   });
@@ -6177,11 +6527,12 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
       setModel,
       getProvider: () => provider,
       setProvider,
-      setPromptColor
+      setPromptColor,
+      setScreen: (s) => setScreen(s)
     }),
     [appendMessage, clearMessages, exit, model, provider]
   );
-  useInput2((input, key) => {
+  useInput5((input, key) => {
     if (key.ctrl && input === "c") {
       if (exitConfirm) {
         exit();
@@ -6288,14 +6639,46 @@ ${trimmed}
     },
     [appendMessage, commandRegistry, welcomeVisible, driveChat]
   );
-  return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", children: [
-    welcomeVisible && /* @__PURE__ */ jsx8(Welcome, { provider, model }),
-    /* @__PURE__ */ jsx8(MessageList, { messages }),
-    pendingApproval && /* @__PURE__ */ jsx8(ApprovalDialog, { pending: pendingApproval }),
-    /* @__PURE__ */ jsx8(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-    /* @__PURE__ */ jsx8(StatusBar, { status, model, provider }),
-    exitConfirm && /* @__PURE__ */ jsx8(ExitConfirm, {})
-  ] });
+  const handleOnboardingComplete = useCallback((method) => {
+    void method;
+    setScreen("theme");
+  }, []);
+  const handleThemeComplete = useCallback((theme) => {
+    setThemeConfig(theme);
+    setScreen("welcome");
+  }, []);
+  const handleSettingsClose = useCallback(() => {
+    setScreen("chat");
+  }, []);
+  const renderScreen = () => {
+    switch (screen) {
+      case "onboarding":
+        return /* @__PURE__ */ jsx11(Onboarding, { onComplete: handleOnboardingComplete });
+      case "theme":
+        return /* @__PURE__ */ jsx11(ThemePicker, { onComplete: handleThemeComplete });
+      case "settings":
+        return /* @__PURE__ */ jsx11(Settings, { onClose: handleSettingsClose });
+      case "welcome":
+        return /* @__PURE__ */ jsxs10(Fragment2, { children: [
+          welcomeVisible && /* @__PURE__ */ jsx11(Welcome, { provider, model }),
+          /* @__PURE__ */ jsx11(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx11(ApprovalDialog, { pending: pendingApproval }),
+          /* @__PURE__ */ jsx11(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx11(StatusBar, { status, model, provider }),
+          exitConfirm && /* @__PURE__ */ jsx11(ExitConfirm, {})
+        ] });
+      case "chat":
+      default:
+        return /* @__PURE__ */ jsxs10(Fragment2, { children: [
+          /* @__PURE__ */ jsx11(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx11(ApprovalDialog, { pending: pendingApproval }),
+          /* @__PURE__ */ jsx11(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx11(StatusBar, { status, model, provider }),
+          exitConfirm && /* @__PURE__ */ jsx11(ExitConfirm, {})
+        ] });
+    }
+  };
+  return /* @__PURE__ */ jsx11(Box10, { flexDirection: "column", children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -6310,11 +6693,11 @@ function stringifyArgs(input) {
 }
 
 // src/index.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
+import { jsx as jsx12 } from "react/jsx-runtime";
 var log19 = createLogger("cli");
 async function main() {
   const program = new Command();
-  program.name("cybermind").description("CyberMind CLI \u2014 fullstack agentic coding assistant").version(CYBERMIND_VERSION, "-v, --version", "print the CyberMind version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").action((opts) => {
+  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").action((opts) => {
     if (opts.debug) {
       process.env.CYBERMIND_LOG_LEVEL = "debug";
       process.env.CYBERMIND_LOG_STDERR = "true";
@@ -6325,7 +6708,7 @@ async function main() {
       return;
     }
     const { waitUntilExit } = render(
-      /* @__PURE__ */ jsx9(
+      /* @__PURE__ */ jsx12(
         App,
         {
           showWelcome: opts.welcome !== false,
