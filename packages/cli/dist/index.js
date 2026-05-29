@@ -124,7 +124,7 @@ function createLogger(scope) {
 }
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.19";
+var CYBERMIND_VERSION = "0.1.20";
 var CYBERMIND_NAME = "CyberMind";
 
 // ../shared/src/checkpoint.ts
@@ -7383,7 +7383,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
         setScreen("onboarding");
       }
     }),
-    [appendMessage, clearMessages, exit, model, provider]
+    [appendMessage, clearMessages, exit, model, provider, setScreen, setMessages, setWelcomeVisible]
   );
   useInput7((input, key) => {
     if (key.ctrl && input === "c") {
@@ -7615,6 +7615,43 @@ async function main() {
         process.exit(1);
       }
     );
+  });
+  program.command("status").description("Show CyberCoder authentication status").action(() => {
+    const loggedIn = isOnboardingComplete();
+    console.log("\u{1F510} CyberCoder Status");
+    console.log(`   Authentication: ${loggedIn ? "\u2705 Logged in" : "\u274C Not logged in"}`);
+    console.log(`   Version: ${CYBERMIND_VERSION}`);
+    if (!loggedIn) {
+      console.log("   Run `cm` to start the login flow.");
+    }
+    process.exit(0);
+  });
+  program.command("login").description("Login to CyberCoder (opens browser)").action(() => {
+    const loggedIn = isOnboardingComplete();
+    if (loggedIn) {
+      console.log("\u2705 Already logged in to CyberCoder.");
+      console.log("   Run `cm` to start coding.");
+    } else {
+      console.log("\u{1F510} CyberCoder Login");
+      console.log("   Opening browser to https://cybermindcli.info/login ...");
+      import("open").then((mod) => {
+        mod.default("https://cybermindcli.info/login?redirect=cli");
+        console.log("   Browser opened. Complete login there, then run `cm`.");
+        process.exit(0);
+      }).catch(() => {
+        console.log("   Visit: https://cybermindcli.info/login?redirect=cli");
+        process.exit(0);
+      });
+      return;
+    }
+    process.exit(0);
+  });
+  program.command("logout").description("Logout from CyberCoder and clear all session data").action(() => {
+    clearLogin();
+    console.log("\u{1F44B} Logged out from CyberCoder.");
+    console.log("   All session data and API keys cleared.");
+    console.log("   Run `cm` again to log in.");
+    process.exit(0);
   });
   program.parseAsync(process.argv).catch((err) => {
     log19.error("failed to parse args", err instanceof Error ? err.message : err);
