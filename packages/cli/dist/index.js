@@ -125,6 +125,7 @@ function createLogger(scope) {
 
 // ../shared/src/version.ts
 var CYBERMIND_VERSION = "0.1.14";
+var CYBERMIND_NAME = "CyberMind";
 
 // ../shared/src/checkpoint.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, writeFileSync, readdirSync } from "fs";
@@ -1646,13 +1647,14 @@ var Mascot = () => {
 // src/components/Welcome.tsx
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var cyber = gradient(["#00e5ff", "#7b5cff", "#ff5c8a"]);
-var Welcome = () => {
+var Welcome = ({ provider = "auto", model = "auto" }) => {
+  void provider;
   const cwd = process.cwd();
   const user = process.env.USER ?? process.env.USERNAME ?? "friend";
   return /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx2(Text2, { children: cyber(`\u256D\u2500 CyberMind v${CYBERMIND_VERSION} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E`) }),
+    /* @__PURE__ */ jsx2(Text2, { children: cyber(`\u256D\u2500 ${CYBERMIND_NAME} Code v${CYBERMIND_VERSION} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E`) }),
     /* @__PURE__ */ jsxs2(Box, { flexDirection: "row", children: [
-      /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", width: 36, paddingLeft: 2, paddingRight: 2, children: [
+      /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", width: 38, paddingLeft: 2, paddingRight: 2, children: [
         /* @__PURE__ */ jsxs2(Text2, { bold: true, color: "white", children: [
           "  Welcome back, ",
           user,
@@ -1662,16 +1664,21 @@ var Welcome = () => {
         /* @__PURE__ */ jsx2(Mascot, {}),
         /* @__PURE__ */ jsx2(Box, { marginTop: 1 }),
         /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-          "  auto \xB7 BYOK \xB7 ",
-          process.platform
+          "  ",
+          model,
+          " \xB7 API Usage Billing \xB7 ",
+          user,
+          "'s"
         ] }),
+        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "  Individual Org" }),
+        /* @__PURE__ */ jsx2(Box, { marginTop: 1 }),
         /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
           "  ",
           cwd
         ] })
       ] }),
       /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", flexGrow: 1, children: [
-        /* @__PURE__ */ jsx2(Text2, { color: "yellow", bold: true, children: "Tips for getting started" }),
+        /* @__PURE__ */ jsx2(Text2, { color: "#ff9f43", bold: true, children: "Tips for getting started" }),
         /* @__PURE__ */ jsxs2(Text2, { children: [
           "Run ",
           /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/init" }),
@@ -1682,11 +1689,21 @@ var Welcome = () => {
           /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/help" }),
           " to list every command."
         ] }),
+        /* @__PURE__ */ jsxs2(Text2, { children: [
+          "Type ",
+          /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/theme" }),
+          " to change the color scheme."
+        ] }),
         /* @__PURE__ */ jsx2(Box, { marginTop: 1 }),
-        /* @__PURE__ */ jsx2(Text2, { color: "yellow", bold: true, children: "What's new" }),
-        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "M1 \u2014 welcome screen, slash command framework, /help /clear /exit." }),
-        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "Coming next: M2 providers (Anthropic + Ollama), multi-model consensus." }),
-        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "See /release-notes for the full changelog." })
+        /* @__PURE__ */ jsx2(Text2, { color: "#ff9f43", bold: true, children: "What's new" }),
+        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "M1 \u2014 welcome screen, slash command framework." }),
+        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "M2 \u2014 8+ AI providers (Anthropic, OpenAI, Groq, Gemini)." }),
+        /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "M3 \u2014 multi-model Council Mode & conversation branching." }),
+        /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
+          "See ",
+          /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/release-notes" }),
+          " for the full changelog."
+        ] })
       ] })
     ] }),
     /* @__PURE__ */ jsx2(Text2, { children: cyber("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
@@ -1754,13 +1771,16 @@ var STATUS_COLOR = {
 var StatusBar = ({ status, model, provider }) => {
   return /* @__PURE__ */ jsxs5(Box4, { marginTop: 1, children: [
     /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "[" }),
-    /* @__PURE__ */ jsx5(Text5, { color: STATUS_COLOR[status], children: STATUS_LABEL[status] }),
+    /* @__PURE__ */ jsx5(Text5, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
     /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "] " }),
     /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "provider=" }),
     /* @__PURE__ */ jsx5(Text5, { color: "cyan", children: provider }),
-    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  model=" }),
+    /* @__PURE__ */ jsxs5(Text5, { color: "gray", children: [
+      "  ",
+      "model="
+    ] }),
     /* @__PURE__ */ jsx5(Text5, { color: "cyan", children: model }),
-    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  \xB7 ? for shortcuts" })
+    /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  \xB7 \xB7 for shortcuts" })
   ] });
 };
 
@@ -6269,7 +6289,7 @@ ${trimmed}
     [appendMessage, commandRegistry, welcomeVisible, driveChat]
   );
   return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", children: [
-    welcomeVisible && /* @__PURE__ */ jsx8(Welcome, {}),
+    welcomeVisible && /* @__PURE__ */ jsx8(Welcome, { provider, model }),
     /* @__PURE__ */ jsx8(MessageList, { messages }),
     pendingApproval && /* @__PURE__ */ jsx8(ApprovalDialog, { pending: pendingApproval }),
     /* @__PURE__ */ jsx8(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
