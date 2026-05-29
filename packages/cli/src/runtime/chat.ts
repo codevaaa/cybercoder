@@ -26,7 +26,7 @@ export function getRouter(): ProviderRouter {
       anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
       cloud: { 
         apiKey: cloudApiKey,
-        baseURL: process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com/v1'
+        baseURL: process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com'
       },
       openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
       groq: { apiKey: process.env.GROQ_API_KEY ?? configKeys.groq },
