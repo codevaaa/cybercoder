@@ -124,7 +124,7 @@ function createLogger(scope) {
 }
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.17";
+var CYBERMIND_VERSION = "0.1.18";
 var CYBERMIND_NAME = "CyberMind";
 
 // ../shared/src/checkpoint.ts
@@ -1612,8 +1612,8 @@ var CustomServerManager = class {
 var log9 = createLogger("auto-agent");
 
 // src/app.tsx
-import { Box as Box10, useApp as useApp2, useInput as useInput5 } from "ink";
-import { useCallback, useMemo, useRef, useState as useState5 } from "react";
+import { Box as Box11, Text as Text13, useApp as useApp2, useInput as useInput5 } from "ink";
+import { useCallback, useEffect, useMemo, useRef, useState as useState5 } from "react";
 
 // src/components/Welcome.tsx
 import { Box, Text as Text3 } from "ink";
@@ -2520,11 +2520,28 @@ var Prompt = ({ onSubmit, disabled }) => {
     setValue("");
   };
   if (disabled) {
-    return /* @__PURE__ */ jsx7(Box5, { children: /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "\u23F3 (waiting\u2026)" }) });
+    return /* @__PURE__ */ jsxs7(Box5, { flexDirection: "row", children: [
+      /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
+        ">",
+        " "
+      ] }),
+      /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "(thinking\u2026)" })
+    ] });
   }
-  return /* @__PURE__ */ jsxs7(Box5, { children: [
-    /* @__PURE__ */ jsx7(Text7, { color: "cyan", children: "\u203A " }),
-    /* @__PURE__ */ jsx7(TextInput2, { value, onChange: setValue, onSubmit: handleSubmit, placeholder: "Try /help or describe what you want\u2026" })
+  return /* @__PURE__ */ jsxs7(Box5, { flexDirection: "row", children: [
+    /* @__PURE__ */ jsxs7(Text7, { color: "cyan", children: [
+      ">",
+      " "
+    ] }),
+    /* @__PURE__ */ jsx7(
+      TextInput2,
+      {
+        value,
+        onChange: setValue,
+        onSubmit: handleSubmit,
+        placeholder: "write a test for <filepath>"
+      }
+    )
   ] });
 };
 
@@ -2606,6 +2623,37 @@ var ApprovalDialog = ({ pending }) => {
     ] }),
     /* @__PURE__ */ jsx11(Text11, { children: pending.summary }),
     /* @__PURE__ */ jsx11(Box9, { marginTop: 1, children: /* @__PURE__ */ jsx11(Text11, { dimColor: true, children: "[y] allow once \xB7 [s] allow this session \xB7 [t] trust persistently \xB7 [n] deny" }) })
+  ] });
+};
+
+// src/components/HintBar.tsx
+import { Box as Box10, Text as Text12 } from "ink";
+import { jsx as jsx12, jsxs as jsxs11 } from "react/jsx-runtime";
+var HintBar = ({ status = "idle" }) => {
+  if (status === "thinking") {
+    return /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "\u2500".repeat(58) }),
+      /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
+        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "? for shortcuts \xB7 " }),
+        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "Esc to interrupt" })
+      ] })
+    ] });
+  }
+  if (status === "awaiting-approval") {
+    return /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "\u2500".repeat(58) }),
+      /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
+        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "? for shortcuts \xB7 " }),
+        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "y/n to approve" })
+      ] })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs11(Box10, { flexDirection: "column", marginTop: 1, children: [
+    /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "\u2500".repeat(58) }),
+    /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "? for shortcuts \xB7 " }),
+      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "/ for commands" })
+    ] })
   ] });
 };
 
@@ -6960,8 +7008,56 @@ function buildCommandRegistry(ctx) {
   };
 }
 
+// src/utils/update.ts
+var cachedLatest = null;
+var lastCheck = 0;
+var CACHE_TTL = 60 * 60 * 1e3;
+async function checkLatestVersion() {
+  const now = Date.now();
+  if (cachedLatest && now - lastCheck < CACHE_TTL) {
+    return cachedLatest;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5e3);
+    const res = await fetch(
+      "https://registry.npmjs.org/@cybercli_chat%2Fcli",
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const latest = data["dist-tags"]?.latest ?? null;
+    if (latest) {
+      cachedLatest = latest;
+      lastCheck = now;
+    }
+    return latest;
+  } catch {
+    return null;
+  }
+}
+function compareSemver(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const na = pa[i] ?? 0;
+    const nb = pb[i] ?? 0;
+    if (na !== nb) return na > nb ? 1 : -1;
+  }
+  return 0;
+}
+async function getUpdateMessage() {
+  const latest = await checkLatestVersion();
+  if (!latest) return null;
+  if (compareSemver(CYBERMIND_VERSION, latest) < 0) {
+    return `A new version of ${CYBERMIND_VERSION} is available: ${latest}. Run "npm install -g @cybercli_chat/cli@${latest}" to update.`;
+  }
+  return null;
+}
+
 // src/app.tsx
-import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs11 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx13, jsxs as jsxs12 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
@@ -6971,6 +7067,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
     mode: configTheme.mode,
     syntaxTheme: configTheme.syntaxTheme
   });
+  void themeConfig;
   const [messages, setMessages] = useState5([]);
   const [status, setStatus] = useState5("idle");
   const [model, setModel] = useState5(initialModel ?? "auto");
@@ -6979,6 +7076,14 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [welcomeVisible, setWelcomeVisible] = useState5(showWelcome);
   const [exitConfirm, setExitConfirm] = useState5(false);
   const [pendingApproval, setPendingApproval] = useState5(null);
+  const [updateNotice, setUpdateNotice] = useState5("");
+  useEffect(() => {
+    if (screen === "chat" || screen === "welcome") {
+      void getUpdateMessage().then((msg) => {
+        if (msg) setUpdateNotice(msg);
+      });
+    }
+  }, [screen]);
   const streamingIdRef = useRef(null);
   const driveChatRef = useRef(async () => {
   });
@@ -7109,14 +7214,29 @@ ${trimmed}
       if (!text) return;
       if (welcomeVisible) setWelcomeVisible(false);
       if (text.startsWith("/")) {
-        const [name, ...rest] = text.slice(1).split(/\s+/);
+        const trimmed = text.slice(1).trim();
+        if (!trimmed) {
+          const helpCmd = commandRegistry.find("help");
+          if (helpCmd) {
+            helpCmd.run("");
+          } else {
+            appendMessage({
+              id: cryptoRandomId(),
+              role: "system",
+              content: "Type /help to see all available commands.",
+              createdAt: Date.now()
+            });
+          }
+          return;
+        }
+        const [name, ...rest] = trimmed.split(/\s+/);
         const args = rest.join(" ");
         const cmd = commandRegistry.find(name ?? "");
         if (!cmd) {
           appendMessage({
             id: cryptoRandomId(),
             role: "system",
-            content: `Unknown command: /${name}. Type /help for a list.`,
+            content: `Unknown command: /${name}. Type / for a list.`,
             createdAt: Date.now()
           });
           return;
@@ -7152,32 +7272,36 @@ ${trimmed}
   const renderScreen = () => {
     switch (screen) {
       case "onboarding":
-        return /* @__PURE__ */ jsx12(Onboarding, { onComplete: handleOnboardingComplete });
+        return /* @__PURE__ */ jsx13(Onboarding, { onComplete: handleOnboardingComplete });
       case "theme":
-        return /* @__PURE__ */ jsx12(ThemePicker, { onComplete: handleThemeComplete });
+        return /* @__PURE__ */ jsx13(ThemePicker, { onComplete: handleThemeComplete });
       case "settings":
-        return /* @__PURE__ */ jsx12(Settings, { onClose: handleSettingsClose });
+        return /* @__PURE__ */ jsx13(Settings, { onClose: handleSettingsClose });
       case "welcome":
-        return /* @__PURE__ */ jsxs11(Fragment2, { children: [
-          welcomeVisible && /* @__PURE__ */ jsx12(Welcome, { provider, model }),
-          /* @__PURE__ */ jsx12(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx12(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx12(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx12(StatusBar, { status, model, provider }),
-          exitConfirm && /* @__PURE__ */ jsx12(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs12(Fragment2, { children: [
+          updateNotice && /* @__PURE__ */ jsx13(Box11, { marginBottom: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: updateNotice }) }),
+          welcomeVisible && /* @__PURE__ */ jsx13(Welcome, { provider, model }),
+          /* @__PURE__ */ jsx13(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx13(ApprovalDialog, { pending: pendingApproval }),
+          /* @__PURE__ */ jsx13(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx13(StatusBar, { status, model, provider }),
+          /* @__PURE__ */ jsx13(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx13(ExitConfirm, {})
         ] });
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs11(Fragment2, { children: [
-          /* @__PURE__ */ jsx12(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx12(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx12(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx12(StatusBar, { status, model, provider }),
-          exitConfirm && /* @__PURE__ */ jsx12(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs12(Fragment2, { children: [
+          updateNotice && /* @__PURE__ */ jsx13(Box11, { marginBottom: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: updateNotice }) }),
+          /* @__PURE__ */ jsx13(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx13(ApprovalDialog, { pending: pendingApproval }),
+          /* @__PURE__ */ jsx13(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx13(StatusBar, { status, model, provider }),
+          /* @__PURE__ */ jsx13(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx13(ExitConfirm, {})
         ] });
     }
   };
-  return /* @__PURE__ */ jsx12(Box10, { flexDirection: "column", children: renderScreen() });
+  return /* @__PURE__ */ jsx13(Box11, { flexDirection: "column", children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -7192,7 +7316,7 @@ function stringifyArgs(input) {
 }
 
 // src/index.tsx
-import { jsx as jsx13 } from "react/jsx-runtime";
+import { jsx as jsx14 } from "react/jsx-runtime";
 var log19 = createLogger("cli");
 async function main() {
   const program = new Command();
@@ -7207,7 +7331,7 @@ async function main() {
       return;
     }
     const { waitUntilExit } = render(
-      /* @__PURE__ */ jsx13(
+      /* @__PURE__ */ jsx14(
         App,
         {
           showWelcome: opts.welcome !== false,
