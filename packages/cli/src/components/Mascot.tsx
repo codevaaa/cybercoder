@@ -2,19 +2,37 @@ import React from 'react';
 import { Text } from 'ink';
 
 /**
- * CyberMind mascot — a stocky terminal-friendly creature inspired by the Claude
- * Code mascot but recoloured in CyberMind cyan/purple.
- *
- * Rendered at ~6 lines tall to fit comfortably in the welcome card.
+ * 👾 Space-invader style pixel-art mascot for CyberCoder.
+ * Classic retro arcade alien with blocky body, square eyes, and legs.
  */
 export const Mascot: React.FC = () => {
   return (
     <Text>
-      <Text color="cyan">  ▟███████▙{'\n'}</Text>
-      <Text color="cyan">  █  ◉  ◉  █{'\n'}</Text>
-      <Text color="cyan">  █   ╳   █{'\n'}</Text>
-      <Text color="cyan">  ▜███████▛{'\n'}</Text>
-      <Text color="magentaBright">    ┃┃ ┃┃   </Text>
+      <Text color="#FF6B6B">    ▄▄▄▄▄▄▄    {'\n'}</Text>
+      <Text color="#FF6B6B">   ▄█░░░░░░█▄   {'\n'}</Text>
+      <Text color="#FF8E8E">  ▄█░░▄░░▄░░█▄  {'\n'}</Text>
+      <Text color="#FF8E8E">  █░░░▀░░▀░░░█  {'\n'}</Text>
+      <Text color="#FF6B6B">  █░░░░▄▄░░░░█  {'\n'}</Text>
+      <Text color="#FF6B6B">   ▀█░░░░░░█▀   {'\n'}</Text>
+      <Text color="#FF4757">     ▀▀▀▀▀▀     {'\n'}</Text>
+      <Text color="#FF4757">     ▌    ▌     {'\n'}</Text>
+      <Text color="#FF4757">     ▌    ▌     </Text>
+    </Text>
+  );
+};
+
+/**
+ * Mini mascot variant for the sky scene (smaller, no legs).
+ */
+export const MiniMascot: React.FC = () => {
+  return (
+    <Text>
+      <Text color="#FF8E8E">  ▄▄▄▄▄▄▄  {'\n'}</Text>
+      <Text color="#FF8E8E"> ▄█▄▄▄▄▄▄█▄ {'\n'}</Text>
+      <Text color="#FF6B6B"> █░░▄░░▄░░█ {'\n'}</Text>
+      <Text color="#FF6B6B"> █░░▀░░▀░░█ {'\n'}</Text>
+      <Text color="#FF4757">  ▀▀▀▀▀▀▀▀  {'\n'}</Text>
+      <Text color="#FF4757">  ▐      ▌  </Text>
     </Text>
   );
 };

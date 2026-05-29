@@ -1,15 +1,25 @@
-import { Box, useApp, useInput } from 'ink';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Box, Text, useApp, useInput } from 'ink';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Welcome } from './components/Welcome.js';
+import { Onboarding } from './components/Onboarding.js';
+import { ThemePicker, type ThemeConfig } from './components/ThemePicker.js';
+import { Settings } from './components/Settings.js';
+import { ModelPicker } from './components/ModelPicker.js';
+import { ReleaseNotes } from './components/ReleaseNotes.js';
 import { Prompt } from './components/Prompt.js';
 import { MessageList } from './components/MessageList.js';
 import { StatusBar } from './components/StatusBar.js';
 import { ExitConfirm } from './components/ExitConfirm.js';
 import { ApprovalDialog, type PendingApproval } from './components/ApprovalDialog.js';
+import { HintBar } from './components/HintBar.js';
 import { buildCommandRegistry } from './commands/index.js';
 import { runChat } from './runtime/chat.js';
+import { isOnboardingComplete, getTheme, setTheme, clearLogin } from './utils/config.js';
+import { getUpdateMessage } from './utils/update.js';
 import type { ApprovalDecision, ApprovalPrompt, ApprovalUI } from '@cybermind/tools';
 import type { SessionMessage, SessionStatus } from './state/session.js';
+
+type Screen = 'onboarding' | 'theme' | 'settings' | 'model' | 'release-notes' | 'welcome' | 'chat';
 
 interface AppProps {
   showWelcome: boolean;
@@ -20,6 +30,16 @@ interface AppProps {
 export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp();
 
+  // Check config for onboarding completion and saved theme
+  const configTheme = getTheme();
+  const hasCompletedOnboarding = isOnboardingComplete();
+  const [screen, setScreen] = useState<Screen>(hasCompletedOnboarding ? 'welcome' : 'onboarding');
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>({
+    mode: configTheme.mode as ThemeConfig['mode'],
+    syntaxTheme: configTheme.syntaxTheme,
+  });
+  void themeConfig; // used to track current theme across the app
+
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [model, setModel] = useState<string>(initialModel ?? 'auto');
@@ -28,6 +48,16 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   const [welcomeVisible, setWelcomeVisible] = useState<boolean>(showWelcome);
   const [exitConfirm, setExitConfirm] = useState<boolean>(false);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
+  const [updateNotice, setUpdateNotice] = useState<string>('');
+
+  // Check for updates on startup (chat/welcome screens only)
+  useEffect(() => {
+    if (screen === 'chat' || screen === 'welcome') {
+      void getUpdateMessage().then((msg) => {
+        if (msg) setUpdateNotice(msg);
+      });
+    }
+  }, [screen]);
   // Holds the live mutable id of the assistant message currently being streamed.
   const streamingIdRef = useRef<string | null>(null);
   // Forward-declared so slash-command handlers can submit synthesized prompts
@@ -79,8 +109,15 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
         getProvider: () => provider,
         setProvider,
         setPromptColor,
+        setScreen: (s: string) => setScreen(s as Screen),
+        logout: () => {
+          clearLogin();
+          setMessages([]);
+          setWelcomeVisible(true);
+          setScreen('onboarding');
+        },
       }),
-    [appendMessage, clearMessages, exit, model, provider],
+    [appendMessage, clearMessages, exit, model, provider, setScreen, setMessages, setWelcomeVisible],
   );
 
   // Handle Ctrl+C: first press asks for confirmation, second press exits.
@@ -171,14 +208,30 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
 
       // Slash command dispatch
       if (text.startsWith('/')) {
-        const [name, ...rest] = text.slice(1).split(/\s+/);
+        const trimmed = text.slice(1).trim();
+        // Just `/` with no command → show all commands (discovery mode)
+        if (!trimmed) {
+          const helpCmd = commandRegistry.find('help');
+          if (helpCmd) {
+            helpCmd.run('');
+          } else {
+            appendMessage({
+              id: cryptoRandomId(),
+              role: 'system',
+              content: 'Type /help to see all available commands.',
+              createdAt: Date.now(),
+            });
+          }
+          return;
+        }
+        const [name, ...rest] = trimmed.split(/\s+/);
         const args = rest.join(' ');
         const cmd = commandRegistry.find(name ?? '');
         if (!cmd) {
           appendMessage({
             id: cryptoRandomId(),
             role: 'system',
-            content: `Unknown command: /${name}. Type /help for a list.`,
+            content: `Unknown command: /${name}. Type / for a list.`,
             createdAt: Date.now(),
           });
           return;
@@ -202,14 +255,88 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
     [appendMessage, commandRegistry, welcomeVisible, driveChat],
   );
 
+  // Screen navigation handlers
+  const handleOnboardingComplete = useCallback((method: string) => {
+    void method;
+    setScreen('theme');
+  }, []);
+
+  const handleThemeComplete = useCallback((theme: ThemeConfig) => {
+    setThemeConfig(theme);
+    setTheme(theme.mode, theme.syntaxTheme);
+    setScreen('welcome');
+  }, []);
+
+  const handleSettingsClose = useCallback(() => {
+    setScreen('chat');
+  }, []);
+
+  const handleModelSelect = useCallback((modelId: string) => {
+    setModel(modelId);
+    setScreen('chat');
+  }, []);
+
+  const handleModelClose = useCallback(() => {
+    setScreen('chat');
+  }, []);
+
+  const handleReleaseNotesClose = useCallback(() => {
+    setScreen('chat');
+  }, []);
+
+  // Render based on current screen
+  const renderScreen = () => {
+    switch (screen) {
+      case 'onboarding':
+        return <Onboarding onComplete={handleOnboardingComplete} />;
+      case 'theme':
+        return <ThemePicker onComplete={handleThemeComplete} />;
+      case 'settings':
+        return <Settings onClose={handleSettingsClose} />;
+      case 'model':
+        return <ModelPicker currentModel={model} onSelect={handleModelSelect} onClose={handleModelClose} />;
+      case 'release-notes':
+        return <ReleaseNotes onClose={handleReleaseNotesClose} />;
+      case 'welcome':
+        return (
+          <>
+            {updateNotice && (
+              <Box marginBottom={1}>
+                <Text color="yellow">{updateNotice}</Text>
+              </Box>
+            )}
+            {welcomeVisible && <Welcome provider={provider} model={model} />}
+            <MessageList messages={messages} />
+            {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
+            <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
+            <StatusBar status={status} model={model} provider={provider} />
+            <HintBar status={status} />
+            {exitConfirm && <ExitConfirm />}
+          </>
+        );
+      case 'chat':
+      default:
+        return (
+          <>
+            {updateNotice && (
+              <Box marginBottom={1}>
+                <Text color="yellow">{updateNotice}</Text>
+              </Box>
+            )}
+            <MessageList messages={messages} />
+            {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
+            <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
+            <StatusBar status={status} model={model} provider={provider} />
+            <HintBar status={status} />
+            {exitConfirm && <ExitConfirm />}
+          </>
+        );
+    }
+  };
+
   return (
     <Box flexDirection="column">
-      {welcomeVisible && <Welcome />}
-      <MessageList messages={messages} />
-      {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
-      <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
-      <StatusBar status={status} model={model} provider={provider} />
-      {exitConfirm && <ExitConfirm />}
+      {renderScreen()}
     </Box>
   );
 };

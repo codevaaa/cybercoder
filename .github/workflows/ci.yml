@@ -46,7 +46,7 @@ jobs:
       run: pnpm install
       
     - name: Build packages
-      run: pnpm build || echo "Build step skipped"
+      run: pnpm build
 
   test:
     name: Test
@@ -128,13 +128,30 @@ jobs:
     - name: Install dependencies
       run: pnpm install
       
-    - name: Build packages
-      run: pnpm build || echo "Build step skipped"
+    - name: Verify dist/ exists
+      run: |
+        if [ ! -f packages/cli/dist/index.js ]; then
+          echo "ERROR: packages/cli/dist/index.js not found! Build failed."
+          exit 1
+        fi
+        echo "dist/index.js found: $(wc -c < packages/cli/dist/index.js) bytes"
       
+    - name: Verify NPM auth
+      run: npm whoami
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        
     - name: Publish CLI package
       run: |
         cd packages/cli
-        npm publish --access public
+        npm publish --access public 2>&1 | tee publish.log
+        EXIT_CODE=${PIPESTATUS[0]}
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "=== NPM PUBLISH FAILED ==="
+          cat publish.log
+          echo "=========================="
+          exit 1
+        fi
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -13,7 +13,7 @@ import { buildTrustCommand } from './trust.js';
 import { buildSecretCommand } from './secret.js';
 import { buildModelCommand, buildProviderCommand } from './model-provider.js';
 import { buildConsensusCommand } from './consensus.js';
-import { buildColorCommand } from './color.js';
+import { buildColorCommand, buildThemeCommand, buildSettingsCommand, buildReleaseNotesCommand } from './color.js';
 import { buildWorkflowCommand } from './workflow.js';
 import { buildRewindCommand } from './rewind.js';
 import { buildDiffCommand } from './diff.js';
@@ -46,6 +46,10 @@ export interface CommandContext {
   setColor?: (color: string) => void;
   /** Active prompt accent color (e.g. cyan, magenta), for /color. */
   setPromptColor?: (color: string) => void;
+  /** Navigate to a different screen (onboarding, theme, settings, welcome, chat). */
+  setScreen?: (screen: string) => void;
+  /** Clear login state and return to onboarding. */
+  logout?: () => void;
 }
 
 export interface SlashCommandHandler {
@@ -90,6 +94,9 @@ export function buildCommandRegistry(ctx: CommandContext): CommandRegistry {
     buildProviderCommand(ctx),
     buildConsensusCommand(ctx),
     buildColorCommand(ctx),
+    buildThemeCommand(ctx),
+    buildSettingsCommand(ctx),
+    buildReleaseNotesCommand(ctx),
     buildWorkflowCommand(ctx),
     buildRewindCommand(ctx),
     buildDiffCommand(ctx),

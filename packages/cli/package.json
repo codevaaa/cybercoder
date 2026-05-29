@@ -1,16 +1,18 @@
 {
-  "name": "@cybermind/cli",
-  "version": "0.1.6",
+  "name": "@cybercli_chat/cli",
+  "version": "0.1.21",
   "description": "CyberMind CLI — fullstack agentic coding assistant",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "cybermind": "./bin/cybermind.mjs",
     "cm": "./bin/cybermind.mjs"
   },
   "files": [
     "bin",
     "dist",
+    "install.sh",
+    "install.ps1",
+    "install.cmd",
     "README.md"
   ],
   "engines": {
