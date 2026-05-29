@@ -124,7 +124,7 @@ function createLogger(scope) {
 }
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.20";
+var CYBERMIND_VERSION = "0.1.21";
 var CYBERMIND_NAME = "CyberMind";
 
 // ../shared/src/checkpoint.ts
@@ -1890,9 +1890,9 @@ var Welcome = ({ model = "auto" }) => {
 
 // src/components/Onboarding.tsx
 import { useState } from "react";
-import { Box as Box2, Text as Text4, useInput, useApp } from "ink";
+import { Box as Box2, Text as Text4, useInput, useApp, useStdout } from "ink";
 import TextInput from "ink-text-input";
-import { spawn } from "child_process";
+import { exec } from "child_process";
 
 // src/utils/config.ts
 import { readFileSync as readFileSync7, writeFileSync as writeFileSync7, existsSync as existsSync8, mkdirSync as mkdirSync7 } from "fs";
@@ -1998,22 +1998,46 @@ var THIRDPARTY_PLATFORMS = [
   { id: "ollama", label: "Ollama (local)", desc: "interactive setup" },
   { id: "back", label: "Go back", desc: "" }
 ];
+var API_PROVIDERS = [
+  { id: "cybermind", label: "CyberMind (built-in)" },
+  { id: "openai", label: "OpenAI" },
+  { id: "anthropic", label: "Anthropic" },
+  { id: "groq", label: "Groq" },
+  { id: "google", label: "Google (Gemini)" },
+  { id: "openrouter", label: "OpenRouter" }
+];
+function openBrowser(url) {
+  try {
+    const platform = process.platform;
+    if (platform === "win32") {
+      exec(`cmd /c start "" "${url}"`, { windowsHide: true });
+    } else if (platform === "darwin") {
+      exec(`open "${url}"`);
+    } else {
+      exec(`xdg-open "${url}"`);
+    }
+  } catch {
+  }
+}
 var Onboarding = ({ onComplete }) => {
   const { exit } = useApp();
+  const { stdout } = useStdout();
   const [screen, setScreen] = useState("main");
   const [selected, setSelected] = useState(0);
   const [apiKeyInput, setApiKeyInput] = useState("");
-  const [apiKeyProvider, setApiKeyProvider] = useState("openai");
+  const [apiKeyProvider, setApiKeyProvider] = useState("cybermind");
   const [apiKeyStage, setApiKeyStage] = useState("provider");
   const [tpSelected, setTpSelected] = useState(0);
-  const openBrowser = (url) => {
-    const platform = process.platform;
-    const cmd = platform === "win32" ? "start" : platform === "darwin" ? "open" : "xdg-open";
-    spawn(cmd, [url], { detached: true, stdio: "ignore" });
-  };
-  if (screen === "main") {
-    useInput((_, key) => {
-      if (key.escape || key.ctrl && _ === "c") {
+  const termWidth = stdout.columns ?? 80;
+  const isWide = termWidth >= 100;
+  const contentWidth = Math.min(termWidth - 4, 78);
+  useInput((input, key) => {
+    if (key.ctrl && input === "c") {
+      exit();
+      return;
+    }
+    if (screen === "main") {
+      if (key.escape) {
         exit();
         return;
       }
@@ -2028,28 +2052,105 @@ var Onboarding = ({ onComplete }) => {
         } else if (method?.id === "apikey") {
           setScreen("apikey-input");
           setApiKeyStage("provider");
-          setApiKeyProvider("openai");
+          setApiKeyProvider("cybermind");
+          setSelected(0);
         } else if (method?.id === "thirdparty") {
           setScreen("thirdparty-platforms");
           setTpSelected(0);
         }
       }
-    });
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, children: [
+      return;
+    }
+    if (screen === "cybercli-login") {
+      if (key.escape) {
+        setScreen("main");
+        setSelected(0);
+        return;
+      }
+      if (key.return) {
+        const url = "https://cybermindcli.info/subscribe?redirect=cli";
+        openBrowser(url);
+        markOnboardingComplete("cybercli");
+        onComplete("cybercli");
+      }
+      return;
+    }
+    if (screen === "apikey-input") {
+      if (apiKeyStage === "provider") {
+        if (key.escape) {
+          setScreen("main");
+          setSelected(1);
+          return;
+        }
+        if (key.upArrow) {
+          setSelected((s) => Math.max(0, s - 1));
+        } else if (key.downArrow) {
+          setSelected((s) => Math.min(API_PROVIDERS.length - 1, s + 1));
+        } else if (key.return) {
+          const prov = API_PROVIDERS[selected];
+          if (prov) {
+            setApiKeyProvider(prov.id);
+            setApiKeyStage("key");
+            setApiKeyInput("");
+          }
+        }
+        return;
+      }
+      if (key.escape) {
+        setApiKeyStage("provider");
+        setSelected(0);
+        return;
+      }
+      return;
+    }
+    if (screen === "thirdparty-platforms") {
+      if (key.escape) {
+        setScreen("main");
+        setSelected(2);
+        return;
+      }
+      if (key.upArrow) {
+        setTpSelected((s) => Math.max(0, s - 1));
+      } else if (key.downArrow) {
+        setTpSelected((s) => Math.min(THIRDPARTY_PLATFORMS.length - 1, s + 1));
+      } else if (key.return) {
+        const plat = THIRDPARTY_PLATFORMS[tpSelected];
+        if (plat?.id === "back") {
+          setScreen("main");
+          setSelected(2);
+        } else if (plat) {
+          const urls = {
+            openrouter: "https://openrouter.ai/keys",
+            groq: "https://console.groq.com/keys",
+            ollama: "https://ollama.com/download"
+          };
+          const url = urls[plat.id];
+          if (url) {
+            openBrowser(url);
+          }
+          markOnboardingComplete("thirdparty");
+          onComplete("thirdparty");
+        }
+      }
+      return;
+    }
+  });
+  if (screen === "main") {
+    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
       /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
         "Welcome to ",
         CYBERMIND_NAME,
         " Code v",
         CYBERMIND_VERSION
       ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
       /* @__PURE__ */ jsx4(SkyScene, {}),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
-      /* @__PURE__ */ jsxs4(Box2, { flexDirection: "row", marginTop: 1, children: [
-        /* @__PURE__ */ jsx4(Box2, { flexDirection: "column", width: 20, paddingLeft: 2, children: /* @__PURE__ */ jsx4(Mascot, {}) }),
-        /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", flexGrow: 1, paddingRight: 2, children: [
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
+      /* @__PURE__ */ jsxs4(Box2, { flexDirection: isWide ? "row" : "column", marginTop: 1, children: [
+        /* @__PURE__ */ jsx4(Box2, { flexDirection: "column", width: isWide ? 18 : contentWidth, paddingLeft: 2, children: /* @__PURE__ */ jsx4(Mascot, {}) }),
+        /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", flexGrow: 1, paddingRight: 2, paddingLeft: isWide ? 0 : 2, children: [
           /* @__PURE__ */ jsxs4(Text4, { bold: true, color: "white", children: [
             CYBERMIND_NAME,
             " Code can be used with your CyberCli subscription or billed based on API usage through your own keys."
@@ -2076,30 +2177,18 @@ var Onboarding = ({ onComplete }) => {
     ] });
   }
   if (screen === "cybercli-login") {
-    useInput((_, key) => {
-      if (key.escape) {
-        setScreen("main");
-        return;
-      }
-      if (key.return) {
-        const url = "https://cybermindcli.info/subscribe?redirect=cli";
-        openBrowser(url);
-        markOnboardingComplete("cybercli");
-        onComplete("cybercli");
-      }
-    });
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, children: [
+    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
       /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
         "Welcome to ",
         CYBERMIND_NAME,
         " Code v",
         CYBERMIND_VERSION
       ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
       /* @__PURE__ */ jsx4(SkyScene, {}),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
         /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "CyberCli subscription required" }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
@@ -2114,44 +2203,19 @@ var Onboarding = ({ onComplete }) => {
     ] });
   }
   if (screen === "apikey-input") {
-    const API_PROVIDERS = [
-      { id: "openai", label: "OpenAI" },
-      { id: "anthropic", label: "Anthropic" },
-      { id: "groq", label: "Groq" },
-      { id: "google", label: "Google (Gemini)" },
-      { id: "openrouter", label: "OpenRouter" }
-    ];
     if (apiKeyStage === "provider") {
-      useInput((_, key) => {
-        if (key.escape) {
-          setScreen("main");
-          return;
-        }
-        if (key.upArrow) {
-          setSelected((s) => Math.max(0, s - 1));
-        } else if (key.downArrow) {
-          setSelected((s) => Math.min(API_PROVIDERS.length - 1, s + 1));
-        } else if (key.return) {
-          const prov = API_PROVIDERS[selected];
-          if (prov) {
-            setApiKeyProvider(prov.id);
-            setApiKeyStage("key");
-            setApiKeyInput("");
-          }
-        }
-      });
-      return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, children: [
+      return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
         /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
           "Welcome to ",
           CYBERMIND_NAME,
           " Code v",
           CYBERMIND_VERSION
         ] }),
-        /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+        /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
         /* @__PURE__ */ jsx4(SkyScene, {}),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+        /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
         /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
           /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Enter your API key" }),
           /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
@@ -2170,18 +2234,18 @@ var Onboarding = ({ onComplete }) => {
         ] })
       ] });
     }
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, children: [
+    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
       /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
         "Welcome to ",
         CYBERMIND_NAME,
         " Code v",
         CYBERMIND_VERSION
       ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
       /* @__PURE__ */ jsx4(SkyScene, {}),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
         /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Enter your API key" }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
@@ -2218,47 +2282,18 @@ var Onboarding = ({ onComplete }) => {
     ] });
   }
   if (screen === "thirdparty-platforms") {
-    useInput((_, key) => {
-      if (key.escape) {
-        setScreen("main");
-        return;
-      }
-      if (key.upArrow) {
-        setTpSelected((s) => Math.max(0, s - 1));
-      } else if (key.downArrow) {
-        setTpSelected((s) => Math.min(THIRDPARTY_PLATFORMS.length - 1, s + 1));
-      } else if (key.return) {
-        const plat = THIRDPARTY_PLATFORMS[tpSelected];
-        if (plat?.id === "back") {
-          setScreen("main");
-          setSelected(2);
-        } else if (plat) {
-          const urls = {
-            openrouter: "https://openrouter.ai/keys",
-            groq: "https://console.groq.com/keys",
-            ollama: "https://ollama.com/download"
-          };
-          const url = plat.id ? urls[plat.id] : void 0;
-          if (url) {
-            openBrowser(url);
-          }
-          markOnboardingComplete("thirdparty");
-          onComplete("thirdparty");
-        }
-      }
-    });
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, children: [
+    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
       /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
         "Welcome to ",
         CYBERMIND_NAME,
         " Code v",
         CYBERMIND_VERSION
       ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
       /* @__PURE__ */ jsx4(SkyScene, {}),
       /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: 58 }),
+      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
       /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
         /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Using 3rd-party platforms" }),
         /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
@@ -3983,7 +4018,7 @@ function walk(root, visit) {
 }
 
 // ../tools/src/builtin/run-command.ts
-import { spawn as spawn2 } from "child_process";
+import { spawn } from "child_process";
 var DEFAULT_TIMEOUT_MS = 6e4;
 var MAX_OUTPUT_BYTES = 2e5;
 var SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
@@ -4009,7 +4044,7 @@ var runCommandTool = {
     const cwd = input.cwd ?? ctx.cwd;
     const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
     return await new Promise((resolveResult) => {
-      const child = spawn2(SHELL, [SHELL_ARG, command], {
+      const child = spawn(SHELL, [SHELL_ARG, command], {
         cwd,
         env: process.env,
         windowsHide: true
