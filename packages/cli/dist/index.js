@@ -124,7 +124,7 @@ function createLogger(scope) {
 }
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.0";
+var CYBERMIND_VERSION = "0.1.14";
 
 // ../shared/src/checkpoint.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, writeFileSync, readdirSync } from "fs";
