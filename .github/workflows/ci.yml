@@ -109,7 +109,6 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
-    continue-on-error: true
     
     steps:
     - name: Checkout code
@@ -132,8 +131,10 @@ jobs:
     - name: Build packages
       run: pnpm build || echo "Build step skipped"
       
-    - name: Publish packages
-      run: pnpm publish -r --access public --no-git-checks || echo "Publish may require version bump"
+    - name: Publish CLI package
+      run: |
+        cd packages/cli
+        npm publish --access public
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
