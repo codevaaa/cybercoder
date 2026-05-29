@@ -124,7 +124,7 @@ function createLogger(scope) {
 }
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.18";
+var CYBERMIND_VERSION = "0.1.19";
 var CYBERMIND_NAME = "CyberMind";
 
 // ../shared/src/checkpoint.ts
@@ -1612,8 +1612,8 @@ var CustomServerManager = class {
 var log9 = createLogger("auto-agent");
 
 // src/app.tsx
-import { Box as Box11, Text as Text13, useApp as useApp2, useInput as useInput5 } from "ink";
-import { useCallback, useEffect, useMemo, useRef, useState as useState5 } from "react";
+import { Box as Box13, Text as Text15, useApp as useApp2, useInput as useInput7 } from "ink";
+import { useCallback, useEffect, useMemo, useRef, useState as useState7 } from "react";
 
 // src/components/Welcome.tsx
 import { Box, Text as Text3 } from "ink";
@@ -2504,32 +2504,269 @@ var Settings = ({ onClose }) => {
   ] });
 };
 
-// src/components/Prompt.tsx
+// src/components/ModelPicker.tsx
 import { useState as useState4 } from "react";
-import { Box as Box5, Text as Text7 } from "ink";
+import { Box as Box5, Text as Text7, useInput as useInput4 } from "ink";
+import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+var PROVIDERS = [
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    models: [
+      { id: "claude-sonnet-4", name: "Claude Sonnet 4", context: "200K", desc: "Best balance of speed and capability" },
+      { id: "claude-opus-4", name: "Claude Opus 4", context: "200K", desc: "Most capable for complex tasks" },
+      { id: "claude-haiku-4", name: "Claude Haiku 4", context: "200K", desc: "Fastest for simple queries" }
+    ]
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    models: [
+      { id: "gpt-4o", name: "GPT-4o", context: "128K", desc: "Versatile multimodal model" },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini", context: "128K", desc: "Fast and cost-effective" },
+      { id: "o3-mini", name: "o3 Mini", context: "200K", desc: "Reasoning-optimized" }
+    ]
+  },
+  {
+    id: "google",
+    label: "Google",
+    models: [
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", context: "1M", desc: "Long context champion" },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", context: "1M", desc: "Fast with long context" }
+    ]
+  },
+  {
+    id: "groq",
+    label: "Groq",
+    models: [
+      { id: "llama-3.3-70b", name: "Llama 3.3 70B", context: "128K", desc: "Ultra-fast inference" },
+      { id: "mixtral-8x7b", name: "Mixtral 8x7B", context: "32K", desc: "Efficient MoE architecture" }
+    ]
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    models: [
+      { id: "auto", name: "Auto-router", context: "Varies", desc: "Picks best model for each query" },
+      { id: "deepseek-v3", name: "DeepSeek V3", context: "64K", desc: "Strong reasoning model" }
+    ]
+  },
+  {
+    id: "local",
+    label: "Local (Ollama)",
+    models: [
+      { id: "llama3.1-local", name: "Llama 3.1 (local)", context: "128K", desc: "Runs on your machine" },
+      { id: "codellama-local", name: "CodeLlama (local)", context: "16K", desc: "Code-specialized local model" }
+    ]
+  }
+];
+var ModelPicker = ({ currentModel, onSelect, onClose }) => {
+  const [providerIdx, setProviderIdx] = useState4(0);
+  const [modelIdx, setModelIdx] = useState4(0);
+  const [stage, setStage] = useState4("provider");
+  useInput4((_, key) => {
+    if (key.escape) {
+      if (stage === "model") {
+        setStage("provider");
+        setModelIdx(0);
+      } else {
+        onClose();
+      }
+      return;
+    }
+    if (stage === "provider") {
+      if (key.upArrow) {
+        setProviderIdx((i) => Math.max(0, i - 1));
+      } else if (key.downArrow) {
+        setProviderIdx((i) => Math.min(PROVIDERS.length - 1, i + 1));
+      } else if (key.return) {
+        const prov = PROVIDERS[providerIdx];
+        if (prov) {
+          const currentInProv = prov.models.findIndex((m) => m.id === currentModel);
+          setModelIdx(currentInProv >= 0 ? currentInProv : 0);
+          setStage("model");
+        }
+      }
+    } else {
+      const prov = PROVIDERS[providerIdx];
+      if (!prov) return;
+      if (key.upArrow) {
+        setModelIdx((i) => Math.max(0, i - 1));
+      } else if (key.downArrow) {
+        setModelIdx((i) => Math.min(prov.models.length - 1, i + 1));
+      } else if (key.return) {
+        const model = prov.models[modelIdx];
+        if (model) onSelect(model.id);
+      }
+    }
+  });
+  const currentProv = PROVIDERS[providerIdx];
+  return /* @__PURE__ */ jsxs7(Box5, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u256D\u2500 Model Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
+    /* @__PURE__ */ jsxs7(Box5, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      stage === "provider" && /* @__PURE__ */ jsxs7(Fragment2, { children: [
+        /* @__PURE__ */ jsx7(Text7, { bold: true, color: "white", children: "Select a provider:" }),
+        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
+        PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx7(Box5, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
+          i === providerIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
+          /* @__PURE__ */ jsx7(Text7, { color: i === providerIdx ? "white" : "gray", bold: i === providerIdx, children: prov.label }),
+          /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
+            " (",
+            prov.models.length,
+            " models)"
+          ] })
+        ] }) }, prov.id)),
+        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to close" })
+      ] }),
+      stage === "model" && currentProv && /* @__PURE__ */ jsxs7(Fragment2, { children: [
+        /* @__PURE__ */ jsxs7(Text7, { bold: true, color: "white", children: [
+          currentProv.label,
+          " \u2014 Select model:"
+        ] }),
+        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
+        currentProv.models.map((m, i) => /* @__PURE__ */ jsxs7(Box5, { flexDirection: "column", marginBottom: 1, children: [
+          /* @__PURE__ */ jsxs7(Text7, { children: [
+            i === modelIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
+            /* @__PURE__ */ jsx7(Text7, { color: i === modelIdx ? "white" : "gray", bold: i === modelIdx, children: m.name }),
+            m.id === currentModel && /* @__PURE__ */ jsx7(Text7, { color: "green", children: " (current)" })
+          ] }),
+          /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
+            "     Context: ",
+            m.context,
+            " \xB7 ",
+            m.desc
+          ] })
+        ] }, m.id)),
+        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to go back" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F" })
+  ] });
+};
+
+// src/components/ReleaseNotes.tsx
+import { useState as useState5 } from "react";
+import { Box as Box6, Text as Text8, useInput as useInput5 } from "ink";
+import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
+var RELEASES = [
+  {
+    version: "0.1.18",
+    date: "May 29, 2026",
+    highlights: [
+      "Added / command discovery \u2014 just type / to see all commands",
+      "Added HintBar with contextual shortcuts at the bottom",
+      "Auto-update check on startup (checks npm registry)",
+      "Improved prompt UI with Claude Code style > symbol",
+      "Added /login and /subscribe website pages for CLI auth flow"
+    ]
+  },
+  {
+    version: "0.1.17",
+    date: "May 29, 2026",
+    highlights: [
+      "Redesigned welcome screen with sky scene pixel art",
+      "New \u{1F47E} space invader style mascot",
+      "Interactive login subpages: CyberCli, API Key, 3rd Party",
+      "Config persistence in ~/.cybercoder/config.json",
+      "Theme picker saves selection across sessions",
+      "/logout command clears config and returns to onboarding"
+    ]
+  },
+  {
+    version: "0.1.16",
+    date: "May 28, 2026",
+    highlights: [
+      "Added onboarding screen with login method selection",
+      "Added theme picker with 7 modes and syntax preview",
+      "Added settings screen with 4 category tabs",
+      "Screen state machine: onboarding \u2192 theme \u2192 welcome \u2192 chat",
+      "/theme and /settings commands open interactive screens"
+    ]
+  },
+  {
+    version: "0.1.15",
+    date: "May 27, 2026",
+    highlights: [
+      "Cross-platform install scripts (install.sh, install.ps1, install.cmd)",
+      "Updated product page with tabbed install commands",
+      "Removed cybermind command, kept only cm",
+      "Claude Code style welcome card and status bar"
+    ]
+  }
+];
+var ReleaseNotes = ({ onClose }) => {
+  const [selected, setSelected] = useState5(0);
+  useInput5((_, key) => {
+    if (key.escape || key.ctrl && _ === "c") {
+      onClose();
+      return;
+    }
+    if (key.upArrow) {
+      setSelected((s) => Math.max(0, s - 1));
+    } else if (key.downArrow) {
+      setSelected((s) => Math.min(RELEASES.length - 1, s + 1));
+    }
+  });
+  const rel = RELEASES[selected];
+  return /* @__PURE__ */ jsxs8(Box6, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u256D\u2500 Release Notes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
+    /* @__PURE__ */ jsxs8(Box6, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx8(Box6, { flexDirection: "row", marginBottom: 1, children: RELEASES.map((r, i) => /* @__PURE__ */ jsxs8(Text8, { children: [
+        /* @__PURE__ */ jsxs8(Text8, { color: i === selected ? "#D97736" : "gray", bold: i === selected, children: [
+          " ",
+          r.version,
+          " "
+        ] }),
+        i < RELEASES.length - 1 && /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "\u2502" })
+      ] }, r.version)) }),
+      /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "\u2500".repeat(50) }),
+      rel && /* @__PURE__ */ jsxs8(Fragment3, { children: [
+        /* @__PURE__ */ jsxs8(Text8, { bold: true, color: "white", children: [
+          rel.version,
+          " \u2014 ",
+          rel.date
+        ] }),
+        /* @__PURE__ */ jsx8(Box6, { marginTop: 1 }),
+        rel.highlights.map((h, i) => /* @__PURE__ */ jsxs8(Box6, { flexDirection: "row", marginBottom: 1, children: [
+          /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u2022 " }),
+          /* @__PURE__ */ jsx8(Text8, { color: "gray", children: h })
+        ] }, i))
+      ] }),
+      /* @__PURE__ */ jsx8(Box6, { marginTop: 1 }),
+      /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "Arrow keys to switch version, ESC to close" })
+    ] }),
+    /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F" })
+  ] });
+};
+
+// src/components/Prompt.tsx
+import { useState as useState6 } from "react";
+import { Box as Box7, Text as Text9 } from "ink";
 import TextInput2 from "ink-text-input";
-import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
 var Prompt = ({ onSubmit, disabled }) => {
-  const [value, setValue] = useState4("");
+  const [value, setValue] = useState6("");
   const handleSubmit = (text) => {
     onSubmit(text);
     setValue("");
   };
   if (disabled) {
-    return /* @__PURE__ */ jsxs7(Box5, { flexDirection: "row", children: [
-      /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
+    return /* @__PURE__ */ jsxs9(Box7, { flexDirection: "row", children: [
+      /* @__PURE__ */ jsxs9(Text9, { color: "gray", children: [
         ">",
         " "
       ] }),
-      /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "(thinking\u2026)" })
+      /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "(thinking\u2026)" })
     ] });
   }
-  return /* @__PURE__ */ jsxs7(Box5, { flexDirection: "row", children: [
-    /* @__PURE__ */ jsxs7(Text7, { color: "cyan", children: [
+  return /* @__PURE__ */ jsxs9(Box7, { flexDirection: "row", children: [
+    /* @__PURE__ */ jsxs9(Text9, { color: "cyan", children: [
       ">",
       " "
     ] }),
-    /* @__PURE__ */ jsx7(
+    /* @__PURE__ */ jsx9(
       TextInput2,
       {
         value,
@@ -2542,8 +2779,8 @@ var Prompt = ({ onSubmit, disabled }) => {
 };
 
 // src/components/MessageList.tsx
-import { Box as Box6, Text as Text8 } from "ink";
-import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Box as Box8, Text as Text10 } from "ink";
+import { jsx as jsx10, jsxs as jsxs10 } from "react/jsx-runtime";
 var ROLE_COLOR = {
   user: "cyan",
   assistant: "white",
@@ -2558,15 +2795,15 @@ var ROLE_LABEL = {
 };
 var MessageList = ({ messages }) => {
   if (messages.length === 0) return null;
-  return /* @__PURE__ */ jsx8(Box6, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => /* @__PURE__ */ jsxs8(Box6, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx8(Text8, { color: ROLE_COLOR[m.role], bold: true, children: ROLE_LABEL[m.role] }),
-    /* @__PURE__ */ jsx8(Text8, { color: m.role === "system" ? "gray" : void 0, children: m.content })
+  return /* @__PURE__ */ jsx10(Box8, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => /* @__PURE__ */ jsxs10(Box8, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx10(Text10, { color: ROLE_COLOR[m.role], bold: true, children: ROLE_LABEL[m.role] }),
+    /* @__PURE__ */ jsx10(Text10, { color: m.role === "system" ? "gray" : void 0, children: m.content })
   ] }, m.id)) });
 };
 
 // src/components/StatusBar.tsx
-import { Box as Box7, Text as Text9 } from "ink";
-import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
+import { Box as Box9, Text as Text11 } from "ink";
+import { jsx as jsx11, jsxs as jsxs11 } from "react/jsx-runtime";
 var STATUS_LABEL = {
   idle: "ready",
   thinking: "thinking\u2026",
@@ -2580,75 +2817,75 @@ var STATUS_COLOR = {
   error: "red"
 };
 var StatusBar = ({ status, model, provider }) => {
-  return /* @__PURE__ */ jsxs9(Box7, { marginTop: 1, children: [
-    /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "[" }),
-    /* @__PURE__ */ jsx9(Text9, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
-    /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "] " }),
-    /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "provider=" }),
-    /* @__PURE__ */ jsx9(Text9, { color: "cyan", children: provider }),
-    /* @__PURE__ */ jsxs9(Text9, { color: "gray", children: [
+  return /* @__PURE__ */ jsxs11(Box9, { marginTop: 1, children: [
+    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "[" }),
+    /* @__PURE__ */ jsx11(Text11, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
+    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "] " }),
+    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "provider=" }),
+    /* @__PURE__ */ jsx11(Text11, { color: "cyan", children: provider }),
+    /* @__PURE__ */ jsxs11(Text11, { color: "gray", children: [
       "  ",
       "model="
     ] }),
-    /* @__PURE__ */ jsx9(Text9, { color: "cyan", children: model }),
-    /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "  \xB7 \xB7 for shortcuts" })
+    /* @__PURE__ */ jsx11(Text11, { color: "cyan", children: model }),
+    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "  \xB7 \xB7 for shortcuts" })
   ] });
 };
 
 // src/components/ExitConfirm.tsx
-import { Box as Box8, Text as Text10 } from "ink";
-import { jsx as jsx10 } from "react/jsx-runtime";
-var ExitConfirm = () => /* @__PURE__ */ jsx10(Box8, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
+import { Box as Box10, Text as Text12 } from "ink";
+import { jsx as jsx12 } from "react/jsx-runtime";
+var ExitConfirm = () => /* @__PURE__ */ jsx12(Box10, { marginTop: 1, children: /* @__PURE__ */ jsx12(Text12, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
 
 // src/components/ApprovalDialog.tsx
-import { Box as Box9, Text as Text11, useInput as useInput4 } from "ink";
-import { jsx as jsx11, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Box as Box11, Text as Text13, useInput as useInput6 } from "ink";
+import { jsx as jsx13, jsxs as jsxs12 } from "react/jsx-runtime";
 var ApprovalDialog = ({ pending }) => {
-  useInput4((input) => {
+  useInput6((input) => {
     const key = input.toLowerCase();
     if (key === "y") pending.resolve("allow");
     else if (key === "s") pending.resolve("allow-session");
     else if (key === "t") pending.resolve("allow-persistent");
     else if (key === "n") pending.resolve("deny");
   });
-  return /* @__PURE__ */ jsxs10(Box9, { flexDirection: "column", borderStyle: "round", borderColor: pending.destructive ? "red" : "yellow", paddingX: 1, children: [
-    /* @__PURE__ */ jsxs10(Text11, { bold: true, children: [
+  return /* @__PURE__ */ jsxs12(Box11, { flexDirection: "column", borderStyle: "round", borderColor: pending.destructive ? "red" : "yellow", paddingX: 1, children: [
+    /* @__PURE__ */ jsxs12(Text13, { bold: true, children: [
       pending.destructive ? "\u26A0 " : "",
       "Approve tool: ",
-      /* @__PURE__ */ jsx11(Text11, { color: "cyan", children: pending.toolName })
+      /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: pending.toolName })
     ] }),
-    /* @__PURE__ */ jsx11(Text11, { children: pending.summary }),
-    /* @__PURE__ */ jsx11(Box9, { marginTop: 1, children: /* @__PURE__ */ jsx11(Text11, { dimColor: true, children: "[y] allow once \xB7 [s] allow this session \xB7 [t] trust persistently \xB7 [n] deny" }) })
+    /* @__PURE__ */ jsx13(Text13, { children: pending.summary }),
+    /* @__PURE__ */ jsx13(Box11, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { dimColor: true, children: "[y] allow once \xB7 [s] allow this session \xB7 [t] trust persistently \xB7 [n] deny" }) })
   ] });
 };
 
 // src/components/HintBar.tsx
-import { Box as Box10, Text as Text12 } from "ink";
-import { jsx as jsx12, jsxs as jsxs11 } from "react/jsx-runtime";
+import { Box as Box12, Text as Text14 } from "ink";
+import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
   if (status === "thinking") {
-    return /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "\u2500".repeat(58) }),
-      /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
-        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "? for shortcuts \xB7 " }),
-        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "Esc to interrupt" })
+    return /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "\u2500".repeat(58) }),
+      /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
+        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "? for shortcuts \xB7 " }),
+        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "Esc to interrupt" })
       ] })
     ] });
   }
   if (status === "awaiting-approval") {
-    return /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "\u2500".repeat(58) }),
-      /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
-        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "? for shortcuts \xB7 " }),
-        /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "y/n to approve" })
+    return /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "\u2500".repeat(58) }),
+      /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
+        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "? for shortcuts \xB7 " }),
+        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "y/n to approve" })
       ] })
     ] });
   }
-  return /* @__PURE__ */ jsxs11(Box10, { flexDirection: "column", marginTop: 1, children: [
-    /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "\u2500".repeat(58) }),
-    /* @__PURE__ */ jsxs11(Box10, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "? for shortcuts \xB7 " }),
-      /* @__PURE__ */ jsx12(Text12, { color: "gray", children: "/ for commands" })
+  return /* @__PURE__ */ jsxs13(Box12, { flexDirection: "column", marginTop: 1, children: [
+    /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "\u2500".repeat(58) }),
+    /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
+      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "? for shortcuts \xB7 " }),
+      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "/ for commands" })
     ] })
   ] });
 };
@@ -4389,18 +4626,13 @@ function buildModelCommand(ctx) {
       const name = args.trim();
       const reply = (content) => ctx.appendMessage({ id: `model-${Date.now()}`, role: "system", content, createdAt: Date.now() });
       if (!name) {
-        const current = ctx.getModel?.() ?? "(unknown)";
-        let available = [];
-        try {
-          available = await getRouter().listModels();
-        } catch {
+        if (ctx.setScreen) {
+          ctx.setScreen("model");
+        } else {
+          const current = ctx.getModel?.() ?? "(unknown)";
+          reply(`Current model: ${current}
+Use /model <name> to switch.`);
         }
-        const preview = available.slice(0, 8).join(", ");
-        reply(
-          `Current model: ${current}
-` + (preview ? `Available (first 8): ${preview}
-` : "") + "Use /model <name> to switch."
-        );
         return;
       }
       if (!ctx.setModel) {
@@ -4569,6 +4801,27 @@ function buildSettingsCommand(ctx) {
           id: `settings-${Date.now()}`,
           role: "system",
           content: "Settings are not available in this context.",
+          createdAt: Date.now()
+        });
+      }
+    }
+  };
+}
+function buildReleaseNotesCommand(ctx) {
+  return {
+    name: "release-notes",
+    description: "View the release notes and changelog.",
+    category: "utility",
+    usage: "/release-notes",
+    aliases: ["changelog", "news"],
+    run: () => {
+      if (ctx.setScreen) {
+        ctx.setScreen("release-notes");
+      } else {
+        ctx.appendMessage({
+          id: `release-notes-${Date.now()}`,
+          role: "system",
+          content: "Release notes are not available in this context.",
           createdAt: Date.now()
         });
       }
@@ -6958,6 +7211,7 @@ function buildCommandRegistry(ctx) {
     buildColorCommand(ctx),
     buildThemeCommand(ctx),
     buildSettingsCommand(ctx),
+    buildReleaseNotesCommand(ctx),
     buildWorkflowCommand(ctx),
     buildRewindCommand(ctx),
     buildDiffCommand(ctx),
@@ -7053,26 +7307,26 @@ async function getUpdateMessage() {
 }
 
 // src/app.tsx
-import { Fragment as Fragment2, jsx as jsx13, jsxs as jsxs12 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
   const hasCompletedOnboarding = isOnboardingComplete();
-  const [screen, setScreen] = useState5(hasCompletedOnboarding ? "welcome" : "onboarding");
-  const [themeConfig, setThemeConfig] = useState5({
+  const [screen, setScreen] = useState7(hasCompletedOnboarding ? "welcome" : "onboarding");
+  const [themeConfig, setThemeConfig] = useState7({
     mode: configTheme.mode,
     syntaxTheme: configTheme.syntaxTheme
   });
   void themeConfig;
-  const [messages, setMessages] = useState5([]);
-  const [status, setStatus] = useState5("idle");
-  const [model, setModel] = useState5(initialModel ?? "auto");
-  const [provider, setProvider] = useState5(initialProvider ?? "auto");
-  const [, setPromptColor] = useState5("cyan");
-  const [welcomeVisible, setWelcomeVisible] = useState5(showWelcome);
-  const [exitConfirm, setExitConfirm] = useState5(false);
-  const [pendingApproval, setPendingApproval] = useState5(null);
-  const [updateNotice, setUpdateNotice] = useState5("");
+  const [messages, setMessages] = useState7([]);
+  const [status, setStatus] = useState7("idle");
+  const [model, setModel] = useState7(initialModel ?? "auto");
+  const [provider, setProvider] = useState7(initialProvider ?? "auto");
+  const [, setPromptColor] = useState7("cyan");
+  const [welcomeVisible, setWelcomeVisible] = useState7(showWelcome);
+  const [exitConfirm, setExitConfirm] = useState7(false);
+  const [pendingApproval, setPendingApproval] = useState7(null);
+  const [updateNotice, setUpdateNotice] = useState7("");
   useEffect(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
@@ -7131,7 +7385,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
     }),
     [appendMessage, clearMessages, exit, model, provider]
   );
-  useInput5((input, key) => {
+  useInput7((input, key) => {
     if (key.ctrl && input === "c") {
       if (exitConfirm) {
         exit();
@@ -7265,39 +7519,53 @@ ${trimmed}
   const handleSettingsClose = useCallback(() => {
     setScreen("chat");
   }, []);
+  const handleModelSelect = useCallback((modelId) => {
+    setModel(modelId);
+    setScreen("chat");
+  }, []);
+  const handleModelClose = useCallback(() => {
+    setScreen("chat");
+  }, []);
+  const handleReleaseNotesClose = useCallback(() => {
+    setScreen("chat");
+  }, []);
   const renderScreen = () => {
     switch (screen) {
       case "onboarding":
-        return /* @__PURE__ */ jsx13(Onboarding, { onComplete: handleOnboardingComplete });
+        return /* @__PURE__ */ jsx15(Onboarding, { onComplete: handleOnboardingComplete });
       case "theme":
-        return /* @__PURE__ */ jsx13(ThemePicker, { onComplete: handleThemeComplete });
+        return /* @__PURE__ */ jsx15(ThemePicker, { onComplete: handleThemeComplete });
       case "settings":
-        return /* @__PURE__ */ jsx13(Settings, { onClose: handleSettingsClose });
+        return /* @__PURE__ */ jsx15(Settings, { onClose: handleSettingsClose });
+      case "model":
+        return /* @__PURE__ */ jsx15(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
+      case "release-notes":
+        return /* @__PURE__ */ jsx15(ReleaseNotes, { onClose: handleReleaseNotesClose });
       case "welcome":
-        return /* @__PURE__ */ jsxs12(Fragment2, { children: [
-          updateNotice && /* @__PURE__ */ jsx13(Box11, { marginBottom: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: updateNotice }) }),
-          welcomeVisible && /* @__PURE__ */ jsx13(Welcome, { provider, model }),
-          /* @__PURE__ */ jsx13(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx13(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx13(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx13(StatusBar, { status, model, provider }),
-          /* @__PURE__ */ jsx13(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx13(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs14(Fragment4, { children: [
+          updateNotice && /* @__PURE__ */ jsx15(Box13, { marginBottom: 1, children: /* @__PURE__ */ jsx15(Text15, { color: "yellow", children: updateNotice }) }),
+          welcomeVisible && /* @__PURE__ */ jsx15(Welcome, { provider, model }),
+          /* @__PURE__ */ jsx15(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx15(ApprovalDialog, { pending: pendingApproval }),
+          /* @__PURE__ */ jsx15(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx15(StatusBar, { status, model, provider }),
+          /* @__PURE__ */ jsx15(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx15(ExitConfirm, {})
         ] });
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs12(Fragment2, { children: [
-          updateNotice && /* @__PURE__ */ jsx13(Box11, { marginBottom: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: updateNotice }) }),
-          /* @__PURE__ */ jsx13(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx13(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx13(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx13(StatusBar, { status, model, provider }),
-          /* @__PURE__ */ jsx13(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx13(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs14(Fragment4, { children: [
+          updateNotice && /* @__PURE__ */ jsx15(Box13, { marginBottom: 1, children: /* @__PURE__ */ jsx15(Text15, { color: "yellow", children: updateNotice }) }),
+          /* @__PURE__ */ jsx15(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx15(ApprovalDialog, { pending: pendingApproval }),
+          /* @__PURE__ */ jsx15(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx15(StatusBar, { status, model, provider }),
+          /* @__PURE__ */ jsx15(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx15(ExitConfirm, {})
         ] });
     }
   };
-  return /* @__PURE__ */ jsx13(Box11, { flexDirection: "column", children: renderScreen() });
+  return /* @__PURE__ */ jsx15(Box13, { flexDirection: "column", children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -7312,7 +7580,7 @@ function stringifyArgs(input) {
 }
 
 // src/index.tsx
-import { jsx as jsx14 } from "react/jsx-runtime";
+import { jsx as jsx16 } from "react/jsx-runtime";
 var log19 = createLogger("cli");
 async function main() {
   const program = new Command();
@@ -7327,7 +7595,7 @@ async function main() {
       return;
     }
     const { waitUntilExit } = render(
-      /* @__PURE__ */ jsx14(
+      /* @__PURE__ */ jsx16(
         App,
         {
           showWelcome: opts.welcome !== false,
