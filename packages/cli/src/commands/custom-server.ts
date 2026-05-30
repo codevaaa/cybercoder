@@ -186,33 +186,34 @@ export function buildCustomCommand(ctx: CommandContext): SlashCommandHandler {
 }
 
 /**
- * `/cybermind` — access CyberMind's exclusive features and models.
+ * `/codeva` — access Codeva's exclusive features and models.
  *
- *   /cybermind models              — show CyberMind models
- *   /cybermind ultra <prompt>      — use CyberMind Ultra model
- *   /cybermind pro <prompt>        — use CyberMind Pro model
- *   /cybermind speed <prompt>      — use CyberMind Speed model
- *   /cybermind code <prompt>       — use CyberMind Code model
- *   /cybermind creative <prompt>   — use CyberMind Creative model
+ *   /codeva models              — show Codeva models
+ *   /codeva ultra <prompt>      — use Codeva Ultra model
+ *   /codeva pro <prompt>        — use Codeva Pro model
+ *   /codeva speed <prompt>      — use Codeva Speed model
+ *   /codeva code <prompt>       — use Codeva Code model
+ *   /codeva creative <prompt>   — use Codeva Creative model
  */
 export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler {
   return {
-    name: 'cybermind',
-    description: 'Access CyberMind\'s exclusive features and models.',
+    name: 'codeva',
+    description: 'Access Codeva\'s exclusive features and models.',
     category: 'utility',
-    usage: '/cybermind <models|ultra|pro|speed|code|creative> [prompt]',
+    usage: '/codeva <models|ultra|pro|speed|code|creative> [prompt]',
+    aliases: ['cybermind'],
     run: async (args: string) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       const reply = (content: string) =>
         ctx.appendMessage({
-          id: `cybermind-${Date.now()}`,
+          id: `codeva-${Date.now()}`,
           role: 'system',
           content,
           createdAt: Date.now(),
         });
 
       if (parts.length === 0) {
-        reply('Usage: /cybermind <models|ultra|pro|speed|code|creative> [prompt]');
+        reply('Usage: /codeva <models|ultra|pro|speed|code|creative> [prompt]');
         return;
       }
 
@@ -222,19 +223,19 @@ export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler 
       switch (command) {
         case 'models':
           const cybermindModels = [
-            { id: 'cybermind-ultra', name: 'CyberMind Ultra', desc: 'Most powerful for complex tasks', cost: '$5/$15 per 1M' },
-            { id: 'cybermind-pro', name: 'CyberMind Pro', desc: 'Balanced for most tasks', cost: '$2/$6 per 1M' },
-            { id: 'cybermind-speed', name: 'CyberMind Speed', desc: 'Fast for quick responses', cost: '$0.50/$1.50 per 1M' },
-            { id: 'cybermind-code', name: 'CyberMind Code', desc: 'Specialized for coding', cost: '$1.50/$4.50 per 1M' },
-            { id: 'cybermind-creative', name: 'CyberMind Creative', desc: 'Creative and design tasks', cost: '$1/$3 per 1M' },
+            { id: 'codeva-ultra', name: 'Codeva Ultra', desc: 'Most powerful for complex tasks', cost: '$5/$15 per 1M' },
+            { id: 'codeva-pro', name: 'Codeva Pro', desc: 'Balanced for most tasks', cost: '$2/$6 per 1M' },
+            { id: 'codeva-speed', name: 'Codeva Speed', desc: 'Fast for quick responses', cost: '$0.50/$1.50 per 1M' },
+            { id: 'codeva-code', name: 'Codeva Code', desc: 'Specialized for coding', cost: '$1.50/$4.50 per 1M' },
+            { id: 'codeva-creative', name: 'Codeva Creative', desc: 'Creative and design tasks', cost: '$1/$3 per 1M' },
           ];
 
-          let modelInfo = ['🧠 CyberMind Exclusive Models:', ''];
+          let modelInfo = ['🧠 Codeva Exclusive Models:', ''];
           cybermindModels.forEach((model, index) => {
             modelInfo.push(`${index + 1}. 🤖 ${model.name}`);
             modelInfo.push(`   ${model.desc}`);
             modelInfo.push(`   💰 Cost: ${model.cost}`);
-            modelInfo.push(`   🔧 Use: /cybermind ${model.id.split('-')[1]} <prompt>`);
+            modelInfo.push(`   🔧 Use: /codeva ${model.id.split('-')[1]} <prompt>`);
             modelInfo.push('');
           });
 
@@ -247,38 +248,27 @@ export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler 
         case 'code':
         case 'creative':
           if (parts.length < 2) {
-            reply(`Usage: /cybermind ${command} <your-prompt>`);
+            reply(`Usage: /codeva ${command} <your-prompt>`);
             return;
           }
 
-          const cybermindModelId = `cybermind-${command}`;
+          const cybermindModelId = `codeva-${command}`;
           const cybermindModel = customServer.getModel(cybermindModelId);
           const cybermindPrompt = parts.slice(1).join(' ');
-          
+
           if (!cybermindPrompt) {
             reply('Prompt is required');
             return;
           }
 
-          if (!cybermindModel) {
-            reply(`❌ Model ${cybermindModelId} not available. Please set up custom server first.`);
-            return;
+          // Route the prompt through the real agent loop using the selected
+          // Codeva model tier instead of returning a canned response.
+          if (ctx.setModel) ctx.setModel(cybermindModelId);
+          if (ctx.submitUserPrompt) {
+            ctx.submitUserPrompt(cybermindPrompt);
+          } else {
+            reply(`Codeva ${command} is not available in this context.`);
           }
-
-          reply(`🧠 Using CyberMind ${command.charAt(0).toUpperCase() + command.slice(1)} model\n\n⏳ Processing: "${cybermindPrompt.substring(0, 50)}..."\n\n🤖 Generating intelligent response...`);
-          
-          // Simulate processing
-          setTimeout(() => {
-            const responses = {
-              ultra: `🚀 **Ultra Response**: Advanced analysis of "${cybermindPrompt}"\n\nThis is the most sophisticated analysis using our most powerful model. The response includes deep insights, comprehensive reasoning, and optimal solutions.`,
-              pro: `⚡ **Pro Response**: Professional analysis of "${cybermindPrompt}"\n\nBalanced approach providing practical solutions with clear reasoning and actionable recommendations.`,
-              speed: `🏃‍♂️ **Speed Response**: Quick analysis of "${cybermindPrompt}"\n\nFast and efficient response with key insights and immediate actionable steps.`,
-              code: `💻 **Code Response**: Technical analysis of "${cybermindPrompt}"\n\nSpecialized coding perspective with optimized solutions, best practices, and implementation details.`,
-              creative: `🎨 **Creative Response**: Innovative analysis of "${cybermindPrompt}"\n\nCreative approach with out-of-the-box thinking, design principles, and innovative solutions.`
-            };
-
-            reply(responses[command as keyof typeof responses] || 'Response generated.');
-          }, 2000);
           break;
 
         default:

@@ -3,9 +3,10 @@ import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import { exec } from 'node:child_process';
 import http from 'node:http';
-import { CYBERMIND_VERSION, CYBERMIND_NAME } from '@cybermind/shared';
-import { Mascot } from './Mascot.js';
+import { CYBERCODER_VERSION, CYBERCODER_NAME } from '@cybermind/shared';
+import { Mascot, SkyScene } from './Mascot.js';
 import { LoadingSpinner } from './LoadingSpinner.js';
+import { activeTheme } from '../theme/theme.js';
 import {
   markOnboardingComplete,
   setApiKey,
@@ -19,12 +20,12 @@ interface OnboardingProps {
   onComplete: (method: string) => void;
 }
 
-type SubScreen = 'main' | 'cybercli-login' | 'apikey-input' | 'thirdparty-platforms';
+type SubScreen = 'main' | 'codeva-login' | 'apikey-input' | 'thirdparty-platforms';
 
 const LOGIN_METHODS = [
   {
-    id: 'cybercli',
-    label: 'CyberCli account (Pro, Max, Team)',
+    id: 'codeva',
+    label: 'Codeva account (Pro, Max, Team)',
     desc: 'Automated OAuth browser sign-in',
   },
   {
@@ -47,7 +48,7 @@ const THIRDPARTY_PLATFORMS = [
 ];
 
 const API_PROVIDERS = [
-  { id: 'cybermind', label: 'CyberMind Cloud' },
+  { id: 'codeva', label: 'Codeva Cloud' },
   { id: 'openai', label: 'OpenAI' },
   { id: 'anthropic', label: 'Anthropic' },
   { id: 'groq', label: 'Groq' },
@@ -84,7 +85,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
   // API key input state
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [apiKeyProvider, setApiKeyProvider] = useState('cybermind');
+  const [apiKeyProvider, setApiKeyProvider] = useState('codeva');
   const [apiKeyStage, setApiKeyStage] = useState<'provider' | 'key'>('provider');
 
   // 3rd party state
@@ -95,7 +96,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
   // HTTP callback server management
   useEffect(() => {
-    if (screen === 'cybercli-login') {
+    if (screen === 'codeva-login') {
       setWaitingForAuth(true);
       setAuthError(null);
 
@@ -123,8 +124,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               .then((authInfo) => {
                 setSessionId(authInfo.session_id);
                 setUserProfile(authInfo.user);
-                markOnboardingComplete('cybercli');
-                onComplete('cybercli');
+                markOnboardingComplete('codeva');
+                onComplete('codeva');
               })
               .catch((err) => {
                 setAuthError(err.message || 'Token verification failed');
@@ -188,12 +189,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         setSelected((s) => Math.min(LOGIN_METHODS.length - 1, s + 1));
       } else if (key.return) {
         const method = LOGIN_METHODS[selected];
-        if (method?.id === 'cybercli') {
-          setScreen('cybercli-login');
+        if (method?.id === 'codeva') {
+          setScreen('codeva-login');
         } else if (method?.id === 'apikey') {
           setScreen('apikey-input');
           setApiKeyStage('provider');
-          setApiKeyProvider('cybermind');
+          setApiKeyProvider('codeva');
           setSelected(0);
         } else if (method?.id === 'thirdparty') {
           setScreen('thirdparty-platforms');
@@ -203,7 +204,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       return;
     }
 
-    if (screen === 'cybercli-login') {
+    if (screen === 'codeva-login') {
       if (key.escape) {
         setScreen('main');
         setSelected(0);
@@ -287,49 +288,55 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
   // ── RENDER: Main Screen ──
   if (screen === 'main') {
+    const t = activeTheme;
     return (
       <Box flexDirection="column" paddingX={1} width={contentWidth + 4}>
-        {renderBorderTop(`${CYBERMIND_NAME} v${CYBERMIND_VERSION}`)}
-        <Box flexDirection="column" paddingX={2} marginY={1}>
-          <Box flexDirection="row" alignItems="center" marginBottom={1}>
-            <Mascot />
-            <Box flexDirection="column" marginLeft={2}>
-              <Text bold color="white">Welcome to {CYBERMIND_NAME}</Text>
-              <Text color="gray">The fullstack agentic coding CLI</Text>
-            </Box>
-          </Box>
+        <Text bold color={t.accent}>Welcome to {CYBERCODER_NAME} v{CYBERCODER_VERSION}</Text>
+        <Box marginTop={1}>
+          <SkyScene />
+        </Box>
+        <Box marginTop={1} marginLeft={1}>
+          <Mascot />
+        </Box>
 
-          <Text color="white" bold marginBottom={1}>
-            How would you like to authenticate?
+        <Box flexDirection="column" marginTop={1} paddingX={1}>
+          <Text color={t.muted}>
+            {CYBERCODER_NAME} can be used with your Codeva subscription or billed
           </Text>
-
-          {LOGIN_METHODS.map((method, i) => (
-            <Box key={method.id} flexDirection="row" marginBottom={1}>
-              <Text>
-                {i === selected ? (
-                  <Text color="#D97757">› </Text>
-                ) : (
-                  <Text color="gray">  </Text>
-                )}
-                <Text color={i === selected ? 'white' : 'gray'} bold={i === selected}>
-                  {i + 1}. {method.label}
-                </Text>
-                <Text color="gray"> · {method.desc}</Text>
-              </Text>
-            </Box>
-          ))}
+          <Text color={t.muted}>based on API usage through your provider account.</Text>
 
           <Box marginTop={1}>
-            <Text color="gray">↑↓ navigate · Enter select · ESC exit</Text>
+            <Text color={t.text} bold>Select login method:</Text>
+          </Box>
+
+          <Box marginTop={1} flexDirection="column">
+            {LOGIN_METHODS.map((method, i) => (
+              <Box key={method.id} flexDirection="row">
+                <Text>
+                  {i === selected ? (
+                    <Text color={t.accent}>{'› '}</Text>
+                  ) : (
+                    <Text color={t.dim}>{'  '}</Text>
+                  )}
+                  <Text color={i === selected ? t.text : t.muted} bold={i === selected}>
+                    {i + 1}. {method.label}
+                  </Text>
+                  <Text color={t.dim}> · {method.desc}</Text>
+                </Text>
+              </Box>
+            ))}
+          </Box>
+
+          <Box marginTop={1}>
+            <Text color={t.dim}>↑↓ navigate · Enter select · ESC exit</Text>
           </Box>
         </Box>
-        {renderBorderBottom()}
       </Box>
     );
   }
 
-  // ── RENDER: CyberCli Login Screen ──
-  if (screen === 'cybercli-login') {
+  // ── RENDER: Codeva Login Screen ──
+  if (screen === 'codeva-login') {
     const frontendUrl = process.env.FRONTEND_URL || 'https://cybermindcli.info';
     return (
       <Box flexDirection="column" paddingX={1} width={contentWidth + 4}>
@@ -417,7 +424,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 const trimmed = apiKeyInput.trim();
                 if (trimmed) {
                   setApiKey(apiKeyProvider, trimmed);
-                  if (apiKeyProvider === 'cybermind') {
+                  if (apiKeyProvider === 'codeva') {
                     // Try to authenticate with the API key to backend
                     setAuthToken(trimmed);
                     apiClient.authenticate(trimmed)

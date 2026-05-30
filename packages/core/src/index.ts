@@ -5,4 +5,6 @@
  */
 export * from './agent-loop.js';
 export * from './consensus.js';
+export * from './context.js';
+export * from './plan-act.js';
 export const CORE_PACKAGE = '@cybermind/core';

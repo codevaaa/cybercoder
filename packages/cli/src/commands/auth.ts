@@ -40,7 +40,7 @@ export function buildLoginCommand(ctx: CommandContext): SlashCommandHandler {
         return;
       }
 
-      reply('🔐 Authenticating key with CyberMind Cloud...');
+      reply('🔐 Authenticating key with Codeva Cloud...');
 
       try {
         const authInfo = await apiClient.authenticate(key);

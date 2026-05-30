@@ -24,7 +24,7 @@ export class CybermindCloudProvider extends AnthropicProvider {
     });
     this.info = {
       id: 'cybermind-cloud',
-      displayName: 'CyberMind Cloud',
+      displayName: 'Codeva Cloud',
       requiresNetwork: true,
       ready: Boolean(apiKey),
     };

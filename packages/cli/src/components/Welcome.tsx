@@ -1,15 +1,26 @@
 import React from 'react';
 import { Box, Text, useStdout } from 'ink';
-import { CYBERMIND_VERSION, CYBERMIND_NAME } from '@cybermind/shared';
+import { CYBERCODER_VERSION, CYBERCODER_NAME } from '@cybermind/shared';
 import { Mascot } from './Mascot.js';
 import { getUserProfile } from '../utils/config.js';
+import { useTheme } from '../theme/useTheme.js';
 
 interface WelcomeProps {
   provider?: string;
   model?: string;
 }
 
+/**
+ * Claude Code-style welcome card:
+ * ╭─ CyberCoder v0.1.22 ─────────────────────────────────────────╮
+ * │   Welcome back, abhay!      Tips for getting started          │
+ * │      [mascot]               Run /init to create a CYBER.md ... │
+ * │   model · billing · cwd     What's new                        │
+ * │                             ...                               │
+ * ╰───────────────────────────────────────────────────────────────╯
+ */
 export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'auto' }) => {
+  const t = useTheme();
   const cwd = process.cwd();
   const profile = getUserProfile();
   const userName = profile.name || process.env.USER || process.env.USERNAME || 'Coder';
@@ -17,69 +28,56 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
 
   const { stdout } = useStdout();
   const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 76);
-
-  const renderBorderTop = (title: string) => {
-    const titleText = ` ${title} `;
-    const dashLength = Math.max(2, contentWidth - titleText.length - 2);
-    return <Text color="#D97757">╭{titleText}{'─'.repeat(dashLength)}╮</Text>;
-  };
-
-  const renderBorderBottom = () => {
-    return <Text color="#D97757">╰{'─'.repeat(contentWidth)}╯</Text>;
-  };
+  const contentWidth = Math.min(termWidth - 4, 84);
 
   return (
-    <Box flexDirection="column" paddingX={1} width={contentWidth + 4}>
-      {renderBorderTop(`${CYBERMIND_NAME} v${CYBERMIND_VERSION}`)}
-      
-      <Box flexDirection="column" paddingX={2} marginY={1}>
-        <Box flexDirection="row" alignItems="center" marginBottom={1}>
-          <Mascot />
-          <Box flexDirection="column" marginLeft={2}>
-            <Text bold color="white">Welcome back, {userName}!</Text>
-            <Text color="gray">
-              Model: <Text color="cyan" bold>{model}</Text> · Provider: <Text color="cyan" bold>{provider}</Text>
+    <Box flexDirection="column">
+      <Box
+        flexDirection="row"
+        borderStyle="round"
+        borderColor={t.accent}
+        paddingX={1}
+        width={contentWidth + 4}
+      >
+        {/* Left column: mascot + identity */}
+        <Box flexDirection="column" width="42%" paddingRight={1} alignItems="center">
+          <Text bold color={t.accent}>{CYBERCODER_NAME} v{CYBERCODER_VERSION}</Text>
+          <Box marginTop={1}>
+            <Text bold color={t.text}>Welcome back, {userName}!</Text>
+          </Box>
+          <Box marginTop={1}>
+            <Mascot />
+          </Box>
+          <Box marginTop={1} flexDirection="column" alignItems="center">
+            <Text color={t.muted}>
+              <Text color={t.accentAlt}>{model}</Text> · {userPlan} Plan
             </Text>
-            <Text color="gray">
-              Plan: <Text color="yellow" bold>{userPlan}</Text> · Organization: {userName}'s Workspace
-            </Text>
-            <Text color="gray" wrap="truncate-end">
-              Cwd: <Text color="cyan">{cwd}</Text>
-            </Text>
+            <Text color={t.dim} wrap="truncate-middle">{cwd}</Text>
           </Box>
         </Box>
 
-        <Text color="#D97757" bold marginBottom={1}>
-          {'─'.repeat(contentWidth - 4)}
-        </Text>
+        {/* Vertical divider */}
+        <Box flexDirection="column" paddingX={1}>
+          <Text color={t.dim}>{'│\n'.repeat(8)}</Text>
+        </Box>
 
-        <Box flexDirection="row" width="100%">
-          {/* Left Column: Tips */}
-          <Box flexDirection="column" width="50%" paddingRight={1}>
-            <Text bold color="white" marginBottom={1}>Tips</Text>
-            <Text color="gray">• <Text color="cyan">/init</Text> creates CYBER.md configuration</Text>
-            <Text color="gray">• <Text color="cyan">/model</Text> changes active model</Text>
-            <Text color="gray">• <Text color="cyan">/compact</Text> shrinks context size</Text>
-            <Text color="gray">• <Text color="cyan">/help</Text> list all options</Text>
+        {/* Right column: tips + what's new */}
+        <Box flexDirection="column" width="52%">
+          <Text bold color={t.accent}>Tips for getting started</Text>
+          <Text color={t.muted}>Run <Text color={t.accentAlt}>/init</Text> to create a CYBER.md with project instructions</Text>
+          <Box marginTop={1}>
+            <Text bold color={t.accent}>What's new</Text>
           </Box>
-
-          {/* Right Column: What's New */}
-          <Box flexDirection="column" width="50%" paddingLeft={1}>
-            <Text bold color="white" marginBottom={1}>What's New</Text>
-            <Text color="gray">• Real-time model consensus mode</Text>
-            <Text color="gray">• Fully working web OAuth & redirection</Text>
-            <Text color="gray">• Rich terminal Markdown formatting</Text>
-            <Text color="gray">• Cost and token usage tracking</Text>
-          </Box>
+          <Text color={t.muted}>• Real <Text color={t.text}>/theme</Text> switching repaints the whole UI</Text>
+          <Text color={t.muted}>• Multi-model <Text color={t.text}>/consensus</Text> mode for hard problems</Text>
+          <Text color={t.muted}>• Working web OAuth sign-in · <Text color={t.text}>/release-notes</Text> for more</Text>
         </Box>
       </Box>
 
-      {renderBorderBottom()}
-      <Box paddingX={2} marginBottom={1}>
-        <Text color="gray" italic>
-          Need help? Ask CyberCoder a coding question or use / for commands.
-        </Text>
+      <Box paddingX={1} marginTop={1}>
+        <Text color={t.accentAlt} bold>{model}</Text>
+        <Text color={t.muted}> is ready · </Text>
+        <Text color={t.muted}>type <Text color={t.text}>/model</Text> to switch</Text>
       </Box>
     </Box>
   );

@@ -5,11 +5,17 @@
  */
 export * from './approval.js';
 export * from './secrets.js';
+export * from './workspace-checkpoint.js';
+export * from './mcp-client.js';
 export * from './builtin/read-file.js';
+export * from './builtin/read-many.js';
 export * from './builtin/write-file.js';
 export * from './builtin/edit.js';
 export * from './builtin/list-dir.js';
 export * from './builtin/grep.js';
+export * from './builtin/repo-map.js';
 export * from './builtin/run-command.js';
+export * from './builtin/web-search.js';
+export * from './builtin/web-fetch.js';
 export * from './registry.js';
 export const TOOLS_PACKAGE = '@cybermind/tools';

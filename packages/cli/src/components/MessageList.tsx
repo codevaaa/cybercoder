@@ -1,21 +1,15 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import type { SessionMessage } from '../state/session.js';
+import { activeTheme } from '../theme/theme.js';
 
 interface Props {
   messages: SessionMessage[];
 }
 
-const ROLE_COLOR: Record<SessionMessage['role'], string> = {
-  user: 'cyan',
-  assistant: 'white',
-  system: 'gray',
-  tool: 'magenta',
-};
-
 const ROLE_LABEL: Record<SessionMessage['role'], string> = {
   user: 'you',
-  assistant: 'cybermind',
+  assistant: 'cybercoder',
   system: 'info',
   tool: 'tool',
 };
@@ -164,6 +158,12 @@ function parseContent(content: string) {
 
 export const MessageList: React.FC<Props> = ({ messages }) => {
   if (messages.length === 0) return null;
+  const roleColor: Record<SessionMessage['role'], string> = {
+    user: activeTheme.user,
+    assistant: activeTheme.assistant,
+    system: activeTheme.muted,
+    tool: activeTheme.accentAlt,
+  };
   return (
     <Box flexDirection="column" marginBottom={1}>
       {messages.map((m) => {
@@ -172,7 +172,7 @@ export const MessageList: React.FC<Props> = ({ messages }) => {
 
         return (
           <Box key={m.id} flexDirection="column" marginBottom={1}>
-            <Text color={ROLE_COLOR[m.role]} bold>
+            <Text color={roleColor[m.role]} bold>
               {ROLE_LABEL[m.role]}
             </Text>
             <Box flexDirection="column" paddingLeft={1}>

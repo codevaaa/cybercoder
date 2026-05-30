@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
+import { useTheme } from '../theme/useTheme.js';
 
 interface PromptProps {
   onSubmit: (text: string) => void;
@@ -13,13 +14,10 @@ const promptHistory: string[] = [];
 export const Prompt: React.FC<PromptProps> = ({ onSubmit, disabled }) => {
   const [value, setValue] = useState('');
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const cwd = process.cwd();
-
-  // Estimate tokens (roughly 4 characters per token)
-  const estTokens = Math.ceil(value.length / 4);
+  const t = useTheme();
 
   // Hook into input for Up/Down arrow history cycling
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (disabled) return;
 
     if (key.upArrow) {
@@ -61,35 +59,26 @@ export const Prompt: React.FC<PromptProps> = ({ onSubmit, disabled }) => {
     }
   };
 
-  if (disabled) {
-    return (
-      <Box flexDirection="column" marginTop={1}>
-        <Text color="gray" dimColor>{cwd}</Text>
-        <Box flexDirection="row">
-          <Text color="gray">{'>'} </Text>
-          <Text color="gray">(thinking…)</Text>
-        </Box>
-      </Box>
-    );
-  }
-
+  // Claude Code-style rounded input box with the accent caret inside.
   return (
-    <Box flexDirection="column" marginTop={1}>
-      <Box flexDirection="row" justifyContent="space-between" width="100%">
-        <Text color="gray" dimColor>{cwd}</Text>
-        {value.length > 0 && (
-          <Text color="gray" dimColor>[{value.length} chars · est {estTokens} tokens]</Text>
-        )}
-      </Box>
-      <Box flexDirection="row">
-        <Text color="#D97757" bold>{'>'} </Text>
+    <Box
+      flexDirection="row"
+      marginTop={1}
+      borderStyle="round"
+      borderColor={disabled ? t.dim : t.accent}
+      paddingX={1}
+    >
+      <Text color={disabled ? t.dim : t.accent} bold>{'> '}</Text>
+      {disabled ? (
+        <Text color={t.dim}>…</Text>
+      ) : (
         <TextInput
           value={value}
           onChange={setValue}
           onSubmit={handleSubmit}
-          placeholder="Ask CyberCoder... (/ for commands, end with \ for multi-line)"
+          placeholder='Try "refactor <filepath>" · / for commands · \ for multi-line'
         />
-      </Box>
+      )}
     </Box>
   );
 };

@@ -51,6 +51,20 @@ export const editTool: AgentTool = {
     writeFileSync(abs, next, 'utf8');
     return `Edited ${abs} (${original.length - next.length > 0 ? '-' : '+'}${Math.abs(original.length - next.length)} bytes).`;
   },
+  // Self-correction: re-read the file and confirm the edit actually landed.
+  async verify(input, _output, ctx) {
+    try {
+      const abs = resolve(ctx.cwd, String(input.path ?? ''));
+      const newStr = String(input.new_string ?? '');
+      const current = readFileSync(abs, 'utf8');
+      if (newStr && !current.includes(newStr)) {
+        return 'Edit verification failed: new_string is not present in the file after writing. The change may not have applied as intended.';
+      }
+      return null;
+    } catch (err) {
+      return `Edit verification could not read the file back: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  },
 };
 
 function occurrenceCount(haystack: string, needle: string): number {

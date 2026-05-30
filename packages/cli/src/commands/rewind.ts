@@ -1,79 +1,63 @@
-import { CheckpointManager } from '@cybermind/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
+import { getCheckpoints } from '../runtime/chat.js';
 
 /**
- * `/rewind` — time-travel: restore the session to a previous checkpoint.
+ * `/rewind` — real filesystem time-travel. Every destructive edit snapshots the
+ * affected file first, so this restores your working tree to an earlier state.
  *
- *   /rewind                     — list checkpoints
- *   /rewind <checkpoint-id>     — restore to that checkpoint
- *   /rewind latest              — restore to the latest checkpoint
- *
- * This is a *session* rewind; it does not revert file changes made by the
- * agent. Full file-system time-travel requires git/worktree isolation and
- * lands in M11.
+ *   /rewind                — list checkpoints (newest first)
+ *   /rewind <n>            — restore the workspace to checkpoint #n (undoes all
+ *                           edits made after it)
+ *   /rewind last          — undo the most recent edit
  */
 export function buildRewindCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'rewind',
-    description: 'Time-travel: restore the session to a previous checkpoint.',
+    description: 'Filesystem time-travel: undo agent file edits to an earlier checkpoint.',
     category: 'safety',
-    usage: '/rewind [checkpoint-id|latest]',
+    usage: '/rewind [n|last]',
     run: (args: string) => {
       const trimmed = args.trim();
       const reply = (content: string) =>
-        ctx.appendMessage({
-          id: `rewind-${Date.now()}`,
-          role: 'system',
-          content,
-          createdAt: Date.now(),
-        });
+        ctx.appendMessage({ id: `rewind-${Date.now()}`, role: 'system', content, createdAt: Date.now() });
 
-      const manager = new CheckpointManager();
+      const cp = getCheckpoints();
+      const list = cp.list();
 
       if (!trimmed) {
-        const list = manager.list();
         if (list.length === 0) {
-          reply('No checkpoints available yet. Continue chatting to create one.');
+          reply('No file checkpoints yet. They are created automatically before each edit.');
           return;
         }
-        const lines = ['Checkpoints (newest first):'];
-        for (const cp of list) {
-          const date = new Date(cp.createdAt).toLocaleString();
-          lines.push(`  ${cp.id.slice(0, 8)}… ${date} (${cp.messageCount} messages)`);
+        const lines = ['File checkpoints (newest first):'];
+        for (const e of list) {
+          const when = new Date(e.createdAt).toLocaleTimeString();
+          const files = e.files.map((f) => cp.rel(f.path)).join(', ');
+          lines.push(`  #${e.seq}  ${when}  ${e.label}  [${files}]`);
         }
         lines.push('');
-        lines.push('Restore with: /rewind <checkpoint-id> or /rewind latest');
+        lines.push('Restore with: /rewind <n>  ·  undo last edit: /rewind last');
         reply(lines.join('\n'));
         return;
       }
 
-      let checkpointId = trimmed;
-      if (trimmed === 'latest') {
-        const latest = manager.loadLatest();
-        if (!latest) {
-          reply('No latest checkpoint found.');
+      let seq: number;
+      if (trimmed === 'last') {
+        if (list.length === 0) {
+          reply('Nothing to undo.');
           return;
         }
-        checkpointId = latest.id;
+        seq = list[0]!.seq;
+      } else {
+        seq = parseInt(trimmed, 10);
+        if (Number.isNaN(seq)) {
+          reply(`Invalid checkpoint '${trimmed}'. Use /rewind to list, then /rewind <n>.`);
+          return;
+        }
       }
 
-      const checkpoint = manager.load(checkpointId);
-      if (!checkpoint) {
-        reply(`Checkpoint '${checkpointId}' not found or corrupted.`);
-        return;
-      }
-
-      // Note: In a real implementation, we would need to update the app's
-      // internal state to restore the messages, model, and provider. For now,
-      // we just acknowledge the request and provide the checkpoint data.
-      const date = new Date(checkpoint.createdAt).toLocaleString();
-      reply(
-        `Restored to checkpoint ${checkpoint.id.slice(0, 8)}… (${date})\n` +
-          `- Messages: ${checkpoint.messages.length}\n` +
-          `- Model: ${checkpoint.model}\n` +
-          `- Provider: ${checkpoint.provider}\n\n` +
-          `Note: This is a demonstration. Full state restoration requires UI integration.`,
-      );
+      const result = cp.restore(seq);
+      reply(`Rewound to checkpoint #${seq}. Restored ${result.restored} file(s), removed ${result.deleted} newly-created file(s).`);
     },
   };
 }

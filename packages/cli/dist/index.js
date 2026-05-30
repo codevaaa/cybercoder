@@ -125,7 +125,9 @@ function createLogger(scope) {
 
 // ../shared/src/version.ts
 var CYBERMIND_VERSION = "0.1.22";
-var CYBERMIND_NAME = "CyberMind";
+var CYBERMIND_NAME = "CyberCoder";
+var CYBERCODER_VERSION = CYBERMIND_VERSION;
+var CYBERCODER_NAME = CYBERMIND_NAME;
 
 // ../shared/src/checkpoint.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, writeFileSync, readdirSync } from "fs";
@@ -1612,50 +1614,191 @@ var CustomServerManager = class {
 var log9 = createLogger("auto-agent");
 
 // src/app.tsx
-import { Box as Box14, Text as Text15, useApp as useApp2, useInput as useInput8 } from "ink";
-import { useCallback, useEffect as useEffect3, useMemo, useRef as useRef2, useState as useState8 } from "react";
+import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
+import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState9 } from "react";
 
 // src/components/Welcome.tsx
-import { Box, Text as Text2, useStdout } from "ink";
+import { Box as Box2, Text as Text2, useStdout } from "ink";
 
 // src/components/Mascot.tsx
-import { Text } from "ink";
+import { Box, Text } from "ink";
+
+// src/theme/theme.ts
+var ACCENT = "#D97757";
+var ACCENT_LIGHT = "#C2410C";
+var DARK = {
+  accent: ACCENT,
+  accentAlt: "#E0915F",
+  text: "#ECECEC",
+  muted: "#9CA3AF",
+  dim: "#6B7280",
+  success: "#4ADE80",
+  warning: "#FBBF24",
+  error: "#F87171",
+  info: "#60A5FA",
+  user: "#7DD3FC",
+  assistant: "#ECECEC",
+  border: ACCENT,
+  isLight: false,
+  ansiOnly: false
+};
+var LIGHT = {
+  accent: ACCENT_LIGHT,
+  accentAlt: "#9A3412",
+  text: "#1F2937",
+  muted: "#4B5563",
+  dim: "#9CA3AF",
+  success: "#15803D",
+  warning: "#B45309",
+  error: "#B91C1C",
+  info: "#1D4ED8",
+  user: "#0369A1",
+  assistant: "#1F2937",
+  border: ACCENT_LIGHT,
+  isLight: true,
+  ansiOnly: false
+};
+var DARK_CB = {
+  ...DARK,
+  success: "#38BDF8",
+  // blue stands in for "good"
+  error: "#FB923C",
+  // orange stands in for "bad"
+  warning: "#FACC15",
+  user: "#38BDF8"
+};
+var LIGHT_CB = {
+  ...LIGHT,
+  success: "#0284C7",
+  error: "#C2410C",
+  warning: "#A16207",
+  user: "#0284C7"
+};
+var DARK_ANSI = {
+  accent: "red",
+  accentAlt: "redBright",
+  text: "white",
+  muted: "gray",
+  dim: "gray",
+  success: "green",
+  warning: "yellow",
+  error: "red",
+  info: "blue",
+  user: "cyan",
+  assistant: "white",
+  border: "red",
+  isLight: false,
+  ansiOnly: true
+};
+var LIGHT_ANSI = {
+  accent: "red",
+  accentAlt: "magenta",
+  text: "black",
+  muted: "gray",
+  dim: "gray",
+  success: "green",
+  warning: "yellow",
+  error: "red",
+  info: "blue",
+  user: "blue",
+  assistant: "black",
+  border: "red",
+  isLight: true,
+  ansiOnly: true
+};
+var PALETTES = {
+  dark: DARK,
+  light: LIGHT,
+  "dark-colorblind": DARK_CB,
+  "light-colorblind": LIGHT_CB,
+  "dark-ansi": DARK_ANSI,
+  "light-ansi": LIGHT_ANSI
+};
+function detectTerminalIsLight() {
+  const fgbg = process.env.COLORFGBG;
+  if (fgbg) {
+    const parts = fgbg.split(";");
+    const bg = Number(parts[parts.length - 1]);
+    if (!Number.isNaN(bg)) return bg >= 7 || bg === 15;
+  }
+  return false;
+}
+function resolvePalette(mode) {
+  if (mode === "auto") {
+    return detectTerminalIsLight() ? LIGHT : DARK;
+  }
+  return PALETTES[mode] ?? DARK;
+}
+var activeTheme = DARK;
+var activeMode = "dark";
+var listeners = /* @__PURE__ */ new Set();
+function setActiveTheme(mode) {
+  activeMode = mode;
+  activeTheme = resolvePalette(mode);
+  for (const fn of listeners) fn();
+  return activeTheme;
+}
+function onThemeChange(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+var THEME_OPTIONS = [
+  { id: "auto", label: "Auto (match terminal)" },
+  { id: "dark", label: "Dark mode" },
+  { id: "light", label: "Light mode" },
+  { id: "dark-colorblind", label: "Dark mode (colorblind-friendly)" },
+  { id: "light-colorblind", label: "Light mode (colorblind-friendly)" },
+  { id: "dark-ansi", label: "Dark mode (ANSI colors only)" },
+  { id: "light-ansi", label: "Light mode (ANSI colors only)" }
+];
+
+// src/components/Mascot.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var Mascot = () => {
-  return /* @__PURE__ */ jsxs(Text, { children: [
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "    \u2584\u2584\u2584\u2584\u2584\u2584\u2584    ",
-      "\n"
+  const c = activeTheme.accent;
+  const eye = activeTheme.isLight ? "#FFFFFF" : "#1A1A1A";
+  void eye;
+  return /* @__PURE__ */ jsxs(Box, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx(Text, { color: c, children: "  \u259F\u2588\u2599   \u259F\u2588\u2599  " }),
+    /* @__PURE__ */ jsx(Text, { color: c, children: " \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 " }),
+    /* @__PURE__ */ jsxs(Text, { color: c, children: [
+      "\u2588\u2588",
+      /* @__PURE__ */ jsx(Text, { color: activeTheme.text, backgroundColor: c, children: "\u2588\u2588" }),
+      "\u2588\u2588\u2588",
+      /* @__PURE__ */ jsx(Text, { color: activeTheme.text, backgroundColor: c, children: "\u2588\u2588" }),
+      "\u2588\u2588"
     ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "   \u2584\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2588\u2584   ",
-      "\n"
+    /* @__PURE__ */ jsx(Text, { color: c, children: " \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 " }),
+    /* @__PURE__ */ jsx(Text, { color: c, children: "  \u2588\u2588     \u2588\u2588  " })
+  ] });
+};
+var SkyScene = () => {
+  const dim = activeTheme.dim;
+  const cloud = activeTheme.muted;
+  const star = activeTheme.accentAlt;
+  return /* @__PURE__ */ jsxs(Box, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx(Text, { color: dim, children: "\xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7" }),
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: star, children: "    \u2736        " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2591\u2591\u2592\u2592        " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "  \u2592\u2592\u2593\u2593\u2593\u2592\u2591" })
     ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF8E8E", children: [
-      "  \u2584\u2588\u2591\u2591\u2584\u2591\u2591\u2584\u2591\u2591\u2588\u2584  ",
-      "\n"
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "  \u2591\u2591\u2592\u2592\u2593\u2592\u2591     " }),
+      /* @__PURE__ */ jsx(Text, { color: star, children: "\u2736   " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2592\u2593\u2593    \u2593\u2593" })
     ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF8E8E", children: [
-      "  \u2588\u2591\u2591\u2591\u2580\u2591\u2591\u2580\u2591\u2591\u2591\u2588  ",
-      "\n"
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2591\u2592\u2592\u2593\u2593\u2593\u2592\u2591  " }),
+      /* @__PURE__ */ jsx(Text, { color: star, children: "\u2736      " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2593\u2593     \u2592\u2592" })
     ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "  \u2588\u2591\u2591\u2591\u2591\u2584\u2584\u2591\u2591\u2591\u2591\u2588  ",
-      "\n"
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: star, children: " \u2736          " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2591\u2592\u2593\u2592\u2591   " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2592\u2593\u2593\u2593\u2592\u2592\u2591" })
     ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "   \u2580\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2588\u2580   ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF4757", children: [
-      "     \u2580\u2580\u2580\u2580\u2580\u2580     ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF4757", children: [
-      "     \u258C    \u258C     ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsx(Text, { color: "#FF4757", children: "     \u258C    \u258C     " })
+    /* @__PURE__ */ jsx(Text, { color: dim, children: "\xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7" })
   ] });
 };
 
@@ -1773,112 +1916,109 @@ function getTheme() {
   return loadConfig().theme ?? DEFAULT_CONFIG.theme;
 }
 
+// src/theme/useTheme.ts
+import { useSyncExternalStore } from "react";
+function useTheme() {
+  return useSyncExternalStore(
+    (cb) => onThemeChange(cb),
+    () => activeTheme,
+    () => activeTheme
+  );
+}
+
 // src/components/Welcome.tsx
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var Welcome = ({ model = "auto", provider = "auto" }) => {
+  const t = useTheme();
   const cwd = process.cwd();
   const profile = getUserProfile();
   const userName = profile.name || process.env.USER || process.env.USERNAME || "Coder";
   const userPlan = profile.plan || "Free";
   const { stdout } = useStdout();
   const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 76);
-  const renderBorderTop = (title) => {
-    const titleText = ` ${title} `;
-    const dashLength = Math.max(2, contentWidth - titleText.length - 2);
-    return /* @__PURE__ */ jsxs2(Text2, { color: "#D97757", children: [
-      "\u256D",
-      titleText,
-      "\u2500".repeat(dashLength),
-      "\u256E"
-    ] });
-  };
-  const renderBorderBottom = () => {
-    return /* @__PURE__ */ jsxs2(Text2, { color: "#D97757", children: [
-      "\u2570",
-      "\u2500".repeat(contentWidth),
-      "\u256F"
-    ] });
-  };
-  return /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
-    renderBorderTop(`${CYBERMIND_NAME} v${CYBERMIND_VERSION}`),
-    /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
-      /* @__PURE__ */ jsxs2(Box, { flexDirection: "row", alignItems: "center", marginBottom: 1, children: [
-        /* @__PURE__ */ jsx2(Mascot, {}),
-        /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", marginLeft: 2, children: [
-          /* @__PURE__ */ jsxs2(Text2, { bold: true, color: "white", children: [
-            "Welcome back, ",
-            userName,
-            "!"
+  const contentWidth = Math.min(termWidth - 4, 84);
+  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsxs2(
+      Box2,
+      {
+        flexDirection: "row",
+        borderStyle: "round",
+        borderColor: t.accent,
+        paddingX: 1,
+        width: contentWidth + 4,
+        children: [
+          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "42%", paddingRight: 1, alignItems: "center", children: [
+            /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.accent, children: [
+              CYBERCODER_NAME,
+              " v",
+              CYBERCODER_VERSION
+            ] }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.text, children: [
+              "Welcome back, ",
+              userName,
+              "!"
+            ] }) }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
+            /* @__PURE__ */ jsxs2(Box2, { marginTop: 1, flexDirection: "column", alignItems: "center", children: [
+              /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+                /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: model }),
+                " \xB7 ",
+                userPlan,
+                " Plan"
+              ] }),
+              /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd })
+            ] })
           ] }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-            "Model: ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", bold: true, children: model }),
-            " \xB7 Provider: ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", bold: true, children: provider })
-          ] }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-            "Plan: ",
-            /* @__PURE__ */ jsx2(Text2, { color: "yellow", bold: true, children: userPlan }),
-            " \xB7 Organization: ",
-            userName,
-            "'s Workspace"
-          ] }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", wrap: "truncate-end", children: [
-            "Cwd: ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: cwd })
+          /* @__PURE__ */ jsx2(Box2, { flexDirection: "column", paddingX: 1, children: /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: "\u2502\n".repeat(8) }) }),
+          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "52%", children: [
+            /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "Tips for getting started" }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "Run ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: "/init" }),
+              " to create a CYBER.md with project instructions"
+            ] }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "What's new" }) }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "\u2022 Real ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/theme" }),
+              " switching repaints the whole UI"
+            ] }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "\u2022 Multi-model ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/consensus" }),
+              " mode for hard problems"
+            ] }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "\u2022 Working web OAuth sign-in \xB7 ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/release-notes" }),
+              " for more"
+            ] })
           ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsx2(Text2, { color: "#D97757", bold: true, marginBottom: 1, children: "\u2500".repeat(contentWidth - 4) }),
-      /* @__PURE__ */ jsxs2(Box, { flexDirection: "row", width: "100%", children: [
-        /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", width: "50%", paddingRight: 1, children: [
-          /* @__PURE__ */ jsx2(Text2, { bold: true, color: "white", marginBottom: 1, children: "Tips" }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-            "\u2022 ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/init" }),
-            " creates CYBER.md configuration"
-          ] }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-            "\u2022 ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/model" }),
-            " changes active model"
-          ] }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-            "\u2022 ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/compact" }),
-            " shrinks context size"
-          ] }),
-          /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-            "\u2022 ",
-            /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "/help" }),
-            " list all options"
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxs2(Box, { flexDirection: "column", width: "50%", paddingLeft: 1, children: [
-          /* @__PURE__ */ jsx2(Text2, { bold: true, color: "white", marginBottom: 1, children: "What's New" }),
-          /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "\u2022 Real-time model consensus mode" }),
-          /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "\u2022 Fully working web OAuth & redirection" }),
-          /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "\u2022 Rich terminal Markdown formatting" }),
-          /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "\u2022 Cost and token usage tracking" })
-        ] })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxs2(Box2, { paddingX: 1, marginTop: 1, children: [
+      /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, bold: true, children: model }),
+      /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: " is ready \xB7 " }),
+      /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+        "type ",
+        /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/model" }),
+        " to switch"
       ] })
-    ] }),
-    renderBorderBottom(),
-    /* @__PURE__ */ jsx2(Box, { paddingX: 2, marginBottom: 1, children: /* @__PURE__ */ jsx2(Text2, { color: "gray", italic: true, children: "Need help? Ask CyberCoder a coding question or use / for commands." }) })
+    ] })
   ] });
 };
 
 // src/components/Onboarding.tsx
 import { useState as useState2, useEffect as useEffect2, useRef } from "react";
-import { Box as Box3, Text as Text4, useInput, useApp, useStdout as useStdout2 } from "ink";
+import { Box as Box4, Text as Text4, useInput, useApp, useStdout as useStdout2 } from "ink";
 import TextInput from "ink-text-input";
 import { exec } from "child_process";
 import http from "http";
 
 // src/components/LoadingSpinner.tsx
 import { useEffect, useState } from "react";
-import { Box as Box2, Text as Text3 } from "ink";
+import { Box as Box3, Text as Text3 } from "ink";
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var LoadingSpinner = ({ text = "Thinking", showTimer = false }) => {
   const [frame, setFrame] = useState(0);
@@ -1903,7 +2043,7 @@ var LoadingSpinner = ({ text = "Thinking", showTimer = false }) => {
     const s = seconds % 60;
     return `${m}m ${s}s`;
   };
-  return /* @__PURE__ */ jsxs3(Box2, { flexDirection: "row", alignItems: "center", children: [
+  return /* @__PURE__ */ jsxs3(Box3, { flexDirection: "row", alignItems: "center", children: [
     /* @__PURE__ */ jsxs3(Text3, { color: "#D97757", children: [
       frames[frame],
       " "
@@ -2094,8 +2234,8 @@ var apiClient = new ApiClient();
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var LOGIN_METHODS = [
   {
-    id: "cybercli",
-    label: "CyberCli account (Pro, Max, Team)",
+    id: "codeva",
+    label: "Codeva account (Pro, Max, Team)",
     desc: "Automated OAuth browser sign-in"
   },
   {
@@ -2116,7 +2256,7 @@ var THIRDPARTY_PLATFORMS = [
   { id: "back", label: "Go back", desc: "" }
 ];
 var API_PROVIDERS = [
-  { id: "cybermind", label: "CyberMind Cloud" },
+  { id: "codeva", label: "Codeva Cloud" },
   { id: "openai", label: "OpenAI" },
   { id: "anthropic", label: "Anthropic" },
   { id: "groq", label: "Groq" },
@@ -2146,13 +2286,13 @@ var Onboarding = ({ onComplete }) => {
   const [waitingForAuth, setWaitingForAuth] = useState2(false);
   const serverRef = useRef(null);
   const [apiKeyInput, setApiKeyInput] = useState2("");
-  const [apiKeyProvider, setApiKeyProvider] = useState2("cybermind");
+  const [apiKeyProvider, setApiKeyProvider] = useState2("codeva");
   const [apiKeyStage, setApiKeyStage] = useState2("provider");
   const [tpSelected, setTpSelected] = useState2(0);
   const termWidth = stdout.columns ?? 80;
   const contentWidth = Math.min(termWidth - 4, 76);
   useEffect2(() => {
-    if (screen === "cybercli-login") {
+    if (screen === "codeva-login") {
       setWaitingForAuth(true);
       setAuthError(null);
       const server = http.createServer((req, res) => {
@@ -2174,8 +2314,8 @@ var Onboarding = ({ onComplete }) => {
             apiClient.authenticate(token).then((authInfo) => {
               setSessionId(authInfo.session_id);
               setUserProfile(authInfo.user);
-              markOnboardingComplete("cybercli");
-              onComplete("cybercli");
+              markOnboardingComplete("codeva");
+              onComplete("codeva");
             }).catch((err) => {
               setAuthError(err.message || "Token verification failed");
               setWaitingForAuth(false);
@@ -2227,12 +2367,12 @@ var Onboarding = ({ onComplete }) => {
         setSelected((s) => Math.min(LOGIN_METHODS.length - 1, s + 1));
       } else if (key.return) {
         const method = LOGIN_METHODS[selected];
-        if (method?.id === "cybercli") {
-          setScreen("cybercli-login");
+        if (method?.id === "codeva") {
+          setScreen("codeva-login");
         } else if (method?.id === "apikey") {
           setScreen("apikey-input");
           setApiKeyStage("provider");
-          setApiKeyProvider("cybermind");
+          setApiKeyProvider("codeva");
           setSelected(0);
         } else if (method?.id === "thirdparty") {
           setScreen("thirdparty-platforms");
@@ -2241,7 +2381,7 @@ var Onboarding = ({ onComplete }) => {
       }
       return;
     }
-    if (screen === "cybercli-login") {
+    if (screen === "codeva-login") {
       if (key.escape) {
         setScreen("main");
         setSelected(0);
@@ -2327,45 +2467,47 @@ var Onboarding = ({ onComplete }) => {
     ] });
   };
   if (screen === "main") {
-    return /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
-      renderBorderTop(`${CYBERMIND_NAME} v${CYBERMIND_VERSION}`),
-      /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
-        /* @__PURE__ */ jsxs4(Box3, { flexDirection: "row", alignItems: "center", marginBottom: 1, children: [
-          /* @__PURE__ */ jsx4(Mascot, {}),
-          /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", marginLeft: 2, children: [
-            /* @__PURE__ */ jsxs4(Text4, { bold: true, color: "white", children: [
-              "Welcome to ",
-              CYBERMIND_NAME
-            ] }),
-            /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "The fullstack agentic coding CLI" })
-          ] })
+    const t = activeTheme;
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+      /* @__PURE__ */ jsxs4(Text4, { bold: true, color: t.accent, children: [
+        "Welcome to ",
+        CYBERCODER_NAME,
+        " v",
+        CYBERCODER_VERSION
+      ] }),
+      /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(SkyScene, {}) }),
+      /* @__PURE__ */ jsx4(Box4, { marginTop: 1, marginLeft: 1, children: /* @__PURE__ */ jsx4(Mascot, {}) }),
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", marginTop: 1, paddingX: 1, children: [
+        /* @__PURE__ */ jsxs4(Text4, { color: t.muted, children: [
+          CYBERCODER_NAME,
+          " can be used with your Codeva subscription or billed"
         ] }),
-        /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "How would you like to authenticate?" }),
-        LOGIN_METHODS.map((method, i) => /* @__PURE__ */ jsx4(Box3, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
-          i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
+        /* @__PURE__ */ jsx4(Text4, { color: t.muted, children: "based on API usage through your provider account." }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: t.text, bold: true, children: "Select login method:" }) }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, flexDirection: "column", children: LOGIN_METHODS.map((method, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "row", children: /* @__PURE__ */ jsxs4(Text4, { children: [
+          i === selected ? /* @__PURE__ */ jsx4(Text4, { color: t.accent, children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: t.dim, children: "  " }),
+          /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? t.text : t.muted, bold: i === selected, children: [
             i + 1,
             ". ",
             method.label
           ] }),
-          /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
+          /* @__PURE__ */ jsxs4(Text4, { color: t.dim, children: [
             " \xB7 ",
             method.desc
           ] })
-        ] }) }, method.id)),
-        /* @__PURE__ */ jsx4(Box3, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC exit" }) })
-      ] }),
-      renderBorderBottom()
+        ] }) }, method.id)) }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: t.dim, children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC exit" }) })
+      ] })
     ] });
   }
-  if (screen === "cybercli-login") {
+  if (screen === "codeva-login") {
     const frontendUrl = process.env.FRONTEND_URL || "https://cybermindcli.info";
-    return /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
       renderBorderTop("Waiting for Authentication"),
-      /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
-        waitingForAuth ? /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", marginBottom: 1, children: [
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+        waitingForAuth ? /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", marginBottom: 1, children: [
           /* @__PURE__ */ jsx4(LoadingSpinner, { text: "Waiting for browser authentication..." }),
-          /* @__PURE__ */ jsxs4(Box3, { marginTop: 1, children: [
+          /* @__PURE__ */ jsxs4(Box4, { marginTop: 1, children: [
             /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "A browser window should have opened. If not, open:" }),
             /* @__PURE__ */ jsxs4(Text4, { color: "cyan", children: [
               frontendUrl,
@@ -2373,22 +2515,22 @@ var Onboarding = ({ onComplete }) => {
               port || "..."
             ] })
           ] })
-        ] }) : /* @__PURE__ */ jsx4(Box3, { flexDirection: "column", marginBottom: 1, children: authError ? /* @__PURE__ */ jsxs4(Text4, { color: "red", bold: true, children: [
+        ] }) : /* @__PURE__ */ jsx4(Box4, { flexDirection: "column", marginBottom: 1, children: authError ? /* @__PURE__ */ jsxs4(Text4, { color: "red", bold: true, children: [
           "\u2715 ",
           authError
         ] }) : /* @__PURE__ */ jsx4(Text4, { color: "green", bold: true, children: "\u2713 Authenticated successfully!" }) }),
-        /* @__PURE__ */ jsx4(Box3, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "ESC to go back to main menu" }) })
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "ESC to go back to main menu" }) })
       ] }),
       renderBorderBottom()
     ] });
   }
   if (screen === "apikey-input") {
     if (apiKeyStage === "provider") {
-      return /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+      return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
         renderBorderTop("Select API Provider"),
-        /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+        /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
           /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Select an API provider:" }),
-          API_PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx4(Box3, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
+          API_PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
             i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
             /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
               i + 1,
@@ -2396,20 +2538,20 @@ var Onboarding = ({ onComplete }) => {
               prov.label
             ] })
           ] }) }, prov.id)),
-          /* @__PURE__ */ jsx4(Box3, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC go back" }) })
+          /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC go back" }) })
         ] }),
         renderBorderBottom()
       ] });
     }
-    return /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
       renderBorderTop("Enter API Key"),
-      /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
         /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Paste your API key below:" }),
         /* @__PURE__ */ jsxs4(Text4, { color: "gray", marginBottom: 1, children: [
           "Provider: ",
           /* @__PURE__ */ jsx4(Text4, { color: "cyan", bold: true, children: apiKeyProvider })
         ] }),
-        /* @__PURE__ */ jsxs4(Box3, { flexDirection: "row", marginBottom: 1, children: [
+        /* @__PURE__ */ jsxs4(Box4, { flexDirection: "row", marginBottom: 1, children: [
           /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
             ">",
             " "
@@ -2423,7 +2565,7 @@ var Onboarding = ({ onComplete }) => {
                 const trimmed = apiKeyInput.trim();
                 if (trimmed) {
                   setApiKey(apiKeyProvider, trimmed);
-                  if (apiKeyProvider === "cybermind") {
+                  if (apiKeyProvider === "codeva") {
                     setAuthToken(trimmed);
                     apiClient.authenticate(trimmed).then((authInfo) => {
                       setSessionId(authInfo.session_id);
@@ -2444,17 +2586,17 @@ var Onboarding = ({ onComplete }) => {
             }
           )
         ] }),
-        /* @__PURE__ */ jsx4(Box3, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Enter submit \xB7 ESC go back" }) })
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Enter submit \xB7 ESC go back" }) })
       ] }),
       renderBorderBottom()
     ] });
   }
   if (screen === "thirdparty-platforms") {
-    return /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
       renderBorderTop("3rd-Party Platforms"),
-      /* @__PURE__ */ jsxs4(Box3, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
         /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Select a local or 3rd-party platform to set up:" }),
-        THIRDPARTY_PLATFORMS.map((plat, i) => /* @__PURE__ */ jsx4(Box3, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
+        THIRDPARTY_PLATFORMS.map((plat, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
           i === tpSelected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
           /* @__PURE__ */ jsxs4(Text4, { color: i === tpSelected ? "white" : "gray", bold: i === tpSelected, children: [
             i + 1,
@@ -2466,7 +2608,7 @@ var Onboarding = ({ onComplete }) => {
             plat.desc
           ] })
         ] }) }, plat.id)),
-        /* @__PURE__ */ jsx4(Box3, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC go back" }) })
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC go back" }) })
       ] }),
       renderBorderBottom()
     ] });
@@ -2476,19 +2618,8 @@ var Onboarding = ({ onComplete }) => {
 
 // src/components/ThemePicker.tsx
 import { useState as useState3 } from "react";
-import { Box as Box4, Text as Text5, useInput as useInput2 } from "ink";
-import gradient from "gradient-string";
+import { Box as Box5, Text as Text5, useInput as useInput2 } from "ink";
 import { Fragment, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-var cyber = gradient(["#00e5ff", "#7b5cff", "#ff5c8a"]);
-var THEMES = [
-  { id: "auto", label: "Auto (match terminal)" },
-  { id: "dark", label: "Dark mode" },
-  { id: "light", label: "Light mode" },
-  { id: "dark-colorblind", label: "Dark mode (colorblind-friendly)" },
-  { id: "light-colorblind", label: "Light mode (colorblind-friendly)" },
-  { id: "dark-ansi", label: "Dark mode (ANSI colors only)" },
-  { id: "light-ansi", label: "Light mode (ANSI colors only)" }
-];
 var SYNTAX_THEMES = [
   "Monokai Extended",
   "Dracula",
@@ -2500,12 +2631,22 @@ var ThemePicker = ({ onComplete }) => {
   const [selected, setSelected] = useState3(1);
   const [syntaxIdx, setSyntaxIdx] = useState3(0);
   const [stage, setStage] = useState3("theme");
+  const previewMode = THEME_OPTIONS[stage === "theme" ? selected : selected]?.id ?? "dark";
+  const preview = resolvePalette(previewMode);
   useInput2((_, key) => {
     if (stage === "theme") {
       if (key.upArrow) {
-        setSelected((s) => Math.max(0, s - 1));
+        setSelected((s) => {
+          const next = Math.max(0, s - 1);
+          setActiveTheme(THEME_OPTIONS[next].id);
+          return next;
+        });
       } else if (key.downArrow) {
-        setSelected((s) => Math.min(THEMES.length - 1, s + 1));
+        setSelected((s) => {
+          const next = Math.min(THEME_OPTIONS.length - 1, s + 1);
+          setActiveTheme(THEME_OPTIONS[next].id);
+          return next;
+        });
       } else if (key.return) {
         setStage("syntax");
       }
@@ -2515,95 +2656,96 @@ var ThemePicker = ({ onComplete }) => {
       } else if (key.downArrow) {
         setSyntaxIdx((s) => Math.min(SYNTAX_THEMES.length - 1, s + 1));
       } else if (key.return) {
-        const theme = THEMES[selected];
+        const theme = THEME_OPTIONS[selected];
         const syntax = SYNTAX_THEMES[syntaxIdx];
         if (theme && syntax) {
-          onComplete({
-            mode: theme.id,
-            syntaxTheme: syntax
-          });
+          onComplete({ mode: theme.id, syntaxTheme: syntax });
         }
       }
     }
   });
-  const previewLines = [
-    { line: 1, text: "function greet() {", color: "cyan" },
-    { line: 2, text: '  console.log("Hello, World!");', old: true },
-    { line: 2, text: '  console.log("Hello, CyberCoder!");', new: true },
-    { line: 3, text: "}", color: "cyan" }
-  ];
-  return /* @__PURE__ */ jsxs5(Box4, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx5(Text5, { children: cyber("\u256D\u2500 Theme Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
-    /* @__PURE__ */ jsxs5(Box4, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      /* @__PURE__ */ jsx5(Text5, { bold: true, color: "white", children: "Let's get started." }),
-      /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
-      /* @__PURE__ */ jsx5(Text5, { bold: true, color: "#D97736", children: "Choose the text style that looks best with your terminal" }),
-      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "To change this later, run /theme" }),
-      /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
+  return /* @__PURE__ */ jsxs5(Box5, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsxs5(Text5, { bold: true, color: preview.accent, children: [
+      "Welcome to ",
+      CYBERCODER_NAME,
+      " v",
+      CYBERCODER_VERSION
+    ] }),
+    /* @__PURE__ */ jsx5(Box5, { marginTop: 1, children: /* @__PURE__ */ jsx5(SkyScene, {}) }),
+    /* @__PURE__ */ jsx5(Box5, { marginTop: 1, marginLeft: 1, children: /* @__PURE__ */ jsx5(Mascot, {}) }),
+    /* @__PURE__ */ jsxs5(Box5, { flexDirection: "column", marginTop: 1, paddingLeft: 1, children: [
+      /* @__PURE__ */ jsx5(Text5, { bold: true, color: preview.text, children: "Let's get started." }),
+      /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
       stage === "theme" && /* @__PURE__ */ jsxs5(Fragment, { children: [
-        THEMES.map((t, i) => /* @__PURE__ */ jsx5(Box4, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
-          i === selected ? /* @__PURE__ */ jsx5(Text5, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsxs5(Text5, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
+        /* @__PURE__ */ jsx5(Text5, { bold: true, color: preview.accent, children: "Choose the text style that looks best with your terminal" }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.muted, children: "To change this later, run /theme" }),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        THEME_OPTIONS.map((opt, i) => /* @__PURE__ */ jsx5(Box5, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
+          i === selected ? /* @__PURE__ */ jsx5(Text5, { color: preview.accent, children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "  " }),
+          /* @__PURE__ */ jsxs5(Text5, { color: i === selected ? preview.text : preview.muted, bold: i === selected, children: [
             i + 1,
             ". ",
-            t.label
+            opt.label
           ] }),
-          i === selected && /* @__PURE__ */ jsx5(Text5, { color: "green", children: "  \u2713" })
-        ] }) }, t.id)),
-        /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
-        /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "Use arrow keys, Enter to confirm" })
+          i === selected && /* @__PURE__ */ jsx5(Text5, { color: preview.success, children: "  \u2713" })
+        ] }) }, opt.id)),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2191\u2193 to preview \xB7 Enter to confirm" })
       ] }),
       stage === "syntax" && /* @__PURE__ */ jsxs5(Fragment, { children: [
-        /* @__PURE__ */ jsx5(Text5, { bold: true, color: "#D97736", children: "Choose syntax highlighting theme:" }),
-        /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
-        SYNTAX_THEMES.map((t, i) => /* @__PURE__ */ jsx5(Box4, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
-          i === syntaxIdx ? /* @__PURE__ */ jsx5(Text5, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsxs5(Text5, { color: i === syntaxIdx ? "white" : "gray", bold: i === syntaxIdx, children: [
+        /* @__PURE__ */ jsx5(Text5, { bold: true, color: preview.accent, children: "Choose syntax highlighting theme:" }),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        SYNTAX_THEMES.map((name, i) => /* @__PURE__ */ jsx5(Box5, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
+          i === syntaxIdx ? /* @__PURE__ */ jsx5(Text5, { color: preview.accent, children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "  " }),
+          /* @__PURE__ */ jsxs5(Text5, { color: i === syntaxIdx ? preview.text : preview.muted, bold: i === syntaxIdx, children: [
             i + 1,
             ". ",
-            t
+            name
           ] })
-        ] }) }, t)),
-        /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
-        /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "Use arrow keys, Enter to confirm" })
+        ] }) }, name)),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2191\u2193 navigate \xB7 Enter to confirm" })
       ] }),
-      /* @__PURE__ */ jsx5(Box4, { marginTop: 1 }),
-      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500" }),
-      previewLines.map((p, idx) => /* @__PURE__ */ jsxs5(Box4, { flexDirection: "row", children: [
-        /* @__PURE__ */ jsxs5(Text5, { color: "gray", children: [
-          p.line.toString().padStart(2),
-          " "
-        ] }),
-        "old" in p && p.old && /* @__PURE__ */ jsxs5(Text5, { color: "red", children: [
-          "- ",
-          p.text
-        ] }),
-        "new" in p && p.new && /* @__PURE__ */ jsxs5(Text5, { color: "green", children: [
-          "+ ",
-          p.text
-        ] }),
-        "color" in p && /* @__PURE__ */ jsxs5(Text5, { color: p.color, children: [
-          "  ",
-          p.text
+      /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+      /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2500".repeat(48) }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "1 " }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.info, children: "function " }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.warning, children: "greet" }),
+        /* @__PURE__ */ jsxs5(Text5, { color: preview.text, children: [
+          "() ",
+          "{"
         ] })
-      ] }, idx)),
-      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500" }),
-      /* @__PURE__ */ jsxs5(Text5, { color: "gray", children: [
-        "Syntax theme: ",
-        SYNTAX_THEMES[syntaxIdx],
-        " (ctrl+t to disable)"
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx5(Text5, { children: cyber("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+      ] }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "2 " }),
+        /* @__PURE__ */ jsxs5(Text5, { color: preview.error, children: [
+          "- ",
+          'console.log("Hello, World!");'
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "2 " }),
+        /* @__PURE__ */ jsxs5(Text5, { color: preview.success, children: [
+          "+ ",
+          'console.log("Hello, CyberCoder!");'
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "3 " }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.text, children: "}" })
+      ] }),
+      /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2500".repeat(48) })
+    ] })
   ] });
 };
 
 // src/components/Settings.tsx
 import { useState as useState4 } from "react";
-import { Box as Box5, Text as Text6, useInput as useInput3 } from "ink";
-import gradient2 from "gradient-string";
+import { Box as Box6, Text as Text6, useInput as useInput3 } from "ink";
+import gradient from "gradient-string";
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
-var cyber2 = gradient2(["#00e5ff", "#7b5cff", "#ff5c8a"]);
+var cyber = gradient(["#00e5ff", "#7b5cff", "#ff5c8a"]);
 var SETTINGS_CATEGORIES = [
   {
     id: "general",
@@ -2695,10 +2837,10 @@ var Settings = ({ onClose }) => {
       }
     }
   });
-  return /* @__PURE__ */ jsxs6(Box5, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx6(Text6, { children: cyber2("\u256D\u2500 Settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
-    /* @__PURE__ */ jsxs6(Box5, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      /* @__PURE__ */ jsx6(Box5, { flexDirection: "row", marginBottom: 1, children: SETTINGS_CATEGORIES.map((cat, i) => /* @__PURE__ */ jsxs6(Text6, { children: [
+  return /* @__PURE__ */ jsxs6(Box6, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx6(Text6, { children: cyber("\u256D\u2500 Settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
+    /* @__PURE__ */ jsxs6(Box6, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx6(Box6, { flexDirection: "row", marginBottom: 1, children: SETTINGS_CATEGORIES.map((cat, i) => /* @__PURE__ */ jsxs6(Text6, { children: [
         /* @__PURE__ */ jsxs6(Text6, { color: i === catIdx ? "#D97736" : "gray", bold: i === catIdx, children: [
           " ",
           cat.label,
@@ -2709,25 +2851,25 @@ var Settings = ({ onClose }) => {
       /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "\u2500".repeat(66) }),
       currentCat && currentCat.items.map((item, i) => {
         const val = getSettingValue(item.key);
-        return /* @__PURE__ */ jsxs6(Box5, { flexDirection: "row", marginY: 1, children: [
+        return /* @__PURE__ */ jsxs6(Box6, { flexDirection: "row", marginY: 1, children: [
           /* @__PURE__ */ jsxs6(Text6, { children: [
             i === itemIdx ? /* @__PURE__ */ jsx6(Text6, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "  " }),
             /* @__PURE__ */ jsx6(Text6, { color: i === itemIdx ? "white" : "gray", bold: i === itemIdx, children: item.label })
           ] }),
-          /* @__PURE__ */ jsx6(Box5, { flexGrow: 1 }),
+          /* @__PURE__ */ jsx6(Box6, { flexGrow: 1 }),
           /* @__PURE__ */ jsx6(Text6, { color: typeof val === "boolean" ? val ? "green" : "red" : "cyan", children: typeof val === "boolean" ? val ? "\u2713 enabled" : "\u2717 disabled" : val })
         ] }, item.key);
       }),
-      /* @__PURE__ */ jsx6(Box5, { marginTop: 1 }),
+      /* @__PURE__ */ jsx6(Box6, { marginTop: 1 }),
       /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "Arrow keys to navigate \xB7 Enter to toggle/cycle \xB7 ESC to close" })
     ] }),
-    /* @__PURE__ */ jsx6(Text6, { children: cyber2("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+    /* @__PURE__ */ jsx6(Text6, { children: cyber("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
   ] });
 };
 
 // src/components/ModelPicker.tsx
 import { useState as useState5 } from "react";
-import { Box as Box6, Text as Text7, useInput as useInput4 } from "ink";
+import { Box as Box7, Text as Text7, useInput as useInput4 } from "ink";
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var PROVIDERS = [
   {
@@ -2822,13 +2964,13 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
     }
   });
   const currentProv = PROVIDERS[providerIdx];
-  return /* @__PURE__ */ jsxs7(Box6, { flexDirection: "column", marginBottom: 1, children: [
+  return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
     /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u256D\u2500 Model Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
-    /* @__PURE__ */ jsxs7(Box6, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+    /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
       stage === "provider" && /* @__PURE__ */ jsxs7(Fragment2, { children: [
         /* @__PURE__ */ jsx7(Text7, { bold: true, color: "white", children: "Select a provider:" }),
-        /* @__PURE__ */ jsx7(Box6, { marginTop: 1 }),
-        PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx7(Box6, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
+        PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
           i === providerIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
           /* @__PURE__ */ jsx7(Text7, { color: i === providerIdx ? "white" : "gray", bold: i === providerIdx, children: prov.label }),
           /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
@@ -2837,7 +2979,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
             " models)"
           ] })
         ] }) }, prov.id)),
-        /* @__PURE__ */ jsx7(Box6, { marginTop: 1 }),
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
         /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to close" })
       ] }),
       stage === "model" && currentProv && /* @__PURE__ */ jsxs7(Fragment2, { children: [
@@ -2845,8 +2987,8 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
           currentProv.label,
           " \u2014 Select model:"
         ] }),
-        /* @__PURE__ */ jsx7(Box6, { marginTop: 1 }),
-        currentProv.models.map((m, i) => /* @__PURE__ */ jsxs7(Box6, { flexDirection: "column", marginBottom: 1, children: [
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
+        currentProv.models.map((m, i) => /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
           /* @__PURE__ */ jsxs7(Text7, { children: [
             i === modelIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
             /* @__PURE__ */ jsx7(Text7, { color: i === modelIdx ? "white" : "gray", bold: i === modelIdx, children: m.name }),
@@ -2859,7 +3001,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
             m.desc
           ] })
         ] }, m.id)),
-        /* @__PURE__ */ jsx7(Box6, { marginTop: 1 }),
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
         /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to go back" })
       ] })
     ] }),
@@ -2869,7 +3011,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
 
 // src/components/ReleaseNotes.tsx
 import { useState as useState6 } from "react";
-import { Box as Box7, Text as Text8, useInput as useInput5 } from "ink";
+import { Box as Box8, Text as Text8, useInput as useInput5 } from "ink";
 import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 var RELEASES = [
   {
@@ -2931,10 +3073,10 @@ var ReleaseNotes = ({ onClose }) => {
     }
   });
   const rel = RELEASES[selected];
-  return /* @__PURE__ */ jsxs8(Box7, { flexDirection: "column", marginBottom: 1, children: [
+  return /* @__PURE__ */ jsxs8(Box8, { flexDirection: "column", marginBottom: 1, children: [
     /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u256D\u2500 Release Notes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
-    /* @__PURE__ */ jsxs8(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      /* @__PURE__ */ jsx8(Box7, { flexDirection: "row", marginBottom: 1, children: RELEASES.map((r, i) => /* @__PURE__ */ jsxs8(Text8, { children: [
+    /* @__PURE__ */ jsxs8(Box8, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx8(Box8, { flexDirection: "row", marginBottom: 1, children: RELEASES.map((r, i) => /* @__PURE__ */ jsxs8(Text8, { children: [
         /* @__PURE__ */ jsxs8(Text8, { color: i === selected ? "#D97736" : "gray", bold: i === selected, children: [
           " ",
           r.version,
@@ -2949,13 +3091,13 @@ var ReleaseNotes = ({ onClose }) => {
           " \u2014 ",
           rel.date
         ] }),
-        /* @__PURE__ */ jsx8(Box7, { marginTop: 1 }),
-        rel.highlights.map((h, i) => /* @__PURE__ */ jsxs8(Box7, { flexDirection: "row", marginBottom: 1, children: [
+        /* @__PURE__ */ jsx8(Box8, { marginTop: 1 }),
+        rel.highlights.map((h, i) => /* @__PURE__ */ jsxs8(Box8, { flexDirection: "row", marginBottom: 1, children: [
           /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u2022 " }),
           /* @__PURE__ */ jsx8(Text8, { color: "gray", children: h })
         ] }, i))
       ] }),
-      /* @__PURE__ */ jsx8(Box7, { marginTop: 1 }),
+      /* @__PURE__ */ jsx8(Box8, { marginTop: 1 }),
       /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "Arrow keys to switch version, ESC to close" })
     ] }),
     /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F" })
@@ -2964,16 +3106,15 @@ var ReleaseNotes = ({ onClose }) => {
 
 // src/components/Prompt.tsx
 import { useState as useState7 } from "react";
-import { Box as Box8, Text as Text9, useInput as useInput6 } from "ink";
+import { Box as Box9, Text as Text9, useInput as useInput6 } from "ink";
 import TextInput2 from "ink-text-input";
 import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
 var promptHistory = [];
 var Prompt = ({ onSubmit, disabled }) => {
   const [value, setValue] = useState7("");
   const [historyIndex, setHistoryIndex] = useState7(-1);
-  const cwd = process.cwd();
-  const estTokens = Math.ceil(value.length / 4);
-  useInput6((input, key) => {
+  const t = useTheme();
+  useInput6((_input, key) => {
     if (disabled) return;
     if (key.upArrow) {
       if (promptHistory.length > 0) {
@@ -3009,59 +3150,36 @@ var Prompt = ({ onSubmit, disabled }) => {
       setValue("");
     }
   };
-  if (disabled) {
-    return /* @__PURE__ */ jsxs9(Box8, { flexDirection: "column", marginTop: 1, children: [
-      /* @__PURE__ */ jsx9(Text9, { color: "gray", dimColor: true, children: cwd }),
-      /* @__PURE__ */ jsxs9(Box8, { flexDirection: "row", children: [
-        /* @__PURE__ */ jsxs9(Text9, { color: "gray", children: [
-          ">",
-          " "
-        ] }),
-        /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "(thinking\u2026)" })
-      ] })
-    ] });
-  }
-  return /* @__PURE__ */ jsxs9(Box8, { flexDirection: "column", marginTop: 1, children: [
-    /* @__PURE__ */ jsxs9(Box8, { flexDirection: "row", justifyContent: "space-between", width: "100%", children: [
-      /* @__PURE__ */ jsx9(Text9, { color: "gray", dimColor: true, children: cwd }),
-      value.length > 0 && /* @__PURE__ */ jsxs9(Text9, { color: "gray", dimColor: true, children: [
-        "[",
-        value.length,
-        " chars \xB7 est ",
-        estTokens,
-        " tokens]"
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxs9(Box8, { flexDirection: "row", children: [
-      /* @__PURE__ */ jsxs9(Text9, { color: "#D97757", bold: true, children: [
-        ">",
-        " "
-      ] }),
-      /* @__PURE__ */ jsx9(
-        TextInput2,
-        {
-          value,
-          onChange: setValue,
-          onSubmit: handleSubmit,
-          placeholder: "Ask CyberCoder... (/ for commands, end with \\ for multi-line)"
-        }
-      )
-    ] })
-  ] });
+  return /* @__PURE__ */ jsxs9(
+    Box9,
+    {
+      flexDirection: "row",
+      marginTop: 1,
+      borderStyle: "round",
+      borderColor: disabled ? t.dim : t.accent,
+      paddingX: 1,
+      children: [
+        /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "> " }),
+        disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
+          TextInput2,
+          {
+            value,
+            onChange: setValue,
+            onSubmit: handleSubmit,
+            placeholder: 'Try "refactor <filepath>" \xB7 / for commands \xB7 \\ for multi-line'
+          }
+        )
+      ]
+    }
+  );
 };
 
 // src/components/MessageList.tsx
-import { Box as Box9, Text as Text10 } from "ink";
+import { Box as Box10, Text as Text10 } from "ink";
 import { jsx as jsx10, jsxs as jsxs10 } from "react/jsx-runtime";
-var ROLE_COLOR = {
-  user: "cyan",
-  assistant: "white",
-  system: "gray",
-  tool: "magenta"
-};
 var ROLE_LABEL = {
   user: "you",
-  assistant: "cybermind",
+  assistant: "cybercoder",
   system: "info",
   tool: "tool"
 };
@@ -3107,12 +3225,12 @@ function renderFormattedText(text, key) {
     parts.push(/* @__PURE__ */ jsx10(Text10, { children: currentText }, `txt-end`));
   }
   if (text.startsWith("# ")) {
-    return /* @__PURE__ */ jsx10(Box9, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "#D97757", bold: true, underline: true, children: text.slice(2) }) }, key);
+    return /* @__PURE__ */ jsx10(Box10, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "#D97757", bold: true, underline: true, children: text.slice(2) }) }, key);
   }
   if (text.startsWith("## ")) {
-    return /* @__PURE__ */ jsx10(Box9, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "#D97757", bold: true, children: text.slice(3) }) }, key);
+    return /* @__PURE__ */ jsx10(Box10, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "#D97757", bold: true, children: text.slice(3) }) }, key);
   }
-  return /* @__PURE__ */ jsx10(Box9, { flexDirection: "row", children: /* @__PURE__ */ jsx10(Text10, { children: parts }) }, key);
+  return /* @__PURE__ */ jsx10(Box10, { flexDirection: "row", children: /* @__PURE__ */ jsx10(Text10, { children: parts }) }, key);
 }
 function parseContent(content) {
   const lines = content.split("\n");
@@ -3127,9 +3245,9 @@ function parseContent(content) {
         inCodeBlock = false;
         const langHeader = codeBlockLang ? ` ${codeBlockLang.toUpperCase()} ` : " CODE ";
         elements.push(
-          /* @__PURE__ */ jsxs10(Box9, { flexDirection: "column", marginY: 1, borderStyle: "round", borderColor: "gray", children: [
-            /* @__PURE__ */ jsx10(Box9, { paddingX: 1, backgroundColor: "gray", children: /* @__PURE__ */ jsx10(Text10, { color: "black", bold: true, children: langHeader }) }),
-            /* @__PURE__ */ jsx10(Box9, { paddingX: 1, flexDirection: "column", children: codeBlockLines.map((l, idx) => /* @__PURE__ */ jsx10(Text10, { color: "white", children: l }, idx)) })
+          /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginY: 1, borderStyle: "round", borderColor: "gray", children: [
+            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, backgroundColor: "gray", children: /* @__PURE__ */ jsx10(Text10, { color: "black", bold: true, children: langHeader }) }),
+            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, flexDirection: "column", children: codeBlockLines.map((l, idx) => /* @__PURE__ */ jsx10(Text10, { color: "white", children: l }, idx)) })
           ] }, `code-${i}`)
         );
         codeBlockLines = [];
@@ -3150,7 +3268,7 @@ function parseContent(content) {
         const toolName = match[1]?.trim() || "";
         const toolArgs = match[2]?.trim() || "";
         elements.push(
-          /* @__PURE__ */ jsxs10(Box9, { flexDirection: "column", paddingX: 1, marginY: 1, borderStyle: "single", borderColor: "yellow", children: [
+          /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", paddingX: 1, marginY: 1, borderStyle: "single", borderColor: "yellow", children: [
             /* @__PURE__ */ jsxs10(Text10, { color: "yellow", bold: true, children: [
               "\u26A1 Tool Call: ",
               toolName
@@ -3177,17 +3295,23 @@ function parseContent(content) {
 }
 var MessageList = ({ messages }) => {
   if (messages.length === 0) return null;
-  return /* @__PURE__ */ jsx10(Box9, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => {
+  const roleColor = {
+    user: activeTheme.user,
+    assistant: activeTheme.assistant,
+    system: activeTheme.muted,
+    tool: activeTheme.accentAlt
+  };
+  return /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => {
     if (m.role === "system" && !m.content.trim()) return null;
-    return /* @__PURE__ */ jsxs10(Box9, { flexDirection: "column", marginBottom: 1, children: [
-      /* @__PURE__ */ jsx10(Text10, { color: ROLE_COLOR[m.role], bold: true, children: ROLE_LABEL[m.role] }),
-      /* @__PURE__ */ jsx10(Box9, { flexDirection: "column", paddingLeft: 1, children: parseContent(m.content) })
+    return /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginBottom: 1, children: [
+      /* @__PURE__ */ jsx10(Text10, { color: roleColor[m.role], bold: true, children: ROLE_LABEL[m.role] }),
+      /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", paddingLeft: 1, children: parseContent(m.content) })
     ] }, m.id);
   }) });
 };
 
 // src/components/StatusBar.tsx
-import { Box as Box10, Text as Text11 } from "ink";
+import { Box as Box11, Text as Text11 } from "ink";
 import { jsx as jsx11, jsxs as jsxs11 } from "react/jsx-runtime";
 var STATUS_LABEL = {
   idle: "ready",
@@ -3195,51 +3319,119 @@ var STATUS_LABEL = {
   "awaiting-approval": "awaiting approval",
   error: "error"
 };
-var STATUS_COLOR = {
-  idle: "green",
-  thinking: "yellow",
-  "awaiting-approval": "magenta",
-  error: "red"
-};
 var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
-  const formatTokens = (num) => {
+  const t = useTheme();
+  const statusColor = {
+    idle: t.success,
+    thinking: t.warning,
+    "awaiting-approval": t.accentAlt,
+    error: t.error
+  };
+  const formatTokens2 = (num) => {
     if (num >= 1e3) {
       return `${(num / 1e3).toFixed(1)}k`;
     }
     return num.toString();
   };
-  return /* @__PURE__ */ jsxs11(Box10, { marginTop: 1, paddingLeft: 1, children: [
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "[" }),
-    /* @__PURE__ */ jsx11(Text11, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
-    /* @__PURE__ */ jsxs11(Text11, { color: "gray", children: [
+  return /* @__PURE__ */ jsxs11(Box11, { marginTop: 1, paddingLeft: 1, children: [
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "[" }),
+    /* @__PURE__ */ jsx11(Text11, { color: statusColor[status], bold: true, children: STATUS_LABEL[status] }),
+    /* @__PURE__ */ jsxs11(Text11, { color: t.dim, children: [
       "] ",
       " "
     ] }),
-    /* @__PURE__ */ jsx11(Text11, { color: "white", bold: true, children: model }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: " \xB7 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: "white", children: provider }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: " \u2502 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "tokens: " }),
-    /* @__PURE__ */ jsx11(Text11, { color: "cyan", bold: true, children: formatTokens(tokens) }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: " \u2502 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "cost: " }),
-    /* @__PURE__ */ jsxs11(Text11, { color: "green", bold: true, children: [
+    /* @__PURE__ */ jsx11(Text11, { color: t.text, bold: true, children: model }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.text, children: provider }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "tokens: " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.info, bold: true, children: formatTokens2(tokens) }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "cost: " }),
+    /* @__PURE__ */ jsxs11(Text11, { color: t.success, bold: true, children: [
       "$",
       cost.toFixed(2)
     ] }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: " \u2502 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "? shortcuts" })
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "? shortcuts" })
   ] });
 };
 
+// src/components/ThinkingIndicator.tsx
+import { useEffect as useEffect3, useState as useState8 } from "react";
+import { Box as Box12, Text as Text12 } from "ink";
+import { jsx as jsx12, jsxs as jsxs12 } from "react/jsx-runtime";
+var WORDS = [
+  "Thinking",
+  "Pondering",
+  "Conjuring",
+  "Reasoning",
+  "Computing",
+  "Synthesizing",
+  "Architecting",
+  "Untangling",
+  "Investigating",
+  "Cooking",
+  "Crunching",
+  "Composing",
+  "Deliberating",
+  "Strategizing",
+  "Assembling",
+  "Tinkering",
+  "Wrangling",
+  "Noodling"
+];
+var FRAMES = ["\u28FE", "\u28FD", "\u28FB", "\u28BF", "\u287F", "\u28DF", "\u28EF", "\u28F7"];
+var ThinkingIndicator = ({ tokens = 0, label }) => {
+  const t = activeTheme;
+  const [frame, setFrame] = useState8(0);
+  const [wordIdx, setWordIdx] = useState8(() => Math.floor(Math.random() * WORDS.length));
+  const [elapsed, setElapsed] = useState8(0);
+  useEffect3(() => {
+    const f = setInterval(() => setFrame((x) => (x + 1) % FRAMES.length), 80);
+    const w = setInterval(() => setWordIdx((x) => (x + 1) % WORDS.length), 3200);
+    const e = setInterval(() => setElapsed((x) => x + 1), 1e3);
+    return () => {
+      clearInterval(f);
+      clearInterval(w);
+      clearInterval(e);
+    };
+  }, []);
+  const word = label || WORDS[wordIdx];
+  return /* @__PURE__ */ jsxs12(Box12, { marginTop: 1, paddingLeft: 1, children: [
+    /* @__PURE__ */ jsxs12(Text12, { color: t.accent, children: [
+      FRAMES[frame],
+      " "
+    ] }),
+    /* @__PURE__ */ jsxs12(Text12, { color: t.accent, bold: true, children: [
+      word,
+      "\u2026"
+    ] }),
+    /* @__PURE__ */ jsxs12(Text12, { color: t.dim, children: [
+      "  (",
+      elapsed,
+      "s"
+    ] }),
+    tokens > 0 && /* @__PURE__ */ jsxs12(Text12, { color: t.dim, children: [
+      " \xB7 ",
+      formatTokens(tokens),
+      " tokens"
+    ] }),
+    /* @__PURE__ */ jsx12(Text12, { color: t.dim, children: " \xB7 esc to interrupt)" })
+  ] });
+};
+function formatTokens(n) {
+  return n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n);
+}
+
 // src/components/ExitConfirm.tsx
-import { Box as Box11, Text as Text12 } from "ink";
-import { jsx as jsx12 } from "react/jsx-runtime";
-var ExitConfirm = () => /* @__PURE__ */ jsx12(Box11, { marginTop: 1, children: /* @__PURE__ */ jsx12(Text12, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
+import { Box as Box13, Text as Text13 } from "ink";
+import { jsx as jsx13 } from "react/jsx-runtime";
+var ExitConfirm = () => /* @__PURE__ */ jsx13(Box13, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
 
 // src/components/ApprovalDialog.tsx
-import { Box as Box12, Text as Text13, useInput as useInput7 } from "ink";
-import { jsx as jsx13, jsxs as jsxs12 } from "react/jsx-runtime";
+import { Box as Box14, Text as Text14, useInput as useInput7 } from "ink";
+import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
 var ApprovalDialog = ({ pending }) => {
   useInput7((input, key) => {
     const char = input.toLowerCase();
@@ -3251,8 +3443,8 @@ var ApprovalDialog = ({ pending }) => {
       pending.resolve("allow-persistent");
     }
   });
-  return /* @__PURE__ */ jsxs12(
-    Box12,
+  return /* @__PURE__ */ jsxs13(
+    Box14,
     {
       flexDirection: "column",
       borderStyle: "double",
@@ -3260,22 +3452,22 @@ var ApprovalDialog = ({ pending }) => {
       paddingX: 1,
       marginY: 1,
       children: [
-        /* @__PURE__ */ jsx13(Text13, { bold: true, color: pending.destructive ? "red" : "yellow", children: pending.destructive ? "\u26A0 Critical Tool Approval Required" : "\u26A1 Tool Approval Required" }),
-        /* @__PURE__ */ jsxs12(Box12, { marginTop: 1, flexDirection: "column", children: [
-          /* @__PURE__ */ jsxs12(Text13, { children: [
+        /* @__PURE__ */ jsx14(Text14, { bold: true, color: pending.destructive ? "red" : "yellow", children: pending.destructive ? "\u26A0 Critical Tool Approval Required" : "\u26A1 Tool Approval Required" }),
+        /* @__PURE__ */ jsxs13(Box14, { marginTop: 1, flexDirection: "column", children: [
+          /* @__PURE__ */ jsxs13(Text14, { children: [
             "Tool: ",
-            /* @__PURE__ */ jsx13(Text13, { color: "cyan", bold: true, children: pending.toolName })
+            /* @__PURE__ */ jsx14(Text14, { color: "cyan", bold: true, children: pending.toolName })
           ] }),
-          /* @__PURE__ */ jsx13(Text13, { color: "gray", children: pending.summary })
+          /* @__PURE__ */ jsx14(Text14, { color: "gray", children: pending.summary })
         ] }),
-        /* @__PURE__ */ jsx13(Box12, { marginTop: 1, children: /* @__PURE__ */ jsxs12(Text13, { children: [
-          /* @__PURE__ */ jsx13(Text13, { bold: true, color: "green", children: "[y] Allow" }),
+        /* @__PURE__ */ jsx14(Box14, { marginTop: 1, children: /* @__PURE__ */ jsxs13(Text14, { children: [
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "green", children: "[y] Allow" }),
           " \xB7 ",
-          /* @__PURE__ */ jsx13(Text13, { bold: true, color: "red", children: "[n] Deny" }),
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "red", children: "[n] Deny" }),
           " \xB7 ",
-          /* @__PURE__ */ jsx13(Text13, { bold: true, color: "yellow", children: "[a] Always allow" }),
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "yellow", children: "[a] Always allow" }),
           " \xB7 ",
-          /* @__PURE__ */ jsx13(Text13, { bold: true, color: "gray", children: "[ESC] Cancel" })
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "gray", children: "[ESC] Cancel" })
         ] }) })
       ]
     }
@@ -3283,47 +3475,48 @@ var ApprovalDialog = ({ pending }) => {
 };
 
 // src/components/HintBar.tsx
-import { Box as Box13, Text as Text14, useStdout as useStdout3 } from "ink";
-import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
+import { Box as Box15, Text as Text15, useStdout as useStdout3 } from "ink";
+import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
   const { stdout } = useStdout3();
+  const t = useTheme();
   const termWidth = stdout.columns ?? 80;
   const contentWidth = Math.min(termWidth - 4, 76);
   const getHints = () => {
     switch (status) {
       case "thinking":
-        return /* @__PURE__ */ jsxs13(Text14, { color: "gray", children: [
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "#D97757", children: "Esc" }),
+        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "Esc" }),
           " to interrupt \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "#D97757", children: "?" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
           " for shortcuts"
         ] });
       case "awaiting-approval":
-        return /* @__PURE__ */ jsxs13(Text14, { color: "gray", children: [
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "green", children: "y" }),
+        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.success, children: "y" }),
           " allow \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "red", children: "n" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.error, children: "n" }),
           " deny \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "yellow", children: "a" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.warning, children: "a" }),
           " always \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "gray", children: "ESC" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.dim, children: "ESC" }),
           " cancel"
         ] });
       case "idle":
       default:
-        return /* @__PURE__ */ jsxs13(Text14, { color: "gray", children: [
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "#D97757", children: "?" }),
+        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
           " for shortcuts \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "#D97757", children: "/" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "/" }),
           " for commands \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "red", children: "Ctrl+C" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.error, children: "Ctrl+C" }),
           " to exit"
         ] });
     }
   };
-  return /* @__PURE__ */ jsxs13(Box13, { flexDirection: "column", marginTop: 1, children: [
-    /* @__PURE__ */ jsx14(Text14, { color: "gray", dimColor: true, children: "\u2500".repeat(contentWidth + 2) }),
-    /* @__PURE__ */ jsx14(Box13, { paddingLeft: 1, marginTop: 0, children: getHints() })
+  return /* @__PURE__ */ jsxs14(Box15, { flexDirection: "column", marginTop: 1, children: [
+    /* @__PURE__ */ jsx15(Text15, { color: t.dim, dimColor: true, children: "\u2500".repeat(contentWidth + 2) }),
+    /* @__PURE__ */ jsx15(Box15, { paddingLeft: 1, marginTop: 0, children: getHints() })
   ] });
 };
 
@@ -3448,37 +3641,18 @@ function buildExitCommand(ctx) {
 
 // src/commands/stubs.ts
 var STUBS = [
-  // Session / context
-  { name: "branch", category: "session", milestone: "M5", description: "Fork the conversation at this point." },
-  { name: "background", category: "session", milestone: "M5", description: "Send this session to the background and free the terminal." },
-  { name: "btw", category: "session", milestone: "M5", description: "Ask a quick side question without interrupting the main thread." },
-  // /color, /model, /provider, /consensus wired in M5.
-  // Agent / model
-  { name: "fallback", category: "agent", milestone: "M10", description: "Manually switch to local Ollama as fallback." },
-  { name: "agents", category: "agent", milestone: "M11", description: "Manage parallel agent worktree configurations." },
-  { name: "advisor", category: "agent", milestone: "M10", description: "Consult a stronger advisor model at key moments." },
-  // /research, /plan, /code-review wired in M4 (see commands/skills.ts).
-  // Skills
-  // /skills wired in M4 (see commands/skills.ts).
-  { name: "skill-creator", category: "skills", milestone: "M13", description: "Author a new skill interactively." },
-  { name: "agent-browser", category: "skills", milestone: "M7", description: "Run the Playwright browser-automation skill." },
-  // Auth / sync
-  { name: "team", category: "auth", milestone: "M6", description: "Switch the active team workspace." },
-  { name: "sync", category: "auth", milestone: "M6", description: "Push/pull skills and settings to/from the backend." },
-  // Config / project
-  { name: "add-dir", category: "config", milestone: "M5", description: "Add another working directory to this session." },
-  // Safety
-  // /trust, /secret wired in M5.
-  { name: "sandbox", category: "safety", milestone: "M10", description: "Toggle Docker/Podman sandbox for risky commands." },
-  { name: "replay", category: "safety", milestone: "M10", description: "Deterministically rerun a recorded session." },
-  // Collab
-  { name: "mirror", category: "collab", milestone: "M11", description: "Open the web UI mirror at http://localhost:7777." },
-  { name: "pair", category: "collab", milestone: "M11", description: "Start or join a live pair session over LAN/tunnel." },
-  // Workflows / palette
-  // /workflow wired in M5.
-  { name: "palette", category: "utility", milestone: "M12", description: "Open the fuzzy command palette (Ctrl+K)." },
-  // Cyber
-  { name: "cyber", category: "cyber", milestone: "Phase 2", description: "Reserved for the autonomous bug-bounty mode. Coming soon." }
+  // Session / context (planned)
+  { name: "background", category: "session", milestone: "planned", description: "Send this session to the background and free the terminal." },
+  { name: "btw", category: "session", milestone: "planned", description: "Ask a quick side question without interrupting the main thread." },
+  // Agent / model (planned)
+  { name: "advisor", category: "agent", milestone: "planned", description: "Consult a stronger advisor model at key moments." },
+  // Auth / sync (planned)
+  { name: "team-workspace", category: "auth", milestone: "planned", description: "Switch the active team workspace." },
+  { name: "sync", category: "auth", milestone: "planned", description: "Push/pull skills and settings to/from the backend." },
+  // Safety (planned)
+  { name: "sandbox", category: "safety", milestone: "planned", description: "Toggle Docker/Podman sandbox for risky commands." },
+  // Collab (planned)
+  { name: "pair", category: "collab", milestone: "planned", description: "Start or join a live pair session over LAN/tunnel." }
 ];
 function buildStubCommands(ctx) {
   return STUBS.map((spec) => ({
@@ -3491,11 +3665,102 @@ function buildStubCommands(ctx) {
       ctx.appendMessage({
         id: `${spec.name}-${Date.now()}`,
         role: "system",
-        content: `/${spec.name} is registered but its implementation lands in ${spec.milestone}.`,
+        content: `/${spec.name} is planned and not yet available. Use /help to see active commands.`,
         createdAt: Date.now()
       });
     }
   }));
+}
+
+// ../core/src/context.ts
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+function estimateMessagesTokens(messages) {
+  let total = 0;
+  for (const m of messages) {
+    total += estimateTokens(m.content);
+    if (m.toolCalls) {
+      for (const tc of m.toolCalls) {
+        total += estimateTokens(tc.name) + estimateTokens(JSON.stringify(tc.input));
+      }
+    }
+  }
+  return total;
+}
+function trimToolOutput(output, opts = {}) {
+  const maxChars = opts.maxChars ?? 12e3;
+  if (output.length <= maxChars) return output;
+  const headTail = opts.headTail ?? Math.floor(maxChars / 2) - 40;
+  const head = output.slice(0, headTail);
+  const tail = output.slice(output.length - headTail);
+  const elided = output.length - head.length - tail.length;
+  return `${head}
+
+\u2026 [${elided} chars elided to save context \u2014 re-read with offset/limit if you need the middle] \u2026
+
+${tail}`;
+}
+function manageContext(messages, budget) {
+  const highWater = budget.highWater ?? 0.75;
+  const keepRecent = budget.keepRecent ?? 6;
+  const limit = Math.floor(budget.windowTokens * highWater);
+  const tokens = estimateMessagesTokens(messages);
+  if (tokens <= limit || messages.length <= keepRecent + 1) {
+    return { messages, compacted: false, tokens };
+  }
+  const splitAt = messages.length - keepRecent;
+  const old = messages.slice(0, splitAt);
+  let recent = messages.slice(splitAt);
+  while (recent.length && recent[0].role === "tool") {
+    recent = recent.slice(1);
+  }
+  const synopsis = condense(old);
+  const synopsisMsg = {
+    role: "system",
+    content: synopsis
+  };
+  const next = [synopsisMsg, ...recent];
+  return {
+    messages: next,
+    compacted: true,
+    tokens: estimateMessagesTokens(next),
+    note: `context auto-compacted: ${old.length} older turns \u2192 synopsis (${tokens} \u2192 ~${estimateMessagesTokens(next)} tok)`
+  };
+}
+function condense(old) {
+  const userAsks = [];
+  const toolActions = [];
+  let lastAssistant = "";
+  for (const m of old) {
+    if (m.role === "user") {
+      const oneLine = m.content.replace(/\s+/g, " ").trim().slice(0, 160);
+      if (oneLine) userAsks.push(oneLine);
+    } else if (m.role === "assistant") {
+      if (m.content.trim()) lastAssistant = m.content.replace(/\s+/g, " ").trim().slice(0, 240);
+      for (const tc of m.toolCalls ?? []) {
+        const target = tc.input.path || tc.input.command || tc.input.pattern || "";
+        toolActions.push(`${tc.name}(${String(target).slice(0, 60)})`);
+      }
+    }
+  }
+  const parts = ["[Earlier conversation compacted to save context]"];
+  if (userAsks.length) parts.push(`Goals: ${userAsks.slice(-4).join(" | ")}`);
+  if (toolActions.length) {
+    const uniq = Array.from(new Set(toolActions)).slice(-12);
+    parts.push(`Actions taken: ${uniq.join(", ")}`);
+  }
+  if (lastAssistant) parts.push(`Last note: ${lastAssistant}`);
+  return parts.join("\n");
+}
+function windowForModel(model) {
+  const m = model.toLowerCase();
+  if (m.includes("gpt-4o") || m.includes("claude") || m.includes("gemini-1.5") || m.includes("gemini-2")) return 128e3;
+  if (m.includes("llama-3.1") || m.includes("llama-3.3")) return 128e3;
+  if (m.includes("mixtral") || m.includes("mistral")) return 32e3;
+  if (m.includes("gemma")) return 8192;
+  return 16e3;
 }
 
 // ../core/src/agent-loop.ts
@@ -3506,13 +3771,24 @@ async function* runAgentLoop(messages, opts) {
   const toolSchemas = tools.map((t) => t.schema);
   const max = opts.maxIterations ?? 10;
   const ctx = { cwd: process.cwd() };
-  const buffer = [...messages];
+  const maxToolChars = opts.maxToolOutputChars ?? 12e3;
+  const budget = {
+    windowTokens: opts.contextBudget?.windowTokens ?? windowForModel(opts.model ?? "auto"),
+    highWater: opts.contextBudget?.highWater ?? 0.75,
+    keepRecent: opts.contextBudget?.keepRecent ?? 6
+  };
+  let buffer = [...messages];
   for (let iter = 0; iter < max; iter++) {
     if (opts.signal?.aborted) {
       yield { type: "done", reason: "error", error: "aborted" };
       return;
     }
     yield { type: "iteration", index: iter, max };
+    const managed = manageContext(buffer, budget);
+    if (managed.compacted) {
+      buffer = managed.messages;
+      yield { type: "context", note: managed.note ?? "context compacted", tokens: managed.tokens };
+    }
     const req = {
       model: opts.model ?? "auto",
       messages: buffer,
@@ -3521,25 +3797,41 @@ async function* runAgentLoop(messages, opts) {
       signal: opts.signal
     };
     let assistantText = "";
-    const assistantToolCalls = [];
+    let assistantToolCalls = [];
     let stopReason = { type: "done", reason: "end_turn" };
-    for await (const chunk of opts.provider.chat(req)) {
-      if (chunk.type === "text") {
-        assistantText += chunk.text;
-        yield { type: "text", text: chunk.text };
-      } else if (chunk.type === "tool_call") {
-        assistantToolCalls.push(chunk.toolCall);
-        yield {
-          type: "tool_call",
-          name: chunk.toolCall.name,
-          input: chunk.toolCall.input,
-          id: chunk.toolCall.id
-        };
-      } else if (chunk.type === "usage") {
-        yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
-      } else if (chunk.type === "done") {
-        stopReason = chunk;
+    let attempt = 0;
+    while (true) {
+      assistantText = "";
+      assistantToolCalls = [];
+      stopReason = { type: "done", reason: "end_turn" };
+      let sawError;
+      for await (const chunk of opts.provider.chat(req)) {
+        if (chunk.type === "text") {
+          assistantText += chunk.text;
+          yield { type: "text", text: chunk.text };
+        } else if (chunk.type === "tool_call") {
+          assistantToolCalls.push(chunk.toolCall);
+          yield {
+            type: "tool_call",
+            name: chunk.toolCall.name,
+            input: chunk.toolCall.input,
+            id: chunk.toolCall.id
+          };
+        } else if (chunk.type === "usage") {
+          yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+        } else if (chunk.type === "done") {
+          stopReason = chunk;
+          if (chunk.reason === "error") sawError = chunk.error;
+        }
       }
+      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
+        attempt++;
+        log10.warn("provider transient error; retrying once", { error: sawError });
+        yield { type: "context", note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
+        await delay(400);
+        continue;
+      }
+      break;
     }
     buffer.push({
       role: "assistant",
@@ -3554,36 +3846,75 @@ async function* runAgentLoop(messages, opts) {
       yield { type: "done", reason: "end_turn" };
       return;
     }
-    for (const tc of assistantToolCalls) {
-      const tool = toolMap.get(tc.name);
-      if (!tool) {
-        const errOut = `Tool '${tc.name}' is not registered.`;
-        yield { type: "tool_result", name: tc.name, id: tc.id, output: errOut, ok: false };
-        buffer.push({ role: "tool", content: errOut, toolCallId: tc.id });
-        continue;
-      }
-      try {
-        if (ctx.approve) {
-          const ok = await ctx.approve(tc.name, tc.input);
-          if (!ok) {
-            const denied = `[user denied tool '${tc.name}']`;
-            yield { type: "tool_result", name: tc.name, id: tc.id, output: denied, ok: false };
-            buffer.push({ role: "tool", content: denied, toolCallId: tc.id });
-            continue;
-          }
-        }
-        const output = await tool.execute(tc.input, ctx);
-        yield { type: "tool_result", name: tc.name, id: tc.id, output, ok: true };
-        buffer.push({ role: "tool", content: output, toolCallId: tc.id });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        log10.error("tool execution failed", { tool: tc.name, err: msg });
-        yield { type: "tool_result", name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
-        buffer.push({ role: "tool", content: `Error: ${msg}`, toolCallId: tc.id });
-      }
+    const results = await executeToolCalls(assistantToolCalls, toolMap, ctx, maxToolChars);
+    for (const r of results) {
+      yield { type: "tool_result", name: r.name, id: r.id, output: r.output, ok: r.ok };
+      buffer.push({ role: "tool", content: r.output, toolCallId: r.id });
     }
   }
   yield { type: "done", reason: "max_iterations" };
+}
+async function executeToolCalls(calls, toolMap, ctx, maxToolChars) {
+  const results = new Array(calls.length);
+  const runOne = async (tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (!tool) {
+      results[index] = { name: tc.name, id: tc.id, output: `Tool '${tc.name}' is not registered.`, ok: false };
+      return;
+    }
+    try {
+      if (ctx.approve) {
+        const ok = await ctx.approve(tc.name, tc.input);
+        if (!ok) {
+          results[index] = { name: tc.name, id: tc.id, output: `[user denied tool '${tc.name}']`, ok: false };
+          return;
+        }
+      }
+      let output = await tool.execute(tc.input, ctx);
+      if (tool.verify) {
+        const problem = await tool.verify(tc.input, output, ctx);
+        if (problem) {
+          results[index] = {
+            name: tc.name,
+            id: tc.id,
+            output: `${output}
+
+[verify] ${problem}`,
+            ok: false
+          };
+          return;
+        }
+      }
+      output = trimToolOutput(output, { maxChars: maxToolChars });
+      results[index] = { name: tc.name, id: tc.id, output, ok: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log10.error("tool execution failed", { tool: tc.name, err: msg });
+      results[index] = { name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
+    }
+  };
+  const parallel = [];
+  const sequential = [];
+  calls.forEach((tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (tool && tool.destructive) {
+      sequential.push({ tc, index });
+    } else {
+      parallel.push(runOne(tc, index));
+    }
+  });
+  await Promise.all(parallel);
+  for (const { tc, index } of sequential) {
+    await runOne(tc, index);
+  }
+  return results;
+}
+function isTransient(error) {
+  const e = error.toLowerCase();
+  return e.includes("429") || e.includes("rate limit") || e.includes("timeout") || e.includes("econnreset") || e.includes("etimedout") || e.includes("503") || e.includes("502") || e.includes("overloaded") || e.includes("fetch failed");
+}
+function delay(ms) {
+  return new Promise((resolve12) => setTimeout(resolve12, ms));
 }
 
 // ../core/src/consensus.ts
@@ -3637,6 +3968,52 @@ function mergeAnswers(answers) {
 ${extras.join("\n")}` : spine;
 }
 
+// ../core/src/plan-act.ts
+var GOAL_SENTINEL = "GOAL_COMPLETE";
+var GOAL_SYSTEM_SUFFIX = `
+
+You are working toward a GOAL until it is fully achieved.
+After each round, assess whether the goal is met. When \u2014 and only when \u2014 the goal
+is fully complete and verified, end your message with the exact token ${GOAL_SENTINEL}
+on its own line. If not complete, keep going: take the next concrete action.`;
+async function* runGoal(initialMessages, opts) {
+  const maxRounds = opts.maxRounds ?? 8;
+  const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
+  const buffer = [...initialMessages];
+  for (let round = 0; round < maxRounds; round++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted", round };
+      return;
+    }
+    let roundText = "";
+    let endedTurn = false;
+    for await (const evt of runAgentLoop(buffer, {
+      provider: opts.provider,
+      systemPrompt: system,
+      model: opts.model ?? "auto",
+      tools: opts.tools,
+      signal: opts.signal
+    })) {
+      if (evt.type === "text") roundText += evt.text;
+      if (evt.type === "done") endedTurn = true;
+      yield { ...evt, round };
+    }
+    buffer.push({ role: "assistant", content: roundText });
+    if (roundText.includes(GOAL_SENTINEL)) {
+      yield { type: "done", reason: "end_turn", round };
+      return;
+    }
+    if (!endedTurn) {
+      return;
+    }
+    buffer.push({
+      role: "user",
+      content: `Continue working toward the goal. If it is fully done and verified, reply with ${GOAL_SENTINEL}.`
+    });
+  }
+  yield { type: "done", reason: "max_iterations" };
+}
+
 // ../providers/src/types.ts
 import { z as z8 } from "zod";
 var ProviderRoleSchema = z8.enum(["system", "user", "assistant", "tool"]);
@@ -3680,9 +4057,12 @@ var AnthropicProvider = class {
         model,
         max_tokens: req.maxTokens ?? 4096,
         temperature: req.temperature,
-        system: system || void 0,
+        // Cache the (constant) system prompt across loop iterations so re-sends
+        // are billed at the cheap cache-read rate instead of full input rate.
+        // (cache_control is runtime-supported; the pinned SDK types predate it.)
+        system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : void 0,
         messages: messages.map(toAnthropicMessage),
-        tools: req.tools?.map(toAnthropicTool)
+        tools: withToolCaching(req.tools?.map(toAnthropicTool))
       });
       const inflightToolCalls = /* @__PURE__ */ new Map();
       for await (const event of stream) {
@@ -3774,6 +4154,13 @@ function toAnthropicTool(t) {
     input_schema: t.inputSchema
   };
 }
+function withToolCaching(tools) {
+  if (!tools || tools.length === 0) return tools;
+  const out = tools.slice();
+  const last = out[out.length - 1];
+  out[out.length - 1] = { ...last, cache_control: { type: "ephemeral" } };
+  return out;
+}
 
 // ../providers/src/cybermind-cloud.ts
 var DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com";
@@ -3788,7 +4175,7 @@ var CybermindCloudProvider = class extends AnthropicProvider {
     });
     this.info = {
       id: "cybermind-cloud",
-      displayName: "CyberMind Cloud",
+      displayName: "Codeva Cloud",
       requiresNetwork: true,
       ready: Boolean(apiKey)
     };
@@ -4399,9 +4786,253 @@ var SecretsVault = class {
   }
 };
 
+// ../tools/src/workspace-checkpoint.ts
+import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync } from "fs";
+import { homedir as homedir3 } from "os";
+import { join as join9, resolve as resolve2, relative, dirname as dirname2 } from "path";
+import { createHash as createHash2 } from "crypto";
+function checkpointRoot() {
+  const dir = join9(homedir3(), ".codeva", "checkpoints");
+  if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
+  return dir;
+}
+var WorkspaceCheckpoints = class {
+  constructor(sessionId, cwd = process.cwd()) {
+    this.cwd = cwd;
+    this.dir = join9(checkpointRoot(), sessionId);
+    if (!existsSync11(this.dir)) mkdirSync10(this.dir, { recursive: true });
+    this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);
+  }
+  cwd;
+  dir;
+  seq = 0;
+  /**
+   * Snapshot the given files (by absolute or cwd-relative path) before they are
+   * modified. Files that don't exist yet are recorded as "existed:false" so a
+   * rewind deletes them. Returns the checkpoint sequence number.
+   */
+  snapshot(paths, label) {
+    const seq = ++this.seq;
+    const cpDir = join9(this.dir, String(seq));
+    mkdirSync10(cpDir, { recursive: true });
+    const files = [];
+    for (const p of paths) {
+      const abs = resolve2(this.cwd, p);
+      const existed = existsSync11(abs);
+      const safeName = createHash2("sha1").update(abs).digest("hex");
+      if (existed) {
+        try {
+          const content = readFileSync10(abs);
+          writeFileSync10(join9(cpDir, safeName), content);
+        } catch {
+          continue;
+        }
+      }
+      files.push({ path: abs, existed });
+    }
+    const entry = { seq, label, createdAt: Date.now(), files };
+    writeFileSync10(join9(cpDir, "manifest.json"), JSON.stringify(entry, null, 2), "utf8");
+    return seq;
+  }
+  /** List checkpoints, newest first. */
+  list() {
+    if (!existsSync11(this.dir)) return [];
+    const out = [];
+    for (const name of readdirSync4(this.dir)) {
+      const manifest = join9(this.dir, name, "manifest.json");
+      if (existsSync11(manifest)) {
+        try {
+          out.push(JSON.parse(readFileSync10(manifest, "utf8")));
+        } catch {
+        }
+      }
+    }
+    return out.sort((a, b) => b.seq - a.seq);
+  }
+  /**
+   * Restore the workspace to the state captured at `seq` (and undo everything
+   * after it). Files that didn't exist at snapshot time are deleted; existing
+   * files are rewritten with their captured bytes.
+   */
+  restore(seq) {
+    let restored = 0;
+    let deleted = 0;
+    const entries = this.list().filter((e) => e.seq >= seq).sort((a, b) => b.seq - a.seq);
+    for (const entry of entries) {
+      const cpDir = join9(this.dir, String(entry.seq));
+      for (const f of entry.files) {
+        const safeName = createHash2("sha1").update(f.path).digest("hex");
+        const snapPath = join9(cpDir, safeName);
+        if (f.existed && existsSync11(snapPath)) {
+          try {
+            const d = dirname2(f.path);
+            if (!existsSync11(d)) mkdirSync10(d, { recursive: true });
+            writeFileSync10(f.path, readFileSync10(snapPath));
+            restored++;
+          } catch {
+          }
+        } else if (!f.existed && existsSync11(f.path)) {
+          try {
+            rmSync(f.path, { force: true });
+            deleted++;
+          } catch {
+          }
+        }
+      }
+    }
+    return { restored, deleted };
+  }
+  /** Human-readable relative path for display. */
+  rel(abs) {
+    return relative(this.cwd, abs) || abs;
+  }
+};
+
+// ../tools/src/mcp-client.ts
+import { spawn } from "child_process";
+import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
+import { homedir as homedir4 } from "os";
+import { join as join10 } from "path";
+var McpServer = class {
+  constructor(name, cfg) {
+    this.name = name;
+    this.cfg = cfg;
+  }
+  name;
+  cfg;
+  proc = null;
+  nextId = 1;
+  pending = /* @__PURE__ */ new Map();
+  buffer = "";
+  tools = [];
+  async start(timeoutMs = 15e3) {
+    const isWin = process.platform === "win32";
+    const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
+    this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
+      env: { ...process.env, ...this.cfg.env ?? {} },
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+      shell: needsShell
+    });
+    this.proc.stdout.setEncoding("utf8");
+    this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+    this.proc.on("error", () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
+    this.proc.on("exit", () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
+    await this.rpc("initialize", {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: { name: "cybercoder", version: "0.1.0" }
+    }, timeoutMs);
+    this.notify("notifications/initialized", {});
+    const listed = await this.rpc("tools/list", {}, timeoutMs);
+    this.tools = listed?.tools ?? [];
+  }
+  async callTool(toolName, args, timeoutMs = 6e4) {
+    const res = await this.rpc("tools/call", { name: toolName, arguments: args }, timeoutMs);
+    const text = (res?.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : `[${c.type}]`).join("\n");
+    return res?.isError ? `[MCP error] ${text}` : text || "[no content]";
+  }
+  stop() {
+    try {
+      this.proc?.kill();
+    } catch {
+    }
+  }
+  onData(chunk) {
+    this.buffer += chunk;
+    let idx;
+    while ((idx = this.buffer.indexOf("\n")) !== -1) {
+      const line = this.buffer.slice(0, idx).trim();
+      this.buffer = this.buffer.slice(idx + 1);
+      if (!line) continue;
+      try {
+        const msg = JSON.parse(line);
+        if (typeof msg.id === "number" && this.pending.has(msg.id)) {
+          const p = this.pending.get(msg.id);
+          this.pending.delete(msg.id);
+          if (msg.error) p.reject(new Error(msg.error.message ?? "MCP error"));
+          else p.resolve(msg.result);
+        }
+      } catch {
+      }
+    }
+  }
+  rpc(method, params, timeoutMs) {
+    if (!this.proc) return Promise.reject(new Error("MCP server not started"));
+    const id = this.nextId++;
+    const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
+    return new Promise((resolve12, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`MCP '${this.name}' ${method} timed out`));
+      }, timeoutMs);
+      this.pending.set(id, {
+        resolve: (v) => {
+          clearTimeout(timer);
+          resolve12(v);
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        }
+      });
+      this.proc.stdin.write(payload);
+    });
+  }
+  notify(method, params) {
+    if (!this.proc) return;
+    this.proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
+  }
+  failAll(err) {
+    for (const p of this.pending.values()) p.reject(err);
+    this.pending.clear();
+  }
+};
+function readMcpConfig(cwd) {
+  for (const path2 of [join10(cwd, ".codeva", "mcp.json"), join10(homedir4(), ".codeva", "mcp.json")]) {
+    try {
+      if (existsSync12(path2)) return JSON.parse(readFileSync11(path2, "utf8"));
+    } catch {
+    }
+  }
+  return {};
+}
+async function loadMcpTools(cwd = process.cwd()) {
+  const cfg = readMcpConfig(cwd);
+  const servers = [];
+  const tools = [];
+  const entries = Object.entries(cfg.mcpServers ?? {});
+  await Promise.all(
+    entries.map(async ([name, sc]) => {
+      const server = new McpServer(name, sc);
+      try {
+        await server.start();
+        servers.push(server);
+        for (const t of server.tools) {
+          tools.push({
+            schema: {
+              name: `mcp__${name}__${t.name}`,
+              description: `[MCP:${name}] ${t.description}`,
+              inputSchema: t.inputSchema ?? { type: "object", properties: {} }
+            },
+            destructive: true,
+            // MCP tools can do anything; gate them by default
+            async execute(input) {
+              return server.callTool(t.name, input);
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })
+  );
+  return { tools, servers };
+}
+
 // ../tools/src/builtin/read-file.ts
-import { readFileSync as readFileSync10 } from "fs";
-import { resolve as resolve2 } from "path";
+import { readFileSync as readFileSync12 } from "fs";
+import { resolve as resolve3 } from "path";
 var MAX_BYTES = 1e6;
 var readFileTool = {
   schema: {
@@ -4421,8 +5052,8 @@ var readFileTool = {
   async execute(input, ctx) {
     const path2 = String(input.path ?? "");
     if (!path2) throw new Error("read_file requires a non-empty path");
-    const abs = resolve2(ctx.cwd, path2);
-    const raw = readFileSync10(abs);
+    const abs = resolve3(ctx.cwd, path2);
+    const raw = readFileSync12(abs);
     if (raw.byteLength > MAX_BYTES) {
       const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
       return numberLines(truncated, input.offset, input.limit) + `
@@ -4441,9 +5072,62 @@ function numberLines(text, offset, limit) {
   return slice.map((l, i) => `${String(start + i).padStart(width, " ")}	${l}`).join("\n");
 }
 
+// ../tools/src/builtin/read-many.ts
+import { readFileSync as readFileSync13, statSync } from "fs";
+import { resolve as resolve4 } from "path";
+var MAX_BYTES_PER_FILE = 2e5;
+var MAX_FILES = 20;
+var readManyTool = {
+  schema: {
+    name: "read_many",
+    description: "Read multiple files at once and return their numbered contents, separated by headers. Use this instead of many read_file calls when you need several files to understand a feature. Max 20 files.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        paths: {
+          type: "array",
+          items: { type: "string" },
+          description: "Absolute or relative file paths to read."
+        }
+      },
+      required: ["paths"]
+    }
+  },
+  destructive: false,
+  async execute(input, ctx) {
+    const paths = Array.isArray(input.paths) ? input.paths.map(String) : [];
+    if (paths.length === 0) throw new Error('read_many requires a non-empty "paths" array');
+    const limited = paths.slice(0, MAX_FILES);
+    const blocks = limited.map((p) => {
+      const abs = resolve4(ctx.cwd, p);
+      try {
+        const st = statSync(abs);
+        if (!st.isFile()) return `### ${p}
+[not a file]`;
+        const raw = readFileSync13(abs);
+        const text = raw.byteLength > MAX_BYTES_PER_FILE ? raw.subarray(0, MAX_BYTES_PER_FILE).toString("utf8") + "\n[truncated]" : raw.toString("utf8");
+        return `### ${p}
+${numberLines2(text)}`;
+      } catch (err) {
+        return `### ${p}
+[error: ${err instanceof Error ? err.message : String(err)}]`;
+      }
+    });
+    const extra = paths.length > MAX_FILES ? `
+
+[${paths.length - MAX_FILES} more files omitted; request them separately]` : "";
+    return blocks.join("\n\n") + extra;
+  }
+};
+function numberLines2(text) {
+  const lines = text.split("\n");
+  const width = String(lines.length).length;
+  return lines.map((l, i) => `${String(i + 1).padStart(width, " ")}	${l}`).join("\n");
+}
+
 // ../tools/src/builtin/write-file.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync10, writeFileSync as writeFileSync10 } from "fs";
-import { dirname as dirname2, resolve as resolve3 } from "path";
+import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync11 } from "fs";
+import { dirname as dirname3, resolve as resolve5 } from "path";
 var writeFileTool = {
   schema: {
     name: "write_file",
@@ -4462,20 +5146,35 @@ var writeFileTool = {
     const path2 = String(input.path ?? "");
     const content = String(input.content ?? "");
     if (!path2) throw new Error("write_file requires a path");
-    const abs = resolve3(ctx.cwd, path2);
-    if (existsSync11(abs)) {
+    const abs = resolve5(ctx.cwd, path2);
+    if (existsSync13(abs)) {
       throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
     }
-    const dir = dirname2(abs);
-    if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
-    writeFileSync10(abs, content, "utf8");
+    const dir = dirname3(abs);
+    if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
+    writeFileSync11(abs, content, "utf8");
     return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
+  },
+  // Self-correction: confirm the file now exists with the expected size.
+  async verify(input, _output, ctx) {
+    try {
+      const abs = resolve5(ctx.cwd, String(input.path ?? ""));
+      const content = String(input.content ?? "");
+      if (!existsSync13(abs)) return "write_file verification failed: file does not exist after writing.";
+      const written = readFileSync14(abs, "utf8");
+      if (written.length !== content.length) {
+        return `write_file verification warning: written size (${written.length}) differs from intended (${content.length}).`;
+      }
+      return null;
+    } catch (err) {
+      return `write_file verification error: ${err instanceof Error ? err.message : String(err)}`;
+    }
   }
 };
 
 // ../tools/src/builtin/edit.ts
-import { readFileSync as readFileSync11, writeFileSync as writeFileSync11 } from "fs";
-import { resolve as resolve4 } from "path";
+import { readFileSync as readFileSync15, writeFileSync as writeFileSync12 } from "fs";
+import { resolve as resolve6 } from "path";
 var editTool = {
   schema: {
     name: "edit",
@@ -4500,13 +5199,13 @@ var editTool = {
     if (!path2) throw new Error("edit requires a path");
     if (!oldStr) throw new Error("edit requires a non-empty old_string");
     if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
-    const abs = resolve4(ctx.cwd, path2);
-    const original = readFileSync11(abs, "utf8");
+    const abs = resolve6(ctx.cwd, path2);
+    const original = readFileSync15(abs, "utf8");
     if (replaceAll) {
       const count = occurrenceCount(original, oldStr);
       if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
       const next2 = original.split(oldStr).join(newStr);
-      writeFileSync11(abs, next2, "utf8");
+      writeFileSync12(abs, next2, "utf8");
       return `Replaced ${count} occurrence(s) in ${abs}.`;
     }
     const idx = original.indexOf(oldStr);
@@ -4517,8 +5216,22 @@ var editTool = {
       );
     }
     const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
-    writeFileSync11(abs, next, "utf8");
+    writeFileSync12(abs, next, "utf8");
     return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
+  },
+  // Self-correction: re-read the file and confirm the edit actually landed.
+  async verify(input, _output, ctx) {
+    try {
+      const abs = resolve6(ctx.cwd, String(input.path ?? ""));
+      const newStr = String(input.new_string ?? "");
+      const current = readFileSync15(abs, "utf8");
+      if (newStr && !current.includes(newStr)) {
+        return "Edit verification failed: new_string is not present in the file after writing. The change may not have applied as intended.";
+      }
+      return null;
+    } catch (err) {
+      return `Edit verification could not read the file back: ${err instanceof Error ? err.message : String(err)}`;
+    }
   }
 };
 function occurrenceCount(haystack, needle) {
@@ -4533,8 +5246,8 @@ function occurrenceCount(haystack, needle) {
 }
 
 // ../tools/src/builtin/list-dir.ts
-import { readdirSync as readdirSync4, statSync } from "fs";
-import { join as join9, resolve as resolve5 } from "path";
+import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
+import { join as join11, resolve as resolve7 } from "path";
 var MAX_ENTRIES = 200;
 var listDirTool = {
   schema: {
@@ -4551,14 +5264,14 @@ var listDirTool = {
   destructive: false,
   async execute(input, ctx) {
     const path2 = String(input.path ?? ".");
-    const abs = resolve5(ctx.cwd, path2);
-    const entries = readdirSync4(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
+    const abs = resolve7(ctx.cwd, path2);
+    const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
     const lines = [];
     for (const e of entries) {
-      const full = join9(abs, e.name);
+      const full = join11(abs, e.name);
       let size = "";
       try {
-        if (e.isFile()) size = `${statSync(full).size}b`;
+        if (e.isFile()) size = `${statSync2(full).size}b`;
         else if (e.isDirectory()) size = "dir";
         else if (e.isSymbolicLink()) size = "symlink";
       } catch {
@@ -4571,8 +5284,8 @@ var listDirTool = {
 };
 
 // ../tools/src/builtin/grep.ts
-import { readdirSync as readdirSync5, readFileSync as readFileSync12, statSync as statSync2 } from "fs";
-import { join as join10, resolve as resolve6 } from "path";
+import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
+import { join as join12, resolve as resolve8 } from "path";
 var MAX_MATCHES = 200;
 var MAX_FILE_BYTES = 2e6;
 var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".turbo", ".next", ".cache"]);
@@ -4597,16 +5310,16 @@ var grepTool = {
     if (!pattern) throw new Error("grep requires a pattern");
     const flags = input.case_sensitive ? "g" : "gi";
     const re = new RegExp(pattern, flags);
-    const root = resolve6(ctx.cwd, String(input.path ?? "."));
+    const root = resolve8(ctx.cwd, String(input.path ?? "."));
     const include = typeof input.include === "string" ? extToRegex(input.include) : null;
     const matches = [];
     walk(root, (file) => {
       if (matches.length >= MAX_MATCHES) return false;
       if (include && !include.test(file)) return true;
       try {
-        const stat = statSync2(file);
+        const stat = statSync3(file);
         if (stat.size > MAX_FILE_BYTES) return true;
-        const text = readFileSync12(file, "utf8");
+        const text = readFileSync16(file, "utf8");
         const lines = text.split("\n");
         for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
           const line = lines[i] ?? "";
@@ -4632,7 +5345,7 @@ function walk(root, visit) {
     const cur = stack.pop();
     let stat;
     try {
-      stat = statSync2(cur);
+      stat = statSync3(cur);
     } catch {
       continue;
     }
@@ -4643,19 +5356,136 @@ function walk(root, visit) {
     if (!stat.isDirectory()) continue;
     let entries;
     try {
-      entries = readdirSync5(cur, { withFileTypes: true });
+      entries = readdirSync6(cur, { withFileTypes: true });
     } catch {
       continue;
     }
     for (const e of entries) {
       if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
-      stack.push(join10(cur, e.name));
+      stack.push(join12(cur, e.name));
     }
   }
 }
 
+// ../tools/src/builtin/repo-map.ts
+import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
+import { join as join13, resolve as resolve9, relative as relative2, extname } from "path";
+var IGNORE_DIRS = /* @__PURE__ */ new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "out",
+  "coverage",
+  ".turbo",
+  ".cache",
+  "vendor",
+  "__pycache__",
+  ".venv",
+  "venv",
+  ".idea",
+  ".vscode"
+]);
+var CODE_EXT = /* @__PURE__ */ new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".rb", ".php", ".c", ".cpp", ".h", ".cs"]);
+var MAX_FILES2 = 400;
+var MAX_SYMBOLS_PER_FILE = 12;
+var repoMapTool = {
+  schema: {
+    name: "repo_map",
+    description: "Build a compact map of the project: directory structure plus the key exported symbols (functions/classes/components) in each code file. Call this FIRST on an unfamiliar repo to understand its layout efficiently.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Root to map (default: cwd)." },
+        max_depth: { type: "integer", description: "Max directory depth (default 4)." }
+      }
+    }
+  },
+  destructive: false,
+  async execute(input, ctx) {
+    const root = resolve9(ctx.cwd, String(input.path ?? "."));
+    const maxDepth = Number(input.max_depth ?? 4);
+    const files = [];
+    const walk2 = (dir, depth) => {
+      if (depth > maxDepth || files.length >= MAX_FILES2) return;
+      let entries;
+      try {
+        entries = readdirSync7(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (files.length >= MAX_FILES2) break;
+        if (e.name.startsWith(".") && e.name !== ".codeva") continue;
+        if (IGNORE_DIRS.has(e.name)) continue;
+        const full = join13(dir, e.name);
+        if (e.isDirectory()) walk2(full, depth + 1);
+        else if (e.isFile() && CODE_EXT.has(extname(e.name))) files.push(full);
+      }
+    };
+    walk2(root, 0);
+    if (files.length === 0) return "No code files found to map.";
+    const byDir = /* @__PURE__ */ new Map();
+    for (const f of files) {
+      const rel = relative2(root, f);
+      const dir = rel.includes("/") || rel.includes("\\") ? rel.replace(/[\\/][^\\/]+$/, "") : ".";
+      if (!byDir.has(dir)) byDir.set(dir, []);
+      byDir.get(dir).push(f);
+    }
+    const lines = [`# Repo map: ${relative2(ctx.cwd, root) || "."} (${files.length} code files)`];
+    const dirs = [...byDir.keys()].sort();
+    for (const dir of dirs) {
+      lines.push(`
+## ${dir}/`);
+      for (const f of byDir.get(dir).sort()) {
+        const name = f.replace(/^.*[\\/]/, "");
+        const symbols = extractSymbols(f);
+        if (symbols.length) {
+          lines.push(`- ${name}: ${symbols.join(", ")}`);
+        } else {
+          lines.push(`- ${name}`);
+        }
+      }
+    }
+    const out = lines.join("\n");
+    return out.length > 16e3 ? out.slice(0, 16e3) + "\n\u2026[map truncated]" : out;
+  }
+};
+function extractSymbols(file) {
+  let text;
+  try {
+    const st = statSync4(file);
+    if (st.size > 4e5) return [];
+    text = readFileSync17(file, "utf8");
+  } catch {
+    return [];
+  }
+  const symbols = /* @__PURE__ */ new Set();
+  const patterns = [
+    /export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g,
+    /export\s+(?:abstract\s+)?class\s+([A-Za-z0-9_]+)/g,
+    /export\s+(?:const|let|var)\s+([A-Za-z0-9_]+)/g,
+    /export\s+interface\s+([A-Za-z0-9_]+)/g,
+    /export\s+type\s+([A-Za-z0-9_]+)/g,
+    /(?:^|\n)\s*(?:public|private|protected\s+)?(?:async\s+)?def\s+([A-Za-z0-9_]+)/g,
+    // python
+    /(?:^|\n)func\s+(?:\([^)]*\)\s+)?([A-Za-z0-9_]+)/g,
+    // go
+    /(?:^|\n)(?:pub\s+)?fn\s+([A-Za-z0-9_]+)/g
+    // rust
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(text)) !== null && symbols.size < MAX_SYMBOLS_PER_FILE) {
+      if (m[1] && m[1].length > 1) symbols.add(m[1]);
+    }
+  }
+  return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+}
+
 // ../tools/src/builtin/run-command.ts
-import { spawn } from "child_process";
+import { spawn as spawn2 } from "child_process";
 var DEFAULT_TIMEOUT_MS = 6e4;
 var MAX_OUTPUT_BYTES = 2e5;
 var SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
@@ -4681,7 +5511,7 @@ var runCommandTool = {
     const cwd = input.cwd ?? ctx.cwd;
     const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
     return await new Promise((resolveResult) => {
-      const child = spawn(SHELL, [SHELL_ARG, command], {
+      const child = spawn2(SHELL, [SHELL_ARG, command], {
         cwd,
         env: process.env,
         windowsHide: true
@@ -4729,9 +5559,160 @@ ${out}${tail}`);
   }
 };
 
+// ../tools/src/builtin/web-search.ts
+var MAX_RESULTS = 8;
+var TIMEOUT_MS = 15e3;
+var webSearchTool = {
+  schema: {
+    name: "web_search",
+    description: "Search the web and return the top results (title, url, snippet). Use for current docs, library versions, error messages, and anything outside the local repo. Keyless.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query." },
+        max_results: { type: "integer", description: `Max results (default ${MAX_RESULTS}).` }
+      },
+      required: ["query"]
+    }
+  },
+  destructive: false,
+  async execute(input) {
+    const query = String(input.query ?? "").trim();
+    if (!query) throw new Error("web_search requires a non-empty query");
+    const max = Math.min(Number(input.max_results ?? MAX_RESULTS) || MAX_RESULTS, 15);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)",
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: `q=${encodeURIComponent(query)}`,
+        signal: controller.signal
+      });
+      if (!res.ok) return `web_search failed: HTTP ${res.status}`;
+      const html = await res.text();
+      const results = parseDuckResults(html, max);
+      if (results.length === 0) return `No results for "${query}".`;
+      return results.map((r, i) => `${i + 1}. ${r.title}
+   ${r.url}
+   ${r.snippet}`).join("\n\n");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return `web_search error: ${msg}`;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+};
+function parseDuckResults(html, max) {
+  const out = [];
+  const linkRe = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippetRe = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippets = [];
+  let sm;
+  while ((sm = snippetRe.exec(html)) !== null) {
+    snippets.push(stripTags(sm[1] ?? ""));
+  }
+  let lm;
+  let i = 0;
+  while ((lm = linkRe.exec(html)) !== null && out.length < max) {
+    const rawHref = lm[1] ?? "";
+    const title = stripTags(lm[2] ?? "");
+    const url = decodeDuckUrl(rawHref);
+    out.push({ title, url, snippet: snippets[i] ?? "" });
+    i++;
+  }
+  return out;
+}
+function stripTags(s) {
+  return s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/\s+/g, " ").trim();
+}
+function decodeDuckUrl(href) {
+  const m = href.match(/[?&]uddg=([^&]+)/);
+  if (m && m[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return href;
+    }
+  }
+  return href.startsWith("//") ? `https:${href}` : href;
+}
+
+// ../tools/src/builtin/web-fetch.ts
+var TIMEOUT_MS2 = 2e4;
+var MAX_CHARS = 2e4;
+var webFetchTool = {
+  schema: {
+    name: "web_fetch",
+    description: "Fetch a URL and return its readable text content (HTML stripped to text, or raw for JSON/markdown). Use after web_search to read a specific page or to pull docs/specs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Absolute http(s) URL to fetch." },
+        max_chars: { type: "integer", description: `Max characters returned (default ${MAX_CHARS}).` }
+      },
+      required: ["url"]
+    }
+  },
+  destructive: false,
+  async execute(input) {
+    const url = String(input.url ?? "").trim();
+    if (!/^https?:\/\//i.test(url)) throw new Error("web_fetch requires an absolute http(s) URL");
+    const maxChars = Math.min(Number(input.max_chars ?? MAX_CHARS) || MAX_CHARS, 6e4);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS2);
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)" },
+        signal: controller.signal,
+        redirect: "follow"
+      });
+      if (!res.ok) return `web_fetch failed: HTTP ${res.status} ${res.statusText}`;
+      const contentType = res.headers.get("content-type") || "";
+      const raw = await res.text();
+      let text;
+      if (contentType.includes("html")) {
+        text = htmlToText(raw);
+      } else {
+        text = raw;
+      }
+      if (text.length > maxChars) {
+        return `${text.slice(0, maxChars)}
+
+[truncated at ${maxChars} chars]`;
+      }
+      return text || "[empty response]";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return `web_fetch error: ${msg}`;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+};
+function htmlToText(html) {
+  return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<svg[\s\S]*?<\/svg>/gi, " ").replace(/<head[\s\S]*?<\/head>/gi, " ").replace(/<\/(p|div|section|article|li|h[1-6]|tr|br)>/gi, "\n").replace(/<li[^>]*>/gi, "\u2022 ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&#39;/g, "'").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // ../tools/src/registry.ts
 function builtinTools() {
-  return [readFileTool, writeFileTool, editTool, listDirTool, grepTool, runCommandTool];
+  return [
+    readFileTool,
+    readManyTool,
+    writeFileTool,
+    editTool,
+    listDirTool,
+    grepTool,
+    repoMapTool,
+    runCommandTool,
+    webSearchTool,
+    webFetchTool
+  ];
 }
 
 // ../skills/src/types.ts
@@ -4788,45 +5769,45 @@ ${issues}`);
 }
 
 // ../skills/src/loader.ts
-import { existsSync as existsSync12, readFileSync as readFileSync13, readdirSync as readdirSync6, statSync as statSync3 } from "fs";
-import { dirname as dirname3, join as join11, resolve as resolve7 } from "path";
+import { existsSync as existsSync14, readFileSync as readFileSync18, readdirSync as readdirSync8, statSync as statSync5 } from "fs";
+import { dirname as dirname4, join as join14, resolve as resolve10 } from "path";
 import { fileURLToPath } from "url";
 var log17 = createLogger("skills:loader");
 function getBundledDir() {
-  const here = dirname3(fileURLToPath(import.meta.url));
+  const here = dirname4(fileURLToPath(import.meta.url));
   let dir = here;
-  for (let i = 0; i < 6; i++) {
-    const candidate = resolve7(dir, "skills-bundled");
-    if (existsSync12(candidate)) return candidate;
-    const parent = resolve7(dir, "..");
+  for (let i = 0; i < 8; i++) {
+    const candidate = resolve10(dir, "skills-bundled");
+    if (existsSync14(candidate)) return candidate;
+    const parent = resolve10(dir, "..");
     if (parent === dir) break;
     dir = parent;
   }
-  return resolve7(here, "..", "..", "..", "skills-bundled");
+  return resolve10(here, "..", "..", "..", "skills-bundled");
 }
 function scanDir(root, source) {
-  if (!existsSync12(root)) return [];
+  if (!existsSync14(root)) return [];
   const out = [];
   let entries;
   try {
-    entries = readdirSync6(root);
+    entries = readdirSync8(root);
   } catch (err) {
     log17.warn("failed to read skills dir", { root, err: String(err) });
     return [];
   }
   for (const name of entries) {
-    const folder = join11(root, name);
+    const folder = join14(root, name);
     let stat;
     try {
-      stat = statSync3(folder);
+      stat = statSync5(folder);
     } catch {
       continue;
     }
     if (!stat.isDirectory()) continue;
-    const skillFile = join11(folder, "SKILL.md");
-    if (!existsSync12(skillFile)) continue;
+    const skillFile = join14(folder, "SKILL.md");
+    if (!existsSync14(skillFile)) continue;
     try {
-      const raw = readFileSync13(skillFile, "utf8");
+      const raw = readFileSync18(skillFile, "utf8");
       const { frontmatter, body } = parseSkillSource(raw);
       const id = `${source}/${frontmatter.name}`;
       out.push({ id, source, path: skillFile, frontmatter, body });
@@ -4998,9 +5979,313 @@ ${result.summary}`;
   };
 }
 
+// ../skills/src/orchestrator.ts
+var log19 = createLogger("skills:orchestrator");
+async function orchestrate(tasks, opts) {
+  const concurrency = Math.max(1, opts.concurrency ?? 3);
+  const results = new Array(tasks.length);
+  let cursor = 0;
+  log19.debug("orchestrating tasks", { count: tasks.length, concurrency });
+  async function worker() {
+    while (true) {
+      if (opts.signal?.aborted) return;
+      const index = cursor++;
+      if (index >= tasks.length) return;
+      const task = tasks[index];
+      const skill = opts.registry.get(task.skill);
+      const start = Date.now();
+      opts.onTaskStart?.(task, index);
+      if (!skill) {
+        const available = opts.registry.list().map((s) => s.frontmatter.name).join(", ");
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: `skill "${task.skill}" not installed. Available: ${available || "(none)"}`,
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      let sub;
+      try {
+        sub = await spawnSubagent({
+          skill,
+          prompt: task.prompt,
+          provider: opts.provider,
+          toolPool: opts.toolPool,
+          model: opts.model,
+          signal: opts.signal
+        });
+      } catch (err) {
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      results[index] = {
+        task,
+        summary: sub.summary,
+        ok: sub.reason !== "error",
+        error: sub.error,
+        toolCalls: sub.toolCalls,
+        durationMs: Date.now() - start
+      };
+      opts.onTaskDone?.(task, index, results[index]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+function routeTaskToSkill(task, registry) {
+  const t = task.toLowerCase();
+  const has = (name) => registry.has(name);
+  const rules = [
+    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"],
+    [/\b(plan|design|architect|break down|roadmap)\b/, "plan"],
+    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
+    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
+    [/\b(test|spec|coverage|unit test|jest|vitest)\b/, "test-writer"],
+    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
+    [/\b(security|vulnerab|exploit|recon|pentest)\b/, "cyber-recon"],
+    [/\b(database|schema|migration|sql|index)\b/, "db-architect"],
+    [/\b(document|docs|readme|comment|explain)\b/, "doc-writer"],
+    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
+    [/\b(dependency|deps|package|upgrade|npm|version)\b/, "dep-doctor"],
+    [/\b(frontend|ui|css|component|design)\b/, "frontend-design"],
+    [/\b(api|endpoint|rest|graphql|openapi)\b/, "api-designer"],
+    [/\b(infra|terraform|kubernetes|docker|cloud)\b/, "infra-as-code"],
+    [/\b(git|commit|branch|merge|rebase)\b/, "git-master"],
+    [/\b(migrate|migration|port|convert)\b/, "migrate"]
+  ];
+  for (const [re, skill] of rules) {
+    if (re.test(t) && has(skill)) return skill;
+  }
+  for (const fallback of ["research", "plan"]) {
+    if (has(fallback)) return fallback;
+  }
+  return registry.list()[0]?.frontmatter.name;
+}
+
+// ../skills/src/team-tool.ts
+function buildSpawnTeamTool(deps) {
+  return {
+    schema: {
+      name: "spawn_team",
+      description: "Run multiple sub-agent tasks IN PARALLEL and get a combined summary. Use when a goal splits into independent pieces (e.g. research + review + plan). Each task names a skill (or omit it to auto-route) and a prompt. Returns every sub-agent's result, labelled.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            description: "Independent tasks to run concurrently.",
+            items: {
+              type: "object",
+              properties: {
+                skill: { type: "string", description: "Skill to run. Omit to auto-route from the prompt." },
+                prompt: { type: "string", description: "Task description for the sub-agent." },
+                label: { type: "string", description: "Short label for this task." }
+              },
+              required: ["prompt"]
+            }
+          }
+        },
+        required: ["tasks"]
+      }
+    },
+    async execute(input, _ctx) {
+      const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
+      if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
+      const tasks = [];
+      for (const rt of rawTasks) {
+        const obj = rt;
+        const prompt = String(obj.prompt ?? "").trim();
+        if (!prompt) continue;
+        const skill = obj.skill ? String(obj.skill).trim() : routeTaskToSkill(prompt, deps.registry) ?? "";
+        if (!skill) return "Error: no skills installed to run the team.";
+        tasks.push({ skill, prompt, label: obj.label ? String(obj.label) : void 0 });
+      }
+      if (tasks.length === 0) return "Error: spawn_team received no valid tasks.";
+      const results = await orchestrate(tasks, {
+        registry: deps.registry,
+        provider: deps.provider,
+        toolPool: deps.toolPool,
+        concurrency: deps.concurrency ?? 3
+      });
+      const lines = [`# Team results (${results.length} agents)`];
+      results.forEach((r, i) => {
+        const label = r.task.label || r.task.skill;
+        lines.push(`
+## ${i + 1}. ${label} (${r.task.skill}) \u2014 ${r.ok ? "ok" : "failed"} \xB7 ${r.durationMs}ms`);
+        if (r.ok) lines.push(r.summary || "(no output)");
+        else lines.push(`Error: ${r.error ?? "unknown"}`);
+      });
+      return lines.join("\n");
+    }
+  };
+}
+
+// src/utils/git-context.ts
+import { execSync } from "child_process";
+function git(args, cwd) {
+  return execSync(`git ${args}`, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    windowsHide: true,
+    timeout: 4e3
+  }).trim();
+}
+function getGitContext(cwd = process.cwd()) {
+  const empty = {
+    isRepo: false,
+    staged: 0,
+    unstaged: 0,
+    untracked: 0,
+    lastCommits: []
+  };
+  try {
+    const inside = git("rev-parse --is-inside-work-tree", cwd);
+    if (inside !== "true") return empty;
+  } catch {
+    return empty;
+  }
+  const ctx = { ...empty, isRepo: true };
+  try {
+    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd);
+  } catch {
+  }
+  try {
+    const status = git("status --porcelain", cwd);
+    if (status) {
+      for (const line of status.split("\n")) {
+        const x = line[0];
+        const y = line[1];
+        if (x === "?" && y === "?") ctx.untracked++;
+        else {
+          if (x && x !== " ") ctx.staged++;
+          if (y && y !== " ") ctx.unstaged++;
+        }
+      }
+    }
+  } catch {
+  }
+  try {
+    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd);
+    const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
+    ctx.behind = behind;
+    ctx.ahead = ahead;
+  } catch {
+  }
+  try {
+    const log22 = git("log --oneline -5", cwd);
+    ctx.lastCommits = log22 ? log22.split("\n") : [];
+  } catch {
+  }
+  try {
+    ctx.remoteUrl = git("remote get-url origin", cwd) || void 0;
+  } catch {
+  }
+  return ctx;
+}
+function gitContextPrompt(ctx) {
+  if (!ctx.isRepo) return "";
+  const parts = ["[Git context]"];
+  parts.push(`branch: ${ctx.branch ?? "(detached)"}`);
+  const dirty = [];
+  if (ctx.staged) dirty.push(`${ctx.staged} staged`);
+  if (ctx.unstaged) dirty.push(`${ctx.unstaged} modified`);
+  if (ctx.untracked) dirty.push(`${ctx.untracked} untracked`);
+  parts.push(`working tree: ${dirty.length ? dirty.join(", ") : "clean"}`);
+  if (ctx.ahead || ctx.behind) parts.push(`vs upstream: ${ctx.ahead ?? 0} ahead, ${ctx.behind ?? 0} behind`);
+  if (ctx.lastCommits.length) parts.push(`recent: ${ctx.lastCommits.slice(0, 3).join(" / ")}`);
+  return parts.join("\n");
+}
+
+// src/runtime/hooks.ts
+import { execSync as execSync2 } from "child_process";
+import { existsSync as existsSync15, readFileSync as readFileSync19 } from "fs";
+import { join as join15 } from "path";
+import { homedir as homedir5 } from "os";
+function readHooksFile(path2) {
+  try {
+    if (existsSync15(path2)) return JSON.parse(readFileSync19(path2, "utf8"));
+  } catch {
+  }
+  return {};
+}
+var cached = null;
+function loadHooks(cwd = process.cwd()) {
+  if (cached) return cached;
+  const global = readHooksFile(join15(homedir5(), ".codeva", "hooks.json"));
+  const project = readHooksFile(join15(cwd, ".codeva", "hooks.json"));
+  const merged = { ...global };
+  for (const key of Object.keys(project)) {
+    merged[key] = project[key];
+  }
+  cached = merged;
+  return merged;
+}
+function reloadHooks() {
+  cached = null;
+}
+function runHooks(event, subject = "", cwd = process.cwd()) {
+  const rules = loadHooks(cwd)[event] ?? [];
+  if (rules.length === 0) return { ran: false, blocked: false, output: "" };
+  const outputs = [];
+  let blocked = false;
+  for (const rule of rules) {
+    if (rule.match) {
+      let re;
+      try {
+        re = new RegExp(rule.match);
+      } catch {
+        continue;
+      }
+      if (!re.test(subject)) continue;
+    }
+    if (rule.block) {
+      blocked = true;
+      outputs.push(`[hook] blocked by rule (match: ${rule.match ?? "*"})`);
+      continue;
+    }
+    const command = rule.command.replace(/\{file\}/g, subject);
+    try {
+      const out = execSync2(command, {
+        cwd,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        timeout: rule.timeoutMs ?? 3e4
+      });
+      outputs.push(`[hook ${event}] ${command}
+${out.trim().slice(0, 2e3)}`);
+    } catch (err) {
+      const e = err;
+      outputs.push(`[hook ${event}] ${command} (failed)
+${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
+    }
+  }
+  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
+}
+
 // src/runtime/chat.ts
 var singletonRouter = null;
 var singletonRegistry = null;
+var singletonCheckpoints = null;
+var SESSION_ID = `sess-${Date.now().toString(36)}`;
+function getCheckpoints() {
+  if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
+  return singletonCheckpoints;
+}
 function getRouter() {
   const config = loadConfig();
   const configKeys = config.apiKeys ?? {};
@@ -5056,28 +6341,48 @@ var SYSTEM_PROMPT = `You are CyberMind, a fullstack agentic coding assistant run
 You help with reading, editing, and running code across the user's project. Be concise,
 prefer code over prose, and never invent file paths. You have access to these tools:
 - read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
+- read_many(paths[]) \u2014 read SEVERAL files in one call (use to grok a feature fast)
 - list_dir(path) \u2014 lists a directory
 - grep(pattern, path?, include?) \u2014 ripgrep-style search
+- repo_map(path?) \u2014 compact map of the project (dirs + key symbols per file);
+  call this FIRST on an unfamiliar repo to navigate efficiently
 - write_file(path, content) \u2014 create a NEW file (fails on overwrite)
 - edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
 - run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
+- web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
+- web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
 - spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
   code-review, \u2026) which runs in an isolated context and returns a summary
+- spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
+  pieces of work (e.g. research + review + plan at once), returns all results
 Destructive tools (write_file, edit, run_command) require user approval each turn
 unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
 broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
-\u2014 it produces tighter summaries and keeps your main context clean.`;
+\u2014 it produces tighter summaries and keeps your main context clean. When a goal has
+several independent parts, prefer spawn_team to do them concurrently.`;
 function toProviderMessages(messages) {
   return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
 }
-async function runChat(history, opts) {
+var mcpToolsCache = null;
+async function getMcpTools() {
+  if (mcpToolsCache) return mcpToolsCache;
+  try {
+    const { tools } = await loadMcpTools();
+    mcpToolsCache = tools;
+  } catch {
+    mcpToolsCache = [];
+  }
+  return mcpToolsCache;
+}
+async function buildAgentTools(approvalUI) {
   const router = getRouter();
   const registry = getSkillRegistry();
-  const providerMessages = toProviderMessages(history);
-  const gate = new ApprovalGate(opts.approvalUI ?? new HeadlessApprovalUI());
+  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
   const builtins = builtinTools();
   const wrappedBuiltins = builtins.map((t) => ({
     schema: t.schema,
+    destructive: t.destructive,
+    verify: t.verify,
     execute: async (input, ctx) => {
       const ok = await gate.request({
         toolName: t.schema.name,
@@ -5086,21 +6391,91 @@ async function runChat(history, opts) {
         summary: summarizeCall(t.schema.name, input)
       });
       if (!ok) return `[user denied tool '${t.schema.name}']`;
-      return t.execute(input, { cwd: ctx.cwd });
+      if (t.schema.name === "run_command") {
+        const cmd = typeof input.command === "string" ? input.command : "";
+        const pre = runHooks("preCommand", cmd);
+        if (pre.blocked) return `[blocked by preCommand hook]
+${pre.output}`;
+      }
+      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
+        const target = input.path;
+        if (typeof target === "string" && target) {
+          try {
+            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
+          } catch {
+          }
+        }
+      }
+      const result = await t.execute(input, { cwd: ctx.cwd });
+      try {
+        if (t.schema.name === "edit") {
+          const h = runHooks("postEdit", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "write_file") {
+          const h = runHooks("postWrite", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "run_command") {
+          const h = runHooks("postCommand", String(input.command ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        }
+      } catch {
+      }
+      return result;
     }
   }));
-  const spawnTool = buildSpawnSubagentTool({
-    registry,
-    provider: router,
-    toolPool: builtins.map((t) => ({ schema: t.schema, execute: t.execute }))
-  });
-  const wrappedTools = [...wrappedBuiltins, spawnTool];
+  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
+  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
+  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
+  const mcpRaw = await getMcpTools();
+  const mcpWrapped = mcpRaw.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: `MCP: ${t.schema.name}`
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      return t.execute(input, ctx);
+    }
+  }));
+  const gitBlock = gitContextPrompt(getGitContext());
+  const systemPrompt = gitBlock ? `${SYSTEM_PROMPT}
+
+${gitBlock}` : SYSTEM_PROMPT;
+  return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
+}
+async function runChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
   for await (const evt of runAgentLoop(providerMessages, {
     provider: router,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt,
     model: opts.model ?? "auto",
     signal: opts.signal,
-    tools: wrappedTools
+    tools
+  })) {
+    opts.onEvent(evt);
+  }
+}
+async function runGoalChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runGoal(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools,
+    maxRounds: opts.maxRounds ?? 8,
+    onEvent: opts.onEvent
   })) {
     opts.onEvent(evt);
   }
@@ -5119,11 +6494,22 @@ function summarizeCall(name, input) {
 function buildSkillsCommand(ctx) {
   return {
     name: "skills",
-    description: "List installed skills (bundled, user, project). Install/publish ships in M13.",
+    description: 'List installed skills, or "/skills reload" to rescan after adding one.',
     category: "skills",
-    usage: "/skills [list]",
-    run: () => {
+    usage: "/skills [list|reload]",
+    run: (args) => {
       const registry = getSkillRegistry();
+      const sub = args.trim().toLowerCase();
+      if (sub === "reload") {
+        registry.reload();
+        ctx.appendMessage({
+          id: `skills-${Date.now()}`,
+          role: "system",
+          content: `Reloaded skills. ${registry.list().length} installed.`,
+          createdAt: Date.now()
+        });
+        return;
+      }
       const grouped = registry.bySource();
       const lines = ["Installed skills:"];
       for (const source of ["bundled", "user", "project", "marketplace"]) {
@@ -5137,10 +6523,10 @@ function buildSkillsCommand(ctx) {
       }
       const total = registry.list().length;
       if (total === 0) {
-        lines.push("  (none \u2014 bundled skills will appear once you build the project)");
+        lines.push("  (none found \u2014 add SKILL.md files under .codeva/skills/)");
       } else {
         lines.push("");
-        lines.push(`  Total: ${total} skill(s). Try /research, /plan, or /code-review.`);
+        lines.push(`  Total: ${total} skill(s). Shortcuts: /research /plan /code-review /debug /security /commit /web`);
       }
       ctx.appendMessage({
         id: `skills-${Date.now()}`,
@@ -5173,7 +6559,7 @@ function buildSkillShortcut(ctx, name, skill, description) {
         ctx.appendMessage({
           id: `${name}-${Date.now()}`,
           role: "system",
-          content: `Skill "${skill}" is not installed. Build the project (pnpm build) or copy skills-bundled/ into ~/.cybermind/skills/.`,
+          content: `Skill "${skill}" is not installed. Add it under .codeva/skills/<name>/SKILL.md (project) or ~/.codeva/skills/ (global), then run /skills reload.`,
           createdAt: Date.now()
         });
         return;
@@ -5211,6 +6597,32 @@ function buildCodeReviewCommand(ctx) {
     "code-review",
     "Spawn the code-review sub-agent on a diff, file, or commit."
   );
+}
+function buildDebugCommand(ctx) {
+  return buildSkillShortcut(ctx, "debug", "debugger", "Spawn the systematic root-cause debugging sub-agent.");
+}
+function buildSecurityCommand(ctx) {
+  return buildSkillShortcut(ctx, "security", "security-audit", "Spawn the read-only security audit sub-agent.");
+}
+function buildCommitCommand(ctx) {
+  return buildSkillShortcut(ctx, "commit", "commit", "Stage and write Conventional Commits from the working tree.");
+}
+function buildWebCommand(ctx) {
+  return buildSkillShortcut(ctx, "web", "web-research", "Spawn the live web-research sub-agent (search + fetch + cite).");
+}
+function buildFixCommand(ctx) {
+  return buildSkillShortcut(ctx, "fix", "test-fixer", "Run tests and self-heal the code until green (bounded).");
+}
+function buildGoalCommand(ctx) {
+  return {
+    name: "goal",
+    description: "Work autonomously toward an objective until it is done (multi-round).",
+    category: "agent",
+    usage: "/goal <objective>",
+    run: (args) => {
+      ctx.submitUserPrompt?.(args.trim() ? `Work toward this goal until complete: ${args.trim()}` : "Usage: /goal <objective>");
+    }
+  };
 }
 
 // src/commands/trust.ts
@@ -5531,9 +6943,56 @@ function buildReleaseNotesCommand(ctx) {
   };
 }
 
+// src/commands/hooks.ts
+import { homedir as homedir6 } from "os";
+import { join as join16 } from "path";
+function buildHooksCommand(ctx) {
+  return {
+    name: "hooks",
+    description: "View or reload event automation hooks (postEdit, postTask, preCommand\u2026).",
+    category: "config",
+    usage: "/hooks [reload]",
+    run: (args) => {
+      const reply = (content) => ctx.appendMessage({ id: `hooks-${Date.now()}`, role: "system", content, createdAt: Date.now() });
+      if (args.trim() === "reload") {
+        reloadHooks();
+        reply("Hooks reloaded.");
+        return;
+      }
+      const cfg = loadHooks();
+      const events = Object.keys(cfg);
+      if (events.length === 0) {
+        reply(
+          `No hooks configured.
+
+Create ${join16(process.cwd(), ".codeva", "hooks.json")} (project) or ${join16(homedir6(), ".codeva", "hooks.json")} (global). Example:
+
+{
+  "postEdit":  [{ "match": "\\\\.ts$", "command": "npx prettier --write {file}" }],
+  "postCommand": [{ "command": "echo done" }],
+  "preCommand": [{ "match": "rm -rf", "command": "echo blocked", "block": true }]
+}
+
+Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, sessionStart.`
+        );
+        return;
+      }
+      const lines = ["Configured hooks:"];
+      for (const ev of events) {
+        const rules = cfg[ev] ?? [];
+        lines.push(`  ${ev}:`);
+        for (const r of rules) {
+          lines.push(`    - ${r.block ? "[BLOCK] " : ""}${r.match ? `(${r.match}) ` : ""}${r.command}`);
+        }
+      }
+      reply(lines.join("\n"));
+    }
+  };
+}
+
 // src/commands/workflow.ts
-import { existsSync as existsSync13, readFileSync as readFileSync14, readdirSync as readdirSync7, statSync as statSync4 } from "fs";
-import { join as join12, resolve as resolve8 } from "path";
+import { existsSync as existsSync16, readFileSync as readFileSync20, readdirSync as readdirSync9, statSync as statSync6 } from "fs";
+import { join as join17, resolve as resolve11 } from "path";
 import { parse as parseYaml2 } from "yaml";
 import { z as z10 } from "zod";
 var WORKFLOW_DIR = ".cybermind/workflows";
@@ -5556,13 +7015,13 @@ function buildWorkflowCommand(ctx) {
     run: async (args) => {
       const trimmed = args.trim();
       const reply = (content) => ctx.appendMessage({ id: `wf-${Date.now()}`, role: "system", content, createdAt: Date.now() });
-      const workflowsDir = resolve8(process.cwd(), WORKFLOW_DIR);
+      const workflowsDir = resolve11(process.cwd(), WORKFLOW_DIR);
       if (!trimmed || trimmed === "list") {
-        if (!existsSync13(workflowsDir)) {
+        if (!existsSync16(workflowsDir)) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
           return;
         }
-        const files = readdirSync7(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
+        const files = readdirSync9(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
         if (files.length === 0) {
           reply(`No workflows in ${workflowsDir}.`);
           return;
@@ -5580,8 +7039,8 @@ function buildWorkflowCommand(ctx) {
       }
       let path2 = "";
       for (const ext of [".yml", ".yaml"]) {
-        const candidate = join12(workflowsDir, name + ext);
-        if (existsSync13(candidate) && statSync4(candidate).isFile()) {
+        const candidate = join17(workflowsDir, name + ext);
+        if (existsSync16(candidate) && statSync6(candidate).isFile()) {
           path2 = candidate;
           break;
         }
@@ -5592,7 +7051,7 @@ function buildWorkflowCommand(ctx) {
       }
       let parsed;
       try {
-        const raw = readFileSync14(path2, "utf8");
+        const raw = readFileSync20(path2, "utf8");
         const doc = parseYaml2(raw);
         parsed = WorkflowSchema.parse(doc);
       } catch (err) {
@@ -5620,57 +7079,46 @@ Note: each step is dispatched sequentially as a synthesized user prompt; the age
 function buildRewindCommand(ctx) {
   return {
     name: "rewind",
-    description: "Time-travel: restore the session to a previous checkpoint.",
+    description: "Filesystem time-travel: undo agent file edits to an earlier checkpoint.",
     category: "safety",
-    usage: "/rewind [checkpoint-id|latest]",
+    usage: "/rewind [n|last]",
     run: (args) => {
       const trimmed = args.trim();
-      const reply = (content) => ctx.appendMessage({
-        id: `rewind-${Date.now()}`,
-        role: "system",
-        content,
-        createdAt: Date.now()
-      });
-      const manager = new CheckpointManager();
+      const reply = (content) => ctx.appendMessage({ id: `rewind-${Date.now()}`, role: "system", content, createdAt: Date.now() });
+      const cp = getCheckpoints();
+      const list = cp.list();
       if (!trimmed) {
-        const list = manager.list();
         if (list.length === 0) {
-          reply("No checkpoints available yet. Continue chatting to create one.");
+          reply("No file checkpoints yet. They are created automatically before each edit.");
           return;
         }
-        const lines = ["Checkpoints (newest first):"];
-        for (const cp of list) {
-          const date2 = new Date(cp.createdAt).toLocaleString();
-          lines.push(`  ${cp.id.slice(0, 8)}\u2026 ${date2} (${cp.messageCount} messages)`);
+        const lines = ["File checkpoints (newest first):"];
+        for (const e of list) {
+          const when = new Date(e.createdAt).toLocaleTimeString();
+          const files = e.files.map((f) => cp.rel(f.path)).join(", ");
+          lines.push(`  #${e.seq}  ${when}  ${e.label}  [${files}]`);
         }
         lines.push("");
-        lines.push("Restore with: /rewind <checkpoint-id> or /rewind latest");
+        lines.push("Restore with: /rewind <n>  \xB7  undo last edit: /rewind last");
         reply(lines.join("\n"));
         return;
       }
-      let checkpointId = trimmed;
-      if (trimmed === "latest") {
-        const latest = manager.loadLatest();
-        if (!latest) {
-          reply("No latest checkpoint found.");
+      let seq;
+      if (trimmed === "last") {
+        if (list.length === 0) {
+          reply("Nothing to undo.");
           return;
         }
-        checkpointId = latest.id;
+        seq = list[0].seq;
+      } else {
+        seq = parseInt(trimmed, 10);
+        if (Number.isNaN(seq)) {
+          reply(`Invalid checkpoint '${trimmed}'. Use /rewind to list, then /rewind <n>.`);
+          return;
+        }
       }
-      const checkpoint = manager.load(checkpointId);
-      if (!checkpoint) {
-        reply(`Checkpoint '${checkpointId}' not found or corrupted.`);
-        return;
-      }
-      const date = new Date(checkpoint.createdAt).toLocaleString();
-      reply(
-        `Restored to checkpoint ${checkpoint.id.slice(0, 8)}\u2026 (${date})
-- Messages: ${checkpoint.messages.length}
-- Model: ${checkpoint.model}
-- Provider: ${checkpoint.provider}
-
-Note: This is a demonstration. Full state restoration requires UI integration.`
-      );
+      const result = cp.restore(seq);
+      reply(`Rewound to checkpoint #${seq}. Restored ${result.restored} file(s), removed ${result.deleted} newly-created file(s).`);
     }
   };
 }
@@ -6454,136 +7902,90 @@ File size: ${html.length} characters`);
 }
 
 // src/commands/ecosystem.ts
+import { existsSync as existsSync17, readFileSync as readFileSync21, writeFileSync as writeFileSync13, mkdirSync as mkdirSync12 } from "fs";
+import { homedir as homedir7 } from "os";
+import { join as join18, dirname as dirname5 } from "path";
+function mcpConfigPath() {
+  return join18(process.cwd(), ".codeva", "mcp.json");
+}
+function readMcp() {
+  for (const p of [mcpConfigPath(), join18(homedir7(), ".codeva", "mcp.json")]) {
+    try {
+      if (existsSync17(p)) return JSON.parse(readFileSync21(p, "utf8"));
+    } catch {
+    }
+  }
+  return { mcpServers: {} };
+}
+function writeMcp(cfg) {
+  const p = mcpConfigPath();
+  mkdirSync12(dirname5(p), { recursive: true });
+  writeFileSync13(p, JSON.stringify(cfg, null, 2), "utf8");
+}
 function buildMCPCommand(ctx) {
   return {
     name: "mcp",
-    description: "Manage MCP (Model Context Protocol) servers.",
+    description: "Manage MCP servers (.codeva/mcp.json). Tools appear as mcp__<server>__<tool>.",
     category: "utility",
-    usage: "/mcp <list|search|install|uninstall|info> [args...]",
+    usage: "/mcp [add <name> <command...> | remove <name>]",
     run: async (args) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
-      const reply = (content) => ctx.appendMessage({
-        id: `mcp-${Date.now()}`,
-        role: "system",
-        content,
-        createdAt: Date.now()
-      });
-      if (parts.length === 0) {
-        reply("Usage: /mcp <list|search|install|uninstall|info> [args...]");
+      const reply = (content) => ctx.appendMessage({ id: `mcp-${Date.now()}`, role: "system", content, createdAt: Date.now() });
+      const sub = parts[0];
+      if (!sub) {
+        const cfg = readMcp();
+        const names = Object.keys(cfg.mcpServers ?? {});
+        if (names.length === 0) {
+          reply(
+            `No MCP servers configured.
+
+Add one: /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem .
+Config file: ${mcpConfigPath()}
+Connected servers expose their tools to the agent as mcp__<server>__<tool>. Restart the session after changes.`
+          );
+          return;
+        }
+        const lines = ["Configured MCP servers:"];
+        for (const n of names) {
+          const s = cfg.mcpServers[n];
+          lines.push(`  \u2022 ${n}: ${s.command} ${(s.args ?? []).join(" ")}`);
+        }
+        lines.push("", `Config: ${mcpConfigPath()} \u2014 restart session to apply changes.`);
+        reply(lines.join("\n"));
         return;
       }
-      const command = parts[0];
-      const ecosystem = new EcosystemManager();
-      switch (command) {
-        case "list":
-          const servers = ecosystem.getAvailableMCPServers();
-          if (servers.length === 0) {
-            reply("No MCP servers available.");
-            return;
-          }
-          const lines = ["\u{1F50C} Available MCP Servers:"];
-          for (const server2 of servers) {
-            const status = server2.installed ? "\u2705" : "\u2B1C";
-            lines.push(`${status} ${server2.name} (${server2.id})`);
-            lines.push(`   ${server2.description}`);
-            lines.push(`   Version: ${server2.version} \u2022 Author: ${server2.author}`);
-            if (server2.tags.length > 0) {
-              lines.push(`   Tags: ${server2.tags.join(", ")}`);
-            }
-            lines.push("");
-          }
-          reply(lines.join("\n"));
-          break;
-        case "search":
-          if (parts.length < 2) {
-            reply("Usage: /mcp search <query>");
-            return;
-          }
-          const query = parts.slice(1).join(" ");
-          if (!query) {
-            reply("Query is required for search.");
-            return;
-          }
-          const searchResults = await ecosystem.searchMCPServers(query);
-          if (searchResults.length === 0) {
-            reply(`No MCP servers found for: ${query}`);
-            return;
-          }
-          const searchLines = [`\u{1F50D} MCP servers matching "${query}":`];
-          for (const server2 of searchResults) {
-            const status = server2.installed ? "\u2705" : "\u2B1C";
-            searchLines.push(`${status} ${server2.name} (${server2.id})`);
-            searchLines.push(`   ${server2.description}`);
-            searchLines.push("");
-          }
-          reply(searchLines.join("\n"));
-          break;
-        case "install":
-          if (parts.length < 2) {
-            reply("Usage: /mcp install <server-id>");
-            return;
-          }
-          const serverId = parts[1];
-          if (!serverId) {
-            reply("Server ID is required.");
-            return;
-          }
-          const installSuccess = await ecosystem.installMCPServer(serverId);
-          if (installSuccess) {
-            reply(`\u2705 MCP server "${serverId}" installed successfully.`);
-          } else {
-            reply(`\u274C Failed to install MCP server "${serverId}". Does it exist?`);
-          }
-          break;
-        case "uninstall":
-          if (parts.length < 2) {
-            reply("Usage: /mcp uninstall <server-id>");
-            return;
-          }
-          const uninstallServerId = parts[1];
-          if (!uninstallServerId) {
-            reply("Server ID is required.");
-            return;
-          }
-          const uninstallSuccess = await ecosystem.uninstallMCPServer(uninstallServerId);
-          if (uninstallSuccess) {
-            reply(`\u{1F5D1}\uFE0F MCP server "${uninstallServerId}" uninstalled successfully.`);
-          } else {
-            reply(`\u274C Failed to uninstall MCP server "${uninstallServerId}". Does it exist?`);
-          }
-          break;
-        case "info":
-          if (parts.length < 2) {
-            reply("Usage: /mcp info <server-id>");
-            return;
-          }
-          const infoServerId = parts[1];
-          const allServers = ecosystem.getAvailableMCPServers();
-          const server = allServers.find((s) => s.id === infoServerId);
-          if (!server) {
-            reply(`MCP server "${infoServerId}" not found.`);
-            return;
-          }
-          const infoLines = [
-            `\u{1F4CB} MCP Server Information`,
-            `Name: ${server.name}`,
-            `ID: ${server.id}`,
-            `Description: ${server.description}`,
-            `Version: ${server.version}`,
-            `Author: ${server.author}`,
-            `Status: ${server.installed ? "\u2705 Installed" : "\u2B1C Not installed"}`,
-            `Tags: ${server.tags.join(", ") || "None"}`
-          ];
-          if (server.repository) {
-            infoLines.push(`Repository: ${server.repository}`);
-          }
-          infoLines.push(`Last Updated: ${new Date(server.lastUpdated).toLocaleString()}`);
-          reply(infoLines.join("\n"));
-          break;
-        default:
-          reply(`Unknown command "${command}". Use: list, search, install, uninstall, info`);
-          break;
+      if (sub === "add") {
+        const name = parts[1];
+        const command = parts[2];
+        const cmdArgs = parts.slice(3);
+        if (!name || !command) {
+          reply("Usage: /mcp add <name> <command> [args...]\nExample: /mcp add github npx -y @modelcontextprotocol/server-github");
+          return;
+        }
+        const cfg = readMcp();
+        cfg.mcpServers = cfg.mcpServers ?? {};
+        cfg.mcpServers[name] = { command, args: cmdArgs };
+        writeMcp(cfg);
+        reply(`Added MCP server '${name}'. Restart the session to connect it.`);
+        return;
       }
+      if (sub === "remove") {
+        const name = parts[1];
+        if (!name) {
+          reply("Usage: /mcp remove <name>");
+          return;
+        }
+        const cfg = readMcp();
+        if (cfg.mcpServers?.[name]) {
+          delete cfg.mcpServers[name];
+          writeMcp(cfg);
+          reply(`Removed MCP server '${name}'. Restart the session to apply.`);
+        } else {
+          reply(`No MCP server named '${name}'.`);
+        }
+        return;
+      }
+      reply(`Unknown /mcp subcommand '${sub}'. Use: /mcp, /mcp add, /mcp remove.`);
     }
   };
 }
@@ -7453,20 +8855,21 @@ Cost: $${newModel.inputCost}/$${newModel.outputCost} per 1M tokens
 }
 function buildCyberMindCommand(ctx) {
   return {
-    name: "cybermind",
-    description: "Access CyberMind's exclusive features and models.",
+    name: "codeva",
+    description: "Access Codeva's exclusive features and models.",
     category: "utility",
-    usage: "/cybermind <models|ultra|pro|speed|code|creative> [prompt]",
+    usage: "/codeva <models|ultra|pro|speed|code|creative> [prompt]",
+    aliases: ["cybermind"],
     run: async (args) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       const reply = (content) => ctx.appendMessage({
-        id: `cybermind-${Date.now()}`,
+        id: `codeva-${Date.now()}`,
         role: "system",
         content,
         createdAt: Date.now()
       });
       if (parts.length === 0) {
-        reply("Usage: /cybermind <models|ultra|pro|speed|code|creative> [prompt]");
+        reply("Usage: /codeva <models|ultra|pro|speed|code|creative> [prompt]");
         return;
       }
       const command = parts[0];
@@ -7474,18 +8877,18 @@ function buildCyberMindCommand(ctx) {
       switch (command) {
         case "models":
           const cybermindModels = [
-            { id: "cybermind-ultra", name: "CyberMind Ultra", desc: "Most powerful for complex tasks", cost: "$5/$15 per 1M" },
-            { id: "cybermind-pro", name: "CyberMind Pro", desc: "Balanced for most tasks", cost: "$2/$6 per 1M" },
-            { id: "cybermind-speed", name: "CyberMind Speed", desc: "Fast for quick responses", cost: "$0.50/$1.50 per 1M" },
-            { id: "cybermind-code", name: "CyberMind Code", desc: "Specialized for coding", cost: "$1.50/$4.50 per 1M" },
-            { id: "cybermind-creative", name: "CyberMind Creative", desc: "Creative and design tasks", cost: "$1/$3 per 1M" }
+            { id: "codeva-ultra", name: "Codeva Ultra", desc: "Most powerful for complex tasks", cost: "$5/$15 per 1M" },
+            { id: "codeva-pro", name: "Codeva Pro", desc: "Balanced for most tasks", cost: "$2/$6 per 1M" },
+            { id: "codeva-speed", name: "Codeva Speed", desc: "Fast for quick responses", cost: "$0.50/$1.50 per 1M" },
+            { id: "codeva-code", name: "Codeva Code", desc: "Specialized for coding", cost: "$1.50/$4.50 per 1M" },
+            { id: "codeva-creative", name: "Codeva Creative", desc: "Creative and design tasks", cost: "$1/$3 per 1M" }
           ];
-          let modelInfo = ["\u{1F9E0} CyberMind Exclusive Models:", ""];
+          let modelInfo = ["\u{1F9E0} Codeva Exclusive Models:", ""];
           cybermindModels.forEach((model, index) => {
             modelInfo.push(`${index + 1}. \u{1F916} ${model.name}`);
             modelInfo.push(`   ${model.desc}`);
             modelInfo.push(`   \u{1F4B0} Cost: ${model.cost}`);
-            modelInfo.push(`   \u{1F527} Use: /cybermind ${model.id.split("-")[1]} <prompt>`);
+            modelInfo.push(`   \u{1F527} Use: /codeva ${model.id.split("-")[1]} <prompt>`);
             modelInfo.push("");
           });
           reply(modelInfo.join("\n"));
@@ -7496,45 +8899,22 @@ function buildCyberMindCommand(ctx) {
         case "code":
         case "creative":
           if (parts.length < 2) {
-            reply(`Usage: /cybermind ${command} <your-prompt>`);
+            reply(`Usage: /codeva ${command} <your-prompt>`);
             return;
           }
-          const cybermindModelId = `cybermind-${command}`;
+          const cybermindModelId = `codeva-${command}`;
           const cybermindModel = customServer.getModel(cybermindModelId);
           const cybermindPrompt = parts.slice(1).join(" ");
           if (!cybermindPrompt) {
             reply("Prompt is required");
             return;
           }
-          if (!cybermindModel) {
-            reply(`\u274C Model ${cybermindModelId} not available. Please set up custom server first.`);
-            return;
+          if (ctx.setModel) ctx.setModel(cybermindModelId);
+          if (ctx.submitUserPrompt) {
+            ctx.submitUserPrompt(cybermindPrompt);
+          } else {
+            reply(`Codeva ${command} is not available in this context.`);
           }
-          reply(`\u{1F9E0} Using CyberMind ${command.charAt(0).toUpperCase() + command.slice(1)} model
-
-\u23F3 Processing: "${cybermindPrompt.substring(0, 50)}..."
-
-\u{1F916} Generating intelligent response...`);
-          setTimeout(() => {
-            const responses = {
-              ultra: `\u{1F680} **Ultra Response**: Advanced analysis of "${cybermindPrompt}"
-
-This is the most sophisticated analysis using our most powerful model. The response includes deep insights, comprehensive reasoning, and optimal solutions.`,
-              pro: `\u26A1 **Pro Response**: Professional analysis of "${cybermindPrompt}"
-
-Balanced approach providing practical solutions with clear reasoning and actionable recommendations.`,
-              speed: `\u{1F3C3}\u200D\u2642\uFE0F **Speed Response**: Quick analysis of "${cybermindPrompt}"
-
-Fast and efficient response with key insights and immediate actionable steps.`,
-              code: `\u{1F4BB} **Code Response**: Technical analysis of "${cybermindPrompt}"
-
-Specialized coding perspective with optimized solutions, best practices, and implementation details.`,
-              creative: `\u{1F3A8} **Creative Response**: Innovative analysis of "${cybermindPrompt}"
-
-Creative approach with out-of-the-box thinking, design principles, and innovative solutions.`
-            };
-            reply(responses[command] || "Response generated.");
-          }, 2e3);
           break;
         default:
           reply(`Unknown command "${command}". Use: models, ultra, pro, speed, code, creative`);
@@ -7545,7 +8925,7 @@ Creative approach with out-of-the-box thinking, design principles, and innovativ
 }
 
 // src/commands/auth.ts
-var log19 = createLogger("auth");
+var log20 = createLogger("auth");
 function buildLoginCommand(ctx) {
   return {
     name: "login",
@@ -7573,7 +8953,7 @@ Or use local models offline: /provider ollama`
         );
         return;
       }
-      reply("\u{1F510} Authenticating key with CyberMind Cloud...");
+      reply("\u{1F510} Authenticating key with Codeva Cloud...");
       try {
         const authInfo = await apiClient.authenticate(key);
         setAuthToken(key);
@@ -7917,6 +9297,12 @@ function buildCommandRegistry(ctx) {
     buildResearchCommand(ctx),
     buildPlanCommand(ctx),
     buildCodeReviewCommand(ctx),
+    buildDebugCommand(ctx),
+    buildSecurityCommand(ctx),
+    buildCommitCommand(ctx),
+    buildWebCommand(ctx),
+    buildGoalCommand(ctx),
+    buildFixCommand(ctx),
     buildTrustCommand(ctx),
     buildSecretCommand(ctx),
     buildModelCommand(ctx),
@@ -7926,6 +9312,7 @@ function buildCommandRegistry(ctx) {
     buildThemeCommand(ctx),
     buildSettingsCommand(ctx),
     buildReleaseNotesCommand(ctx),
+    buildHooksCommand(ctx),
     buildWorkflowCommand(ctx),
     buildRewindCommand(ctx),
     buildDiffCommand(ctx),
@@ -8024,29 +9411,33 @@ async function getUpdateMessage() {
 }
 
 // src/app.tsx
-import { Fragment as Fragment4, jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
+  const [themeVersion, setThemeVersion] = useState9(0);
+  if (themeVersion === 0) {
+    setActiveTheme(configTheme.mode ?? "dark");
+  }
   const hasCompletedOnboarding = isOnboardingComplete() && isAuthenticated();
-  const [screen, setScreen] = useState8(hasCompletedOnboarding ? "welcome" : "onboarding");
-  const [themeConfig, setThemeConfig] = useState8({
+  const [screen, setScreen] = useState9(hasCompletedOnboarding ? "welcome" : "onboarding");
+  const [themeConfig, setThemeConfig] = useState9({
     mode: configTheme.mode,
     syntaxTheme: configTheme.syntaxTheme
   });
   void themeConfig;
-  const [messages, setMessages] = useState8([]);
-  const [totalTokens, setTotalTokens] = useState8(0);
-  const [totalCost, setTotalCost] = useState8(0);
-  const [status, setStatus] = useState8("idle");
-  const [model, setModel] = useState8(initialModel ?? "auto");
-  const [provider, setProvider] = useState8(initialProvider ?? "auto");
-  const [, setPromptColor] = useState8("cyan");
-  const [welcomeVisible, setWelcomeVisible] = useState8(showWelcome);
-  const [exitConfirm, setExitConfirm] = useState8(false);
-  const [pendingApproval, setPendingApproval] = useState8(null);
-  const [updateNotice, setUpdateNotice] = useState8("");
-  useEffect3(() => {
+  const [messages, setMessages] = useState9([]);
+  const [totalTokens, setTotalTokens] = useState9(0);
+  const [totalCost, setTotalCost] = useState9(0);
+  const [status, setStatus] = useState9("idle");
+  const [model, setModel] = useState9(initialModel ?? "auto");
+  const [provider, setProvider] = useState9(initialProvider ?? "auto");
+  const [, setPromptColor] = useState9("cyan");
+  const [welcomeVisible, setWelcomeVisible] = useState9(showWelcome);
+  const [exitConfirm, setExitConfirm] = useState9(false);
+  const [pendingApproval, setPendingApproval] = useState9(null);
+  const [updateNotice, setUpdateNotice] = useState9("");
+  useEffect4(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
         if (msg) setUpdateNotice(msg);
@@ -8059,14 +9450,14 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const approvalUI = useMemo(
     () => ({
       ask(prompt) {
-        return new Promise((resolve9) => {
+        return new Promise((resolve12) => {
           setPendingApproval({
             toolName: prompt.toolName,
             summary: prompt.summary,
             destructive: prompt.destructive,
             resolve: (decision) => {
               setPendingApproval(null);
-              resolve9(decision);
+              resolve12(decision);
             }
           });
         });
@@ -8124,7 +9515,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
     });
   }, []);
   const driveChat = useCallback(
-    async (userText) => {
+    async (userText, goalMode = false) => {
       const userMsg = {
         id: cryptoRandomId(),
         role: "user",
@@ -8142,8 +9533,9 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
       const nextHistory = [...messages, userMsg];
       setMessages([...nextHistory, assistantMsg]);
       setStatus("thinking");
+      const driver = goalMode ? runGoalChat : runChat;
       try {
-        await runChat(nextHistory, {
+        await driver(nextHistory, {
           model,
           approvalUI,
           onEvent: (evt) => {
@@ -8164,6 +9556,10 @@ ${trimmed}
               setTotalTokens((prev) => prev + evt.inputTokens + evt.outputTokens);
               const costAmt = evt.inputTokens * 3e-6 + evt.outputTokens * 15e-6;
               setTotalCost((prev) => prev + costAmt);
+            } else if (evt.type === "context") {
+              appendDelta(`
+[\xB7 ${evt.note} \xB7]
+`);
             } else if (evt.type === "done") {
               if (evt.reason === "error") {
                 appendDelta(`
@@ -8178,6 +9574,13 @@ ${trimmed}
       } finally {
         streamingIdRef.current = null;
         setStatus("idle");
+        try {
+          const h = runHooks("postTask", userText);
+          if (h.output) {
+            appendMessage({ id: cryptoRandomId(), role: "system", content: h.output, createdAt: Date.now() });
+          }
+        } catch {
+        }
       }
     },
     [messages, model, appendDelta, approvalUI]
@@ -8206,6 +9609,19 @@ ${trimmed}
         }
         const [name, ...rest] = trimmed.split(/\s+/);
         const args = rest.join(" ");
+        if (name === "goal") {
+          if (!args.trim()) {
+            appendMessage({
+              id: cryptoRandomId(),
+              role: "system",
+              content: "Usage: /goal <objective> \u2014 I will work autonomously until it is done.",
+              createdAt: Date.now()
+            });
+            return;
+          }
+          void driveChat(args, true);
+          return;
+        }
         const cmd = commandRegistry.find(name ?? "");
         if (!cmd) {
           appendMessage({
@@ -8239,6 +9655,8 @@ ${trimmed}
   const handleThemeComplete = useCallback((theme) => {
     setThemeConfig(theme);
     setTheme(theme.mode, theme.syntaxTheme);
+    setActiveTheme(theme.mode);
+    setThemeVersion((v) => v + 1);
     setScreen("welcome");
   }, []);
   const handleSettingsClose = useCallback(() => {
@@ -8257,40 +9675,42 @@ ${trimmed}
   const renderScreen = () => {
     switch (screen) {
       case "onboarding":
-        return /* @__PURE__ */ jsx15(Onboarding, { onComplete: handleOnboardingComplete });
+        return /* @__PURE__ */ jsx16(Onboarding, { onComplete: handleOnboardingComplete });
       case "theme":
-        return /* @__PURE__ */ jsx15(ThemePicker, { onComplete: handleThemeComplete });
+        return /* @__PURE__ */ jsx16(ThemePicker, { onComplete: handleThemeComplete });
       case "settings":
-        return /* @__PURE__ */ jsx15(Settings, { onClose: handleSettingsClose });
+        return /* @__PURE__ */ jsx16(Settings, { onClose: handleSettingsClose });
       case "model":
-        return /* @__PURE__ */ jsx15(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
+        return /* @__PURE__ */ jsx16(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
       case "release-notes":
-        return /* @__PURE__ */ jsx15(ReleaseNotes, { onClose: handleReleaseNotesClose });
+        return /* @__PURE__ */ jsx16(ReleaseNotes, { onClose: handleReleaseNotesClose });
       case "welcome":
-        return /* @__PURE__ */ jsxs14(Fragment4, { children: [
-          updateNotice && /* @__PURE__ */ jsx15(Box14, { marginBottom: 1, children: /* @__PURE__ */ jsx15(Text15, { color: "yellow", children: updateNotice }) }),
-          welcomeVisible && /* @__PURE__ */ jsx15(Welcome, { provider, model }),
-          /* @__PURE__ */ jsx15(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx15(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx15(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx15(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
-          /* @__PURE__ */ jsx15(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx15(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs15(Fragment4, { children: [
+          updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
+          welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
+          /* @__PURE__ */ jsx16(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
+          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens }),
+          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
+          /* @__PURE__ */ jsx16(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
         ] });
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs14(Fragment4, { children: [
-          updateNotice && /* @__PURE__ */ jsx15(Box14, { marginBottom: 1, children: /* @__PURE__ */ jsx15(Text15, { color: "yellow", children: updateNotice }) }),
-          /* @__PURE__ */ jsx15(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx15(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx15(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx15(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
-          /* @__PURE__ */ jsx15(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx15(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs15(Fragment4, { children: [
+          updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
+          /* @__PURE__ */ jsx16(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
+          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens }),
+          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
+          /* @__PURE__ */ jsx16(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
         ] });
     }
   };
-  return /* @__PURE__ */ jsx15(Box14, { flexDirection: "column", children: renderScreen() });
+  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -8305,22 +9725,22 @@ function stringifyArgs(input) {
 }
 
 // src/index.tsx
-import { jsx as jsx16 } from "react/jsx-runtime";
-var log20 = createLogger("cli");
+import { jsx as jsx17 } from "react/jsx-runtime";
+var log21 = createLogger("cli");
 async function main() {
   const program = new Command();
-  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").action((opts) => {
+  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant by Codeva").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").action((opts) => {
     if (opts.debug) {
       process.env.CYBERMIND_LOG_LEVEL = "debug";
       process.env.CYBERMIND_LOG_STDERR = "true";
     }
-    log20.debug("starting CyberMind CLI", { opts });
+    log21.debug("starting CyberMind CLI", { opts });
     if (opts.print) {
       void runPrintMode(opts.print, opts.model);
       return;
     }
     const { waitUntilExit } = render(
-      /* @__PURE__ */ jsx16(
+      /* @__PURE__ */ jsx17(
         App,
         {
           showWelcome: opts.welcome !== false,
@@ -8336,7 +9756,7 @@ async function main() {
     waitUntilExit().then(
       () => process.exit(0),
       (err) => {
-        log20.error("CLI exited with error", err instanceof Error ? err.message : err);
+        log21.error("CLI exited with error", err instanceof Error ? err.message : err);
         process.exit(1);
       }
     );
@@ -8379,7 +9799,7 @@ async function main() {
     process.exit(0);
   });
   program.parseAsync(process.argv).catch((err) => {
-    log20.error("failed to parse args", err instanceof Error ? err.message : err);
+    log21.error("failed to parse args", err instanceof Error ? err.message : err);
     process.exit(1);
   });
 }

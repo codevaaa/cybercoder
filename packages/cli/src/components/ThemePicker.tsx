@@ -1,27 +1,17 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import gradient from 'gradient-string';
-
-const cyber = gradient(['#00e5ff', '#7b5cff', '#ff5c8a']);
+import { SkyScene, Mascot } from './Mascot.js';
+import { THEME_OPTIONS, resolvePalette, setActiveTheme, type ThemeMode } from '../theme/theme.js';
+import { CYBERCODER_NAME, CYBERCODER_VERSION } from '@cybermind/shared';
 
 export interface ThemeConfig {
-  mode: 'auto' | 'dark' | 'light' | 'dark-colorblind' | 'light-colorblind' | 'dark-ansi' | 'light-ansi';
+  mode: ThemeMode;
   syntaxTheme: string;
 }
 
 interface ThemePickerProps {
   onComplete: (theme: ThemeConfig) => void;
 }
-
-const THEMES = [
-  { id: 'auto', label: 'Auto (match terminal)' },
-  { id: 'dark', label: 'Dark mode' },
-  { id: 'light', label: 'Light mode' },
-  { id: 'dark-colorblind', label: 'Dark mode (colorblind-friendly)' },
-  { id: 'light-colorblind', label: 'Light mode (colorblind-friendly)' },
-  { id: 'dark-ansi', label: 'Dark mode (ANSI colors only)' },
-  { id: 'light-ansi', label: 'Light mode (ANSI colors only)' },
-];
 
 const SYNTAX_THEMES = [
   'Monokai Extended',
@@ -36,12 +26,24 @@ export const ThemePicker: React.FC<ThemePickerProps> = ({ onComplete }) => {
   const [syntaxIdx, setSyntaxIdx] = useState(0);
   const [stage, setStage] = useState<'theme' | 'syntax'>('theme');
 
+  // Live preview palette reflects the currently highlighted option.
+  const previewMode = THEME_OPTIONS[stage === 'theme' ? selected : selected]?.id ?? 'dark';
+  const preview = resolvePalette(previewMode as ThemeMode);
+
   useInput((_, key) => {
     if (stage === 'theme') {
       if (key.upArrow) {
-        setSelected((s) => Math.max(0, s - 1));
+        setSelected((s) => {
+          const next = Math.max(0, s - 1);
+          setActiveTheme(THEME_OPTIONS[next]!.id); // live repaint while browsing
+          return next;
+        });
       } else if (key.downArrow) {
-        setSelected((s) => Math.min(THEMES.length - 1, s + 1));
+        setSelected((s) => {
+          const next = Math.min(THEME_OPTIONS.length - 1, s + 1);
+          setActiveTheme(THEME_OPTIONS[next]!.id);
+          return next;
+        });
       } else if (key.return) {
         setStage('syntax');
       }
@@ -51,105 +53,101 @@ export const ThemePicker: React.FC<ThemePickerProps> = ({ onComplete }) => {
       } else if (key.downArrow) {
         setSyntaxIdx((s) => Math.min(SYNTAX_THEMES.length - 1, s + 1));
       } else if (key.return) {
-        const theme = THEMES[selected];
+        const theme = THEME_OPTIONS[selected];
         const syntax = SYNTAX_THEMES[syntaxIdx];
         if (theme && syntax) {
-          onComplete({
-            mode: theme.id as ThemeConfig['mode'],
-            syntaxTheme: syntax,
-          });
+          onComplete({ mode: theme.id, syntaxTheme: syntax });
         }
       }
     }
   });
 
-  const previewLines = [
-    { line: 1, text: 'function greet() {', color: 'cyan' as const },
-    { line: 2, text: '  console.log("Hello, World!");', old: true },
-    { line: 2, text: '  console.log("Hello, CyberCoder!");', new: true },
-    { line: 3, text: '}', color: 'cyan' as const },
-  ];
-
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text>{cyber('╭─ Theme Selection ────────────────────────────────────────────────╮')}</Text>
+      {/* Sky scene header (Claude Code style) */}
+      <Text bold color={preview.accent}>Welcome to {CYBERCODER_NAME} v{CYBERCODER_VERSION}</Text>
+      <Box marginTop={1}>
+        <SkyScene />
+      </Box>
+      <Box marginTop={1} marginLeft={1}>
+        <Mascot />
+      </Box>
 
-      <Box flexDirection="column" paddingLeft={2} paddingRight={2} marginTop={1}>
-        <Text bold color="white">Let&apos;s get started.</Text>
-        <Box marginTop={1} />
-        <Text bold color="#D97736">Choose the text style that looks best with your terminal</Text>
-        <Text color="gray">To change this later, run /theme</Text>
+      <Box flexDirection="column" marginTop={1} paddingLeft={1}>
+        <Text bold color={preview.text}>Let&apos;s get started.</Text>
         <Box marginTop={1} />
 
         {stage === 'theme' && (
           <>
-            {THEMES.map((t, i) => (
-              <Box key={t.id} flexDirection="row">
+            <Text bold color={preview.accent}>Choose the text style that looks best with your terminal</Text>
+            <Text color={preview.muted}>To change this later, run /theme</Text>
+            <Box marginTop={1} />
+            {THEME_OPTIONS.map((opt, i) => (
+              <Box key={opt.id} flexDirection="row">
                 <Text>
                   {i === selected ? (
-                    <Text color="#D97736">{'› '}</Text>
+                    <Text color={preview.accent}>{'› '}</Text>
                   ) : (
-                    <Text color="gray">{'  '}</Text>
+                    <Text color={preview.dim}>{'  '}</Text>
                   )}
-                  <Text color={i === selected ? 'white' : 'gray'} bold={i === selected}>
-                    {i + 1}. {t.label}
+                  <Text color={i === selected ? preview.text : preview.muted} bold={i === selected}>
+                    {i + 1}. {opt.label}
                   </Text>
-                  {i === selected && <Text color="green">{'  ✓'}</Text>}
+                  {i === selected && <Text color={preview.success}>{'  ✓'}</Text>}
                 </Text>
               </Box>
             ))}
             <Box marginTop={1} />
-            <Text color="gray">Use arrow keys, Enter to confirm</Text>
+            <Text color={preview.dim}>↑↓ to preview · Enter to confirm</Text>
           </>
         )}
 
         {stage === 'syntax' && (
           <>
-            <Text bold color="#D97736">Choose syntax highlighting theme:</Text>
+            <Text bold color={preview.accent}>Choose syntax highlighting theme:</Text>
             <Box marginTop={1} />
-            {SYNTAX_THEMES.map((t, i) => (
-              <Box key={t} flexDirection="row">
+            {SYNTAX_THEMES.map((name, i) => (
+              <Box key={name} flexDirection="row">
                 <Text>
                   {i === syntaxIdx ? (
-                    <Text color="#D97736">{'› '}</Text>
+                    <Text color={preview.accent}>{'› '}</Text>
                   ) : (
-                    <Text color="gray">{'  '}</Text>
+                    <Text color={preview.dim}>{'  '}</Text>
                   )}
-                  <Text color={i === syntaxIdx ? 'white' : 'gray'} bold={i === syntaxIdx}>
-                    {i + 1}. {t}
+                  <Text color={i === syntaxIdx ? preview.text : preview.muted} bold={i === syntaxIdx}>
+                    {i + 1}. {name}
                   </Text>
                 </Text>
               </Box>
             ))}
             <Box marginTop={1} />
-            <Text color="gray">Use arrow keys, Enter to confirm</Text>
+            <Text color={preview.dim}>↑↓ navigate · Enter to confirm</Text>
           </>
         )}
 
-        {/* Code Preview */}
+        {/* Live code preview with the previewed palette */}
         <Box marginTop={1} />
-        <Text color="gray">─────────────────────────────────────────</Text>
-        {previewLines.map((p, idx) => (
-          <Box key={idx} flexDirection="row">
-            <Text color="gray">{p.line.toString().padStart(2)} </Text>
-            {'old' in p && p.old && (
-              <Text color="red">{'- '}{p.text}</Text>
-            )}
-            {'new' in p && p.new && (
-              <Text color="green">{'+ '}{p.text}</Text>
-            )}
-            {'color' in p && (
-              <Text color={p.color}>{'  '}{p.text}</Text>
-            )}
-          </Box>
-        ))}
-        <Text color="gray">─────────────────────────────────────────</Text>
-        <Text color="gray">
-          Syntax theme: {SYNTAX_THEMES[syntaxIdx]} (ctrl+t to disable)
-        </Text>
+        <Text color={preview.dim}>{'─'.repeat(48)}</Text>
+        <Box flexDirection="row">
+          <Text color={preview.dim}>{'1 '}</Text>
+          <Text color={preview.info}>function </Text>
+          <Text color={preview.warning}>greet</Text>
+          <Text color={preview.text}>() {'{'}</Text>
+        </Box>
+        <Box flexDirection="row">
+          <Text color={preview.dim}>{'2 '}</Text>
+          <Text color={preview.error}>{'- '}console.log("Hello, World!");</Text>
+        </Box>
+        <Box flexDirection="row">
+          <Text color={preview.dim}>{'2 '}</Text>
+          <Text color={preview.success}>{'+ '}console.log("Hello, CyberCoder!");</Text>
+        </Box>
+        <Box flexDirection="row">
+          <Text color={preview.dim}>{'3 '}</Text>
+          <Text color={preview.text}>{'}'}</Text>
+        </Box>
+        <Text color={preview.dim}>{'─'.repeat(48)}</Text>
       </Box>
-
-      <Text>{cyber('╰──────────────────────────────────────────────────────────────────╯')}</Text>
     </Box>
   );
 };

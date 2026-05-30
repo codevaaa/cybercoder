@@ -8,12 +8,19 @@ import {
   buildResearchCommand,
   buildPlanCommand,
   buildCodeReviewCommand,
+  buildDebugCommand,
+  buildSecurityCommand,
+  buildCommitCommand,
+  buildWebCommand,
+  buildGoalCommand,
+  buildFixCommand,
 } from './skills.js';
 import { buildTrustCommand } from './trust.js';
 import { buildSecretCommand } from './secret.js';
 import { buildModelCommand, buildProviderCommand } from './model-provider.js';
 import { buildConsensusCommand } from './consensus.js';
 import { buildColorCommand, buildThemeCommand, buildSettingsCommand, buildReleaseNotesCommand } from './color.js';
+import { buildHooksCommand } from './hooks.js';
 import { buildWorkflowCommand } from './workflow.js';
 import { buildRewindCommand } from './rewind.js';
 import { buildDiffCommand } from './diff.js';
@@ -95,6 +102,12 @@ export function buildCommandRegistry(ctx: CommandContext): CommandRegistry {
     buildResearchCommand(ctx),
     buildPlanCommand(ctx),
     buildCodeReviewCommand(ctx),
+    buildDebugCommand(ctx),
+    buildSecurityCommand(ctx),
+    buildCommitCommand(ctx),
+    buildWebCommand(ctx),
+    buildGoalCommand(ctx),
+    buildFixCommand(ctx),
     buildTrustCommand(ctx),
     buildSecretCommand(ctx),
     buildModelCommand(ctx),
@@ -104,6 +117,7 @@ export function buildCommandRegistry(ctx: CommandContext): CommandRegistry {
     buildThemeCommand(ctx),
     buildSettingsCommand(ctx),
     buildReleaseNotesCommand(ctx),
+    buildHooksCommand(ctx),
     buildWorkflowCommand(ctx),
     buildRewindCommand(ctx),
     buildDiffCommand(ctx),

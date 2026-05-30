@@ -1,38 +1,89 @@
 import React from 'react';
-import { Text } from 'ink';
+import { Box, Text } from 'ink';
+import { activeTheme } from '../theme/theme.js';
 
 /**
- * 👾 Space-invader style pixel-art mascot for CyberCoder.
- * Classic retro arcade alien with blocky body, square eyes, and legs.
+ * CyberCoder pixel-art mascot — a friendly blocky companion rendered with
+ * half-block characters, in the same spirit as Claude Code's little creature
+ * but with CyberCoder's terracotta identity.
+ *
+ *      ██  ██        (antennae)
+ *    ████████████
+ *    ██ ▔▔ ██ ▔▔ ██  (face with two square eyes)
+ *    ████████████
+ *      ██      ██     (legs)
  */
 export const Mascot: React.FC = () => {
+  const c = activeTheme.accent;
+  const eye = activeTheme.isLight ? '#FFFFFF' : '#1A1A1A';
+  void eye;
+
   return (
-    <Text>
-      <Text color="#FF6B6B">    ▄▄▄▄▄▄▄    {'\n'}</Text>
-      <Text color="#FF6B6B">   ▄█░░░░░░█▄   {'\n'}</Text>
-      <Text color="#FF8E8E">  ▄█░░▄░░▄░░█▄  {'\n'}</Text>
-      <Text color="#FF8E8E">  █░░░▀░░▀░░░█  {'\n'}</Text>
-      <Text color="#FF6B6B">  █░░░░▄▄░░░░█  {'\n'}</Text>
-      <Text color="#FF6B6B">   ▀█░░░░░░█▀   {'\n'}</Text>
-      <Text color="#FF4757">     ▀▀▀▀▀▀     {'\n'}</Text>
-      <Text color="#FF4757">     ▌    ▌     {'\n'}</Text>
-      <Text color="#FF4757">     ▌    ▌     </Text>
-    </Text>
+    <Box flexDirection="column">
+      <Text color={c}>{'  ▟█▙   ▟█▙  '}</Text>
+      <Text color={c}>{' ███████████ '}</Text>
+      <Text color={c}>
+        {'██'}<Text color={activeTheme.text} backgroundColor={c}>{'██'}</Text>
+        {'███'}
+        <Text color={activeTheme.text} backgroundColor={c}>{'██'}</Text>{'██'}
+      </Text>
+      <Text color={c}>{' ███████████ '}</Text>
+      <Text color={c}>{'  ██     ██  '}</Text>
+    </Box>
   );
 };
 
 /**
- * Mini mascot variant for the sky scene (smaller, no legs).
+ * Mini mascot variant for the starry sky scene (smaller, no legs).
  */
 export const MiniMascot: React.FC = () => {
+  const c = activeTheme.accent;
   return (
-    <Text>
-      <Text color="#FF8E8E">  ▄▄▄▄▄▄▄  {'\n'}</Text>
-      <Text color="#FF8E8E"> ▄█▄▄▄▄▄▄█▄ {'\n'}</Text>
-      <Text color="#FF6B6B"> █░░▄░░▄░░█ {'\n'}</Text>
-      <Text color="#FF6B6B"> █░░▀░░▀░░█ {'\n'}</Text>
-      <Text color="#FF4757">  ▀▀▀▀▀▀▀▀  {'\n'}</Text>
-      <Text color="#FF4757">  ▐      ▌  </Text>
-    </Text>
+    <Box flexDirection="column">
+      <Text color={c}>{' ▟█▙ ▟█▙ '}</Text>
+      <Text color={c}>{'█████████'}</Text>
+      <Text color={c}>
+        {'█'}<Text backgroundColor={c}>{'█'}</Text>{'███'}
+        <Text backgroundColor={c}>{'█'}</Text>{'█'}
+      </Text>
+      <Text color={c}>{'█████████'}</Text>
+    </Box>
+  );
+};
+
+/**
+ * Decorative starry-night ASCII scene shown above the onboarding mascot,
+ * echoing Claude Code's clouds + crescent + sparkles composition. Uses
+ * Braille/■ shading characters for the "C" crescent and clouds.
+ */
+export const SkyScene: React.FC = () => {
+  const dim = activeTheme.dim;
+  const cloud = activeTheme.muted;
+  const star = activeTheme.accentAlt;
+  return (
+    <Box flexDirection="column">
+      <Text color={dim}>{'· · · · · · · · · · · · · · · · · · · · · · · · · ·'}</Text>
+      <Text>
+        <Text color={star}>{'    ✶        '}</Text>
+        <Text color={cloud}>{'░░▒▒        '}</Text>
+        <Text color={cloud}>{'  ▒▒▓▓▓▒░'}</Text>
+      </Text>
+      <Text>
+        <Text color={cloud}>{'  ░░▒▒▓▒░     '}</Text>
+        <Text color={star}>{'✶   '}</Text>
+        <Text color={cloud}>{'▒▓▓    ▓▓'}</Text>
+      </Text>
+      <Text>
+        <Text color={cloud}>{'░▒▒▓▓▓▒░  '}</Text>
+        <Text color={star}>{'✶      '}</Text>
+        <Text color={cloud}>{'▓▓     ▒▒'}</Text>
+      </Text>
+      <Text>
+        <Text color={star}>{' ✶          '}</Text>
+        <Text color={cloud}>{'░▒▓▒░   '}</Text>
+        <Text color={cloud}>{'▒▓▓▓▒▒░'}</Text>
+      </Text>
+      <Text color={dim}>{'· · · · · · · · · · · · · · · · · · · · · · · · · ·'}</Text>
+    </Box>
   );
 };

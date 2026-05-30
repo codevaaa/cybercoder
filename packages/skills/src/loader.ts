@@ -21,10 +21,15 @@ const log = createLogger('skills:loader');
  */
 function getBundledDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
+
+  // Walk up looking for a `skills-bundled/` directory. This covers:
+  //   - dev source:        packages/skills/src/        (root is 3 up)
+  //   - bundled CLI dist:  packages/cli/dist/          (CLI-local copy 1 up)
+  //   - published package: <pkg>/dist/                 (CLI-local copy 1 up)
+  // The CLI's prebuild step copies skills-bundled/ into the package root so a
+  // global npm install always finds it adjacent to dist/.
   let dir = here;
-  // Walk up at most 6 levels — this covers both `packages/skills/src/` (3 up)
-  // and `packages/cli/dist/` (2 up) plus any future bundler relocations.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     const candidate = resolve(dir, 'skills-bundled');
     if (existsSync(candidate)) return candidate;
     const parent = resolve(dir, '..');

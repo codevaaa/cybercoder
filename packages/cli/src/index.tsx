@@ -13,7 +13,7 @@ async function main(): Promise<void> {
 
   program
     .name('cm')
-    .description('CyberCoder CLI — fullstack agentic coding assistant')
+    .description('CyberCoder CLI — fullstack agentic coding assistant by Codeva')
     .version(CYBERMIND_VERSION, '-v, --version', 'print the CyberCoder version')
     .option('-d, --debug', 'enable debug logging')
     .option('--no-welcome', 'skip the welcome screen on startup')
