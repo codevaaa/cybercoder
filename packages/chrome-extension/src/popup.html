@@ -44,9 +44,9 @@
 </head>
 <body>
   <div class="header">
-    <div class="brand"><span class="dot">✳</span> CyberCoder</div>
+    <div class="brand"><span class="dot">✳</span> CyberCoder <span id="connIndicator" style="width:6px;height:6px;border-radius:50%;background:#9a9590;margin-left:2px;"></span></div>
     <div style="display:flex;gap:6px">
-      <button class="pin" id="pinBtn" title="Pin to side">📌</button>
+      <button class="pin" id="pinBtn" title="Open side panel">📌</button>
       <button class="close" id="closeBtn" title="Close">✕</button>
     </div>
   </div>
@@ -71,6 +71,7 @@
     <p class="desc">CyberCoder in Chrome is available to all users. Free tier: 50 messages/hour.</p>
     <button class="btn btn-primary" id="loginBtn">Log in via Website</button>
     <button class="btn btn-secondary" id="providerBtn">Setup Providers</button>
+    <button class="btn btn-secondary" id="settingsBtn" style="margin-top:4px;font-size:12px;">⚙️ Setup Keys in Extension</button>
   </div>
 
   <!-- Logged-in state -->

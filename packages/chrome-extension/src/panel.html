@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CyberCoder Side Panel</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,169 +35,118 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Header */
+  /* ── Header ── */
   .header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: 8px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-  .header .logo {
-    color: var(--accent);
-    font-size: 16px;
-    font-weight: bold;
-  }
-  .header .title {
-    font-weight: 600;
-    font-size: 14px;
-    flex: 1;
-  }
+  .header .logo { color: var(--accent); font-size: 16px; font-weight: bold; }
+  .header .title { font-weight: 600; font-size: 14px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
-  /* Navigation Tabs */
-  .tabs {
-    display: flex;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+  /* ── Model Selector (Claude-style) ── */
+  .model-select-wrap {
+    position: relative;
   }
-  .tab-btn {
-    flex: 1;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 10px 0;
-    text-align: center;
+  .model-select-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--bg2); border: 1px solid var(--border);
+    color: var(--fg); border-radius: 8px; padding: 5px 10px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
     transition: all 0.15s var(--ease);
   }
-  .tab-btn:hover {
-    color: var(--fg);
+  .model-select-btn:hover { border-color: var(--accent); background: var(--bg3); }
+  .model-select-btn .model-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--success);
   }
-  .tab-btn.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
+  .model-select-btn .chevron { font-size: 8px; color: var(--muted); transition: transform 0.2s; }
+  .model-dropdown {
+    position: absolute; top: calc(100% + 4px); right: 0;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--r-md); min-width: 200px; z-index: 999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: none; overflow: hidden;
   }
+  .model-dropdown.open { display: block; animation: fadeSlide 0.2s var(--ease); }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .model-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; cursor: pointer; transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+  }
+  .model-option:last-child { border-bottom: none; }
+  .model-option:hover { background: var(--bg3); }
+  .model-option.selected { background: var(--accent-glow); }
+  .model-option .mo-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .model-option .mo-info { flex: 1; }
+  .model-option .mo-name { font-size: 12px; font-weight: 600; color: var(--fg); }
+  .model-option .mo-desc { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .model-option .mo-check { color: var(--success); font-size: 14px; font-weight: bold; }
 
-  /* Content Views */
-  .view-container {
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    flex-direction: column;
+  /* ── Header buttons ── */
+  .hdr-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); width: 28px; height: 28px;
+    border-radius: 7px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; font-size: 13px;
+    transition: all 0.15s var(--ease);
   }
-  .view {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s var(--ease);
-  }
-  .view.active {
-    opacity: 1;
-    pointer-events: auto;
-    z-index: 10;
-  }
+  .hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Messages Pane */
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+  /* ── Navigation Tabs ── */
+  .tabs {
+    display: flex; background: var(--bg2);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
   }
-  .msg {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    animation: fadeIn 0.3s var(--ease);
+  .tab-btn {
+    flex: 1; background: none; border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted); cursor: pointer;
+    font-size: 11px; font-weight: 600;
+    padding: 10px 0; text-align: center;
+    transition: all 0.15s var(--ease);
   }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .msg .role {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--dim);
-    font-weight: 700;
-  }
+  .tab-btn:hover { color: var(--fg); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Content Views ── */
+  .view-container { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .view { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.2s var(--ease); }
+  .view.active { opacity: 1; pointer-events: auto; z-index: 10; }
+
+  /* ── Messages Pane ── */
+  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; flex-direction: column; gap: 4px; animation: fadeIn 0.3s var(--ease); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .msg .role { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 700; }
   .msg.user .bubble {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: 10px 12px;
-    white-space: pre-wrap;
-    font-size: 13px;
-    line-height: 1.55;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 10px 12px;
+    white-space: pre-wrap; font-size: 13px; line-height: 1.55;
+    word-wrap: break-word; overflow-wrap: break-word;
   }
   .msg.assistant .bubble {
-    white-space: pre-wrap;
-    font-size: 13px;
-    line-height: 1.6;
+    white-space: pre-wrap; font-size: 13px; line-height: 1.6;
+    word-wrap: break-word; overflow-wrap: break-word;
   }
+  .msg.assistant .bubble strong { color: var(--accent); }
 
-  pre {
-    background: #06060c;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    overflow-x: auto;
-    margin: 6px 0;
-  }
-  code {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 11px;
-    color: #cbd5e1;
-  }
-  .thinking {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 6px 0;
-  }
-  .thinking .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: bounce 1.4s ease-in-out infinite;
-  }
+  pre { background: #06060c; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+  code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; color: #cbd5e1; }
+  .thinking { display: inline-flex; align-items: center; gap: 3px; padding: 6px 0; }
+  .thinking .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: bounce 1.4s ease-in-out infinite; }
   .thinking .dot:nth-child(2) { animation-delay: 0.16s; }
   .thinking .dot:nth-child(3) { animation-delay: 0.32s; }
-  @keyframes bounce {
-    0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-5px); }
-  }
-  .typing-cursor::after {
-    content: '▋';
-    color: var(--accent);
-    animation: blink 1s steps(2) infinite;
-  }
+  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+  .typing-cursor::after { content: '▋'; color: var(--accent); animation: blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 
-  /* Tool steps */
-  .tool-step {
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    margin: 4px 0;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    background: var(--bg2);
-  }
+  /* ── Tool steps ── */
+  .tool-step { border: 1px solid var(--border); border-radius: var(--r-md); margin: 4px 0; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--bg2); }
   .tool-step.running { border-color: rgba(124, 58, 237, 0.3); }
   .tool-step.ok { border-color: rgba(16, 185, 129, 0.2); }
   .tool-step.fail { border-color: rgba(239, 68, 68, 0.2); }
@@ -206,310 +156,82 @@
   .tool-step .name { flex: 1; color: var(--fg); font-weight: 500; }
   .tool-step .time { color: var(--dim); font-size: 9px; font-family: monospace; }
 
-  /* Empty state */
-  .empty {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 24px;
-    gap: 14px;
-  }
-  .empty .mascot {
-    width: 52px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 14px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    font-size: 24px;
-  }
-  .empty .hint {
-    font-size: 12px;
-    color: var(--muted);
-    max-width: 250px;
-    line-height: 1.6;
-  }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-    margin-top: 8px;
-  }
-  .chip {
-    font-size: 10px;
-    border: 1px solid var(--border);
-    background: var(--bg2);
-    color: var(--fg);
-    padding: 6px 10px;
-    border-radius: 16px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.15s;
-  }
-  .chip:hover {
-    border-color: var(--accent);
-    background: var(--accent-glow);
-  }
+  /* ── Empty state ── */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 14px; }
+  .empty .mascot { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: var(--bg2); border: 1px solid var(--border); font-size: 24px; }
+  .empty .hint { font-size: 12px; color: var(--muted); max-width: 250px; line-height: 1.6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+  .chip { font-size: 10px; border: 1px solid var(--border); background: var(--bg2); color: var(--fg); padding: 6px 10px; border-radius: 16px; cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .chip:hover { border-color: var(--accent); background: var(--accent-glow); }
 
-  /* Automation indicator */
-  .auto-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 9px;
-    background: rgba(201, 100, 66, 0.15);
-    color: #d4714f;
-    padding: 2px 7px;
-    border-radius: 8px;
-    font-weight: 600;
-  }
+  /* ── Auto badge ── */
+  .auto-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; background: rgba(201, 100, 66, 0.15); color: #d4714f; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
 
-  /* Composer */
-  .composer {
-    border-top: 1px solid var(--border);
-    padding: 12px 16px;
-    flex-shrink: 0;
-  }
-  .composer-box {
-    border: 2px solid var(--accent);
-    border-radius: 14px;
-    background: var(--bg2);
-    padding: 8px 12px;
-    transition: box-shadow 0.2s;
-  }
-  .composer-box:focus-within {
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-  textarea {
-    width: 100%;
-    resize: none;
-    background: transparent;
-    color: var(--fg);
-    border: none;
-    outline: none;
-    font-family: inherit;
-    font-size: 13px;
-    line-height: 1.5;
-    min-height: 34px;
-    max-height: 100px;
-  }
+  /* ── Composer ── */
+  .composer { border-top: 1px solid var(--border); padding: 12px 14px; flex-shrink: 0; }
+  .composer-box { border: 2px solid var(--accent); border-radius: 14px; background: var(--bg2); padding: 8px 12px; transition: box-shadow 0.2s; }
+  .composer-box:focus-within { box-shadow: 0 0 0 3px var(--accent-glow); }
+  textarea { width: 100%; resize: none; background: transparent; color: var(--fg); border: none; outline: none; font-family: inherit; font-size: 13px; line-height: 1.5; min-height: 34px; max-height: 100px; }
   textarea::placeholder { color: var(--dim); }
-  .crow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 6px;
-  }
+  .crow { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
   .crow-left { display: flex; align-items: center; gap: 6px; }
-  .page-ctx {
-    font-size: 10px;
-    color: var(--dim);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .page-ctx .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--success);
-  }
+  .page-ctx { font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 4px; }
+  .page-ctx .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
   .crow-right { display: flex; align-items: center; gap: 6px; }
-  .send {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    background: var(--accent);
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    transition: all 0.15s;
-  }
+  .send { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
   .send:hover { background: var(--accent-hover); transform: scale(1.05); }
-  .send:disabled { opacity: 0.4; transform: none; }
-  .stop {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    transition: all 0.15s;
-  }
+  .send:disabled { opacity: 0.4; transform: none; cursor: default; }
+  .stop { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; }
   .stop:hover { border-color: var(--error); color: var(--error); }
-  .auto-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    transition: all 0.15s;
-  }
+  .auto-btn { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
   .auto-btn:hover { border-color: #d4714f; color: #d4714f; background: rgba(201, 100, 66, 0.08); }
   .auto-btn.active { border-color: #d4714f; color: #d4714f; background: rgba(201, 100, 66, 0.15); }
-  
-  .err {
-    color: var(--error);
-    font-size: 12px;
-    padding: 8px 16px;
-    background: rgba(239, 68, 68, 0.08);
-    border-radius: 8px;
-    margin: 0 16px;
-    animation: fadeIn 0.2s;
-  }
+  .err { color: var(--error); font-size: 12px; padding: 8px 16px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; margin: 0 16px; animation: fadeIn 0.2s; }
 
-  /* Settings Page Styles */
-  .settings-pane {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .settings-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .settings-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-  }
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  label {
-    font-size: 11px;
-    color: var(--muted);
-    font-weight: 500;
-  }
-  input[type="text"], select {
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--r-sm);
-    color: var(--fg);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  input[type="text"]:focus, select:focus {
-    border-color: var(--accent);
-  }
-  .row-flex {
-    display: flex;
-    gap: 8px;
-  }
-  .action-btn {
-    padding: 8px 14px;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: var(--r-sm);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
+  /* ── Settings Styles ── */
+  .settings-pane { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .settings-section { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .settings-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  input[type="text"], select { width: 100%; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--fg); font-size: 12px; outline: none; transition: border-color 0.15s; }
+  input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  .row-flex { display: flex; gap: 8px; }
+  .action-btn { padding: 8px 14px; background: var(--accent); color: #fff; border: none; border-radius: var(--r-sm); font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
   .action-btn:hover { background: var(--accent-hover); }
-  .action-btn-secondary {
-    padding: 8px 14px;
-    background: transparent;
-    color: var(--fg);
-    border: 1px solid var(--border);
-    border-radius: var(--r-sm);
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
+  .action-btn-secondary { padding: 8px 14px; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-sm); font-size: 12px; cursor: pointer; transition: background 0.15s; }
   .action-btn-secondary:hover { background: rgba(255,255,255,0.05); }
+  .save-toast { font-size: 10px; color: var(--success); font-weight: 600; animation: fadeIn 0.3s; }
 
-  /* Automations list */
-  .automations-pane {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .job-card {
-    border: 1px solid var(--border);
-    background: var(--bg2);
-    border-radius: var(--r-md);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .job-card .job-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .job-card .job-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--fg);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 180px;
-  }
-  .job-card .job-status {
-    font-size: 9px;
-    padding: 1px 6px;
-    border-radius: 6px;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
+  /* ── Automations Styles ── */
+  .automations-pane { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .auto-task-form { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .auto-task-form input { flex: 1; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--fg); font-size: 12px; outline: none; }
+  .auto-task-form input:focus { border-color: var(--accent); }
+  .job-card { border: 1px solid var(--border); background: var(--bg2); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .job-card .job-header { display: flex; justify-content: space-between; align-items: center; }
+  .job-card .job-title { font-size: 12px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+  .job-card .job-status { font-size: 9px; padding: 1px 6px; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
   .status-done { background: rgba(16,185,129,0.1); color: var(--success); }
   .status-running { background: rgba(124,58,237,0.1); color: #a78bfa; }
   .status-pending { background: rgba(255,255,255,0.05); color: var(--muted); }
   .status-failed { background: rgba(239,68,68,0.1); color: var(--error); }
-  .job-card .job-result {
-    font-size: 11px;
-    color: var(--muted);
-    max-height: 80px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    background: var(--bg3);
-    padding: 6px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.03);
-  }
-  
+  .job-card .job-result { font-size: 11px; color: var(--muted); max-height: 80px; overflow-y: auto; white-space: pre-wrap; background: var(--bg3); padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.03); word-wrap: break-word; }
+
   .hidden { display: none !important; }
+
+  /* ── Responsive ── */
+  @media (max-width: 420px) {
+    .header { padding: 8px 10px; gap: 6px; }
+    .header .title { font-size: 13px; }
+    .model-select-btn { font-size: 10px; padding: 4px 8px; }
+    .messages { padding: 12px; gap: 10px; }
+    .composer { padding: 10px 12px; }
+    .msg.user .bubble, .msg.assistant .bubble { font-size: 12px; }
+    .settings-pane { padding: 12px; }
+    .chip { font-size: 9px; padding: 5px 8px; }
+    .model-dropdown { min-width: 180px; }
+  }
 </style>
 </head>
 <body>
@@ -518,7 +240,52 @@
   <div class="header">
     <span class="logo">✳</span>
     <span class="title">CyberCoder</span>
-    <span class="auto-badge" id="autoBadge" title="Browser automation mode is active">🤖 Auto Mode</span>
+    <div class="header-right">
+      <span class="auto-badge" id="autoBadge" style="display:none;" title="Browser automation active">🤖 Auto</span>
+
+      <!-- Model Selector -->
+      <div class="model-select-wrap" id="modelWrap">
+        <button class="model-select-btn" id="modelBtn">
+          <span class="model-dot" id="modelDot"></span>
+          <span id="modelLabel">Codeva Auto</span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="model-dropdown" id="modelDropdown">
+          <div class="model-option selected" data-model="auto">
+            <span class="mo-dot" style="background: var(--accent);"></span>
+            <div class="mo-info"><div class="mo-name">Codeva Auto</div><div class="mo-desc">Smart routing — picks best available model</div></div>
+            <span class="mo-check" id="checkAuto">✓</span>
+          </div>
+          <div class="model-option" data-model="groq">
+            <span class="mo-dot" style="background: #f97316;"></span>
+            <div class="mo-info"><div class="mo-name">Arjun · Groq</div><div class="mo-desc">Blazing fast, lightweight responses</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="gemini">
+            <span class="mo-dot" style="background: #3b82f6;"></span>
+            <div class="mo-info"><div class="mo-name">Chanakya · Gemini</div><div class="mo-desc">Strategic reasoning, deep analysis</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="openai">
+            <span class="mo-dot" style="background: #10b981;"></span>
+            <div class="mo-info"><div class="mo-name">OpenAI · GPT-4o</div><div class="mo-desc">Requires BYOK key in Settings</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="anthropic">
+            <span class="mo-dot" style="background: #d4714f;"></span>
+            <div class="mo-info"><div class="mo-name">Anthropic · Claude</div><div class="mo-desc">Requires BYOK key in Settings</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="openrouter">
+            <span class="mo-dot" style="background: #a78bfa;"></span>
+            <div class="mo-info"><div class="mo-name">OpenRouter</div><div class="mo-desc">Requires BYOK key in Settings</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="hdr-btn" id="clearBtn" title="New Chat">+</button>
+    </div>
   </div>
 
   <!-- Navigation Tabs -->
@@ -536,7 +303,14 @@
       <div class="messages" id="messages">
         <div class="empty" id="empty">
           <div class="mascot">✳</div>
-          <div class="hint">Ask questions about this page, extract tables/links, fill forms, or run automation tasks.</div>
+          <div class="hint">Ask questions about this page, summarize content, extract data, or run browser automations.</div>
+          <div class="chips">
+            <button class="chip" data-p="Summarize this page in bullet points">📝 Summarize</button>
+            <button class="chip" data-p="Extract key data from this page as a table">📊 Extract</button>
+            <button class="chip" data-p="Explain this page content simply in 3 sentences">💡 Explain</button>
+            <button class="chip" data-p="Translate the main content of this page to Hindi">🌐 Translate</button>
+            <button class="chip" data-p="Convert this page content to clean Markdown format">📄 Markdown</button>
+          </div>
         </div>
       </div>
       <div id="errbar" class="err hidden"></div>
@@ -560,13 +334,17 @@
     <!-- 2. AUTOMATIONS VIEW -->
     <div id="automationsView" class="view">
       <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 11px; font-weight: bold; color: var(--muted); text-transform: uppercase;">Background Task Queue</span>
-        <button class="action-btn-secondary" id="clearJobsBtn" style="padding: 3px 8px; font-size: 10px;">Clear Queue</button>
+        <span style="font-size: 11px; font-weight: bold; color: var(--muted); text-transform: uppercase;">Background Tasks</span>
+        <button class="action-btn-secondary" id="clearJobsBtn" style="padding: 3px 8px; font-size: 10px;">Clear All</button>
+      </div>
+      <div class="auto-task-form">
+        <input type="text" id="newTaskInput" placeholder="Describe a background task..." />
+        <button class="action-btn" id="addTaskBtn" style="padding: 6px 12px; font-size: 11px;">Run</button>
       </div>
       <div class="automations-pane" id="jobsList">
         <div class="empty" id="emptyJobs">
           <div style="font-size: 24px; opacity: 0.5;">📋</div>
-          <div class="hint">No background tasks running. Trigger background tasks from Chat or Popup.</div>
+          <div class="hint">No tasks yet. Type a task above or use the quick actions from Chat to queue background work.</div>
         </div>
       </div>
     </div>
@@ -581,10 +359,20 @@
           <div class="form-group">
             <label>Codeva API / JWT Token</label>
             <div class="row-flex">
-              <input type="text" id="codevaKeyInput" placeholder="Manually paste sk_cyber_... token if unsynced" />
+              <input type="text" id="codevaKeyInput" placeholder="Paste sk_cyber_... token" />
               <button class="action-btn" id="saveCodevaKey">Save</button>
             </div>
-            <span style="font-size: 9px; color: var(--dim);" id="authStatusText">Auth Status: Connecting...</span>
+            <span style="font-size: 9px; color: var(--dim);" id="authStatusText">Auth Status: Checking...</span>
+          </div>
+        </div>
+
+        <!-- Connection Test -->
+        <div class="settings-section">
+          <span class="settings-title">Connection Status</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="connDot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);"></span>
+            <span id="connText" style="font-size: 11px; color: var(--muted);">Not tested</span>
+            <button class="action-btn-secondary" id="testConnBtn" style="padding: 4px 10px; font-size: 10px; margin-left: auto;">Test Connection</button>
           </div>
         </div>
 
@@ -594,8 +382,8 @@
           <div class="form-group">
             <label>Backend API Base URL</label>
             <select id="backendUrlSelect">
-              <option value="https://cybercli-api.onrender.com/api/v1">Production Cloud (https://cybercli-api.onrender.com)</option>
-              <option value="http://localhost:3000/api/v1">Local Server (http://localhost:3000)</option>
+              <option value="https://cybercli-api.onrender.com/api/v1">Production Cloud (Render)</option>
+              <option value="http://localhost:3000/api/v1">Local Server (localhost:3000)</option>
               <option value="custom">Custom Endpoint...</option>
             </select>
           </div>
@@ -610,8 +398,8 @@
 
         <!-- Bring Your Own Keys (BYOK) -->
         <div class="settings-section">
-          <span class="settings-title">Local Providers Keys (BYOK)</span>
-          <div style="font-size: 9.5px; color: var(--muted); margin-bottom: 4px;">If configured, queries route directly to the provider. Otherwise, they use Codeva Cloud.</div>
+          <span class="settings-title">Provider API Keys (BYOK)</span>
+          <div style="font-size: 9.5px; color: var(--muted); margin-bottom: 4px;">Enter your own API keys to route directly to providers. Otherwise queries use Codeva Cloud.</div>
           
           <div class="form-group" style="margin-bottom: 6px;">
             <label>Groq API Key</label>
@@ -633,18 +421,20 @@
             <label>OpenRouter API Key</label>
             <input type="text" id="openrouterKey" class="byok-input" placeholder="sk-or-..." data-provider="openrouter" />
           </div>
+          <button class="action-btn" id="saveAllKeys" style="width: 100%; margin-top: 4px;">💾 Save All Keys</button>
+          <span id="keysSaveToast" class="save-toast hidden">✓ All keys saved!</span>
         </div>
 
-        <!-- Update Features -->
+        <!-- Developer & Updates -->
         <div class="settings-section" style="border-bottom: none;">
           <span class="settings-title">Developer & Updates</span>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-              <span>Extension Version: <strong style="color: var(--accent);">0.2.0</strong></span>
+              <span>Version: <strong style="color: var(--accent);">0.2.1</strong></span>
               <button class="action-btn-secondary" id="checkUpdateBtn" style="padding: 4px 8px; font-size: 10px;">Check Updates</button>
             </div>
             <div id="updateStatusMsg" style="font-size: 10px; color: var(--success); font-weight: 500;" class="hidden"></div>
-            <button class="action-btn-secondary" id="reloadExtBtn" style="width: 100%; font-size: 11px; padding: 8px 0; border-color: rgba(201,100,66,0.2); color: #d4714f; font-weight: 600;">🔄 Reload Extension (Apply Updates)</button>
+            <button class="action-btn-secondary" id="reloadExtBtn" style="width: 100%; font-size: 11px; padding: 8px 0; border-color: rgba(201,100,66,0.2); color: #d4714f; font-weight: 600;">🔄 Reload Extension</button>
           </div>
         </div>
 
@@ -654,23 +444,65 @@
   </div>
 
 <script>
-// --- Navigation Tab Switcher ---
+// ═══════════════════════════════════════════
+// Navigation Tab Switcher
+// ═══════════════════════════════════════════
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    
     btn.classList.add('active');
     const tabId = btn.dataset.tab;
     document.getElementById(tabId + 'View').classList.add('active');
-    
-    if (tabId === 'automations') {
-      loadJobs();
-    }
+    if (tabId === 'automations') loadJobs();
   });
 });
 
-// --- Settings Section Functions ---
+// ═══════════════════════════════════════════
+// Model Selector
+// ═══════════════════════════════════════════
+let selectedModel = 'auto';
+const modelBtn = document.getElementById('modelBtn');
+const modelDropdown = document.getElementById('modelDropdown');
+const modelLabel = document.getElementById('modelLabel');
+const modelDot = document.getElementById('modelDot');
+
+const MODEL_COLORS = { auto: '#C96442', groq: '#f97316', gemini: '#3b82f6', openai: '#10b981', anthropic: '#d4714f', openrouter: '#a78bfa' };
+const MODEL_LABELS = { auto: 'Codeva Auto', groq: 'Arjun · Groq', gemini: 'Chanakya · Gemini', openai: 'OpenAI · GPT-4o', anthropic: 'Anthropic · Claude', openrouter: 'OpenRouter' };
+
+modelBtn.onclick = (e) => { e.stopPropagation(); modelDropdown.classList.toggle('open'); };
+document.addEventListener('click', () => modelDropdown.classList.remove('open'));
+
+document.querySelectorAll('.model-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    selectedModel = opt.dataset.model;
+    modelLabel.textContent = MODEL_LABELS[selectedModel] || selectedModel;
+    modelDot.style.background = MODEL_COLORS[selectedModel] || 'var(--accent)';
+    document.querySelectorAll('.model-option').forEach(o => { o.classList.remove('selected'); o.querySelector('.mo-check').style.display = 'none'; });
+    opt.classList.add('selected');
+    opt.querySelector('.mo-check').style.display = '';
+    modelDropdown.classList.remove('open');
+    chrome.storage.local.set({ selectedModel });
+  });
+});
+
+// Load saved model
+chrome.storage.local.get('selectedModel', (d) => {
+  if (d.selectedModel && MODEL_LABELS[d.selectedModel]) {
+    selectedModel = d.selectedModel;
+    modelLabel.textContent = MODEL_LABELS[selectedModel];
+    modelDot.style.background = MODEL_COLORS[selectedModel] || 'var(--accent)';
+    document.querySelectorAll('.model-option').forEach(o => {
+      const isSel = o.dataset.model === selectedModel;
+      o.classList.toggle('selected', isSel);
+      o.querySelector('.mo-check').style.display = isSel ? '' : 'none';
+    });
+  }
+});
+
+// ═══════════════════════════════════════════
+// Settings
+// ═══════════════════════════════════════════
 const codevaKeyInput = document.getElementById('codevaKeyInput');
 const saveCodevaKey = document.getElementById('saveCodevaKey');
 const authStatusText = document.getElementById('authStatusText');
@@ -679,117 +511,133 @@ const customBackendGroup = document.getElementById('customBackendGroup');
 const customBackendInput = document.getElementById('customBackendInput');
 const saveCustomBackend = document.getElementById('saveCustomBackend');
 
-// Load stored settings on open
 async function loadSettings() {
-  const auth = await chrome.runtime.sendMessage({ type: 'get-auth' });
-  if (auth?.token) {
-    codevaKeyInput.value = auth.token.slice(0, 15) + '...';
-    authStatusText.textContent = `Auth Status: Connected (${auth.email || 'Cloud Account'})`;
-    authStatusText.style.color = 'var(--success)';
-  } else {
-    authStatusText.textContent = 'Auth Status: Disconnected (No API key synced)';
-    authStatusText.style.color = 'var(--error)';
-  }
+  try {
+    const auth = await chrome.runtime.sendMessage({ type: 'get-auth' });
+    if (auth?.token) {
+      codevaKeyInput.value = auth.token.slice(0, 15) + '...';
+      authStatusText.textContent = 'Auth: Connected (' + (auth.email || 'Cloud') + ')';
+      authStatusText.style.color = 'var(--success)';
+    } else {
+      authStatusText.textContent = 'Auth: No token. Use BYOK keys or paste token.';
+      authStatusText.style.color = 'var(--muted)';
+    }
+  } catch { authStatusText.textContent = 'Auth: Error checking status'; authStatusText.style.color = 'var(--error)'; }
 
-  // Load direct BYOK provider keys
-  const providers = await chrome.runtime.sendMessage({ type: 'get-providers' }) || {};
-  document.getElementById('groqKey').value = providers.groq || '';
-  document.getElementById('geminiKey').value = providers.gemini || '';
-  document.getElementById('openaiKey').value = providers.openai || '';
-  document.getElementById('anthropicKey').value = providers.anthropic || '';
-  document.getElementById('openrouterKey').value = providers.openrouter || '';
+  try {
+    const providers = await chrome.runtime.sendMessage({ type: 'get-providers' }) || {};
+    if (providers.groq) document.getElementById('groqKey').value = providers.groq;
+    if (providers.gemini) document.getElementById('geminiKey').value = providers.gemini;
+    if (providers.openai) document.getElementById('openaiKey').value = providers.openai;
+    if (providers.anthropic) document.getElementById('anthropicKey').value = providers.anthropic;
+    if (providers.openrouter) document.getElementById('openrouterKey').value = providers.openrouter;
+  } catch {}
 
-  // Load backend URL configuration
-  const currentBackend = await chrome.runtime.sendMessage({ type: 'get-backend' });
-  if (currentBackend === 'https://cybercli-api.onrender.com/api/v1') {
-    backendUrlSelect.value = 'https://cybercli-api.onrender.com/api/v1';
-    customBackendGroup.classList.add('hidden');
-  } else if (currentBackend === 'http://localhost:3000/api/v1') {
-    backendUrlSelect.value = 'http://localhost:3000/api/v1';
-    customBackendGroup.classList.add('hidden');
-  } else {
-    backendUrlSelect.value = 'custom';
-    customBackendInput.value = currentBackend;
-    customBackendGroup.classList.remove('hidden');
-  }
+  try {
+    const currentBackend = await chrome.runtime.sendMessage({ type: 'get-backend' });
+    if (currentBackend === 'https://cybercli-api.onrender.com/api/v1') {
+      backendUrlSelect.value = 'https://cybercli-api.onrender.com/api/v1';
+    } else if (currentBackend === 'http://localhost:3000/api/v1') {
+      backendUrlSelect.value = 'http://localhost:3000/api/v1';
+    } else {
+      backendUrlSelect.value = 'custom';
+      customBackendInput.value = currentBackend;
+      customBackendGroup.classList.remove('hidden');
+    }
+  } catch {}
 }
 
-// Handle manual API key saving
 saveCodevaKey.onclick = async () => {
   const val = codevaKeyInput.value.trim();
   if (val && !val.includes('...')) {
-    await chrome.runtime.sendMessage({
-      type: 'set-auth',
-      auth: { token: val, apiKey: val, email: 'custom-key@codeva.internal', plan: 'pro' }
-    });
-    authStatusText.textContent = 'Auth Status: Connected (Saved Manual Key)';
+    await chrome.runtime.sendMessage({ type: 'set-auth', auth: { token: val, apiKey: val, email: 'manual@codeva', plan: 'pro' } });
+    authStatusText.textContent = 'Auth: Connected (Manual Key)';
     authStatusText.style.color = 'var(--success)';
     codevaKeyInput.value = val.slice(0, 15) + '...';
   }
 };
 
-// Handle backend url toggle
 backendUrlSelect.onchange = async () => {
   const val = backendUrlSelect.value;
-  if (val === 'custom') {
-    customBackendGroup.classList.remove('hidden');
-  } else {
-    customBackendGroup.classList.add('hidden');
-    await chrome.runtime.sendMessage({ type: 'set-backend', url: val });
-  }
+  if (val === 'custom') { customBackendGroup.classList.remove('hidden'); }
+  else { customBackendGroup.classList.add('hidden'); await chrome.runtime.sendMessage({ type: 'set-backend', url: val }); }
 };
 
 saveCustomBackend.onclick = async () => {
   const val = customBackendInput.value.trim();
-  if (val) {
-    await chrome.runtime.sendMessage({ type: 'set-backend', url: val });
-    alert('Custom backend URL saved: ' + val);
-  }
+  if (val) { await chrome.runtime.sendMessage({ type: 'set-backend', url: val }); }
 };
 
-// Handle BYOK key saving
-document.querySelectorAll('.byok-input').forEach(inputField => {
-  inputField.addEventListener('change', async () => {
-    const provider = inputField.dataset.provider;
-    const key = inputField.value.trim();
+// Save All BYOK Keys
+document.getElementById('saveAllKeys').onclick = async () => {
+  const inputs = document.querySelectorAll('.byok-input');
+  for (const inp of inputs) {
+    const provider = inp.dataset.provider;
+    const key = inp.value.trim();
     await chrome.runtime.sendMessage({ type: 'set-provider', provider, key });
+  }
+  const toast = document.getElementById('keysSaveToast');
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 2500);
+};
+
+// Also save on individual change
+document.querySelectorAll('.byok-input').forEach(inp => {
+  inp.addEventListener('change', async () => {
+    await chrome.runtime.sendMessage({ type: 'set-provider', provider: inp.dataset.provider, key: inp.value.trim() });
   });
 });
 
-// Update check button
+// Connection test
+document.getElementById('testConnBtn').onclick = async () => {
+  const dot = document.getElementById('connDot');
+  const txt = document.getElementById('connText');
+  dot.style.background = '#f59e0b'; txt.textContent = 'Testing...'; txt.style.color = '#f59e0b';
+  try {
+    const backend = await chrome.runtime.sendMessage({ type: 'get-backend' });
+    const res = await fetch(backend.replace('/api/v1','') + '/health', { signal: AbortSignal.timeout(8000) });
+    if (res.ok) { dot.style.background = 'var(--success)'; txt.textContent = 'Connected to backend ✓'; txt.style.color = 'var(--success)'; }
+    else { dot.style.background = 'var(--error)'; txt.textContent = 'Backend returned ' + res.status; txt.style.color = 'var(--error)'; }
+  } catch (e) {
+    dot.style.background = 'var(--error)'; txt.textContent = 'Cannot reach backend: ' + (e.message || 'timeout'); txt.style.color = 'var(--error)';
+  }
+};
+
+// Update check
 document.getElementById('checkUpdateBtn').onclick = async () => {
   const statusMsg = document.getElementById('updateStatusMsg');
   statusMsg.classList.remove('hidden');
-  statusMsg.textContent = 'Checking updates from Render CDN...';
-  statusMsg.style.color = 'var(--muted)';
-  
+  statusMsg.textContent = 'Checking...'; statusMsg.style.color = 'var(--muted)';
   try {
     const backend = await chrome.runtime.sendMessage({ type: 'get-backend' });
     const res = await fetch(backend + '/downloads/extension/version');
     if (!res.ok) throw new Error('Status ' + res.status);
     const data = await res.json();
-    
-    if (data.version && data.version !== '0.2.0') {
-      statusMsg.innerHTML = '⚡ Update available: <strong>v' + data.version + '</strong>. <a href="' + data.downloadUrl + '" target="_blank" style="color: var(--accent); font-weight: bold; text-decoration: underline;">Download Zip</a>';
+    if (data.version && data.version !== '0.2.1') {
+      statusMsg.innerHTML = '⚡ Update: <strong>v' + data.version + '</strong>. <a href="' + data.downloadUrl + '" target="_blank" style="color:var(--accent);text-decoration:underline;">Download</a>';
       statusMsg.style.color = '#F59E0B';
-    } else {
-      statusMsg.textContent = '✓ CyberCoder v0.2.0 is up to date!';
-      statusMsg.style.color = 'var(--success)';
-    }
-  } catch (e) {
-    statusMsg.textContent = 'No update manifest found or server is booting.';
-    statusMsg.style.color = 'var(--error)';
-  }
+    } else { statusMsg.textContent = '✓ Up to date!'; statusMsg.style.color = 'var(--success)'; }
+  } catch { statusMsg.textContent = 'Update server unreachable.'; statusMsg.style.color = 'var(--error)'; }
 };
 
-// Manual Reload Extension
-document.getElementById('reloadExtBtn').onclick = () => {
-  chrome.runtime.reload();
-};
+document.getElementById('reloadExtBtn').onclick = () => chrome.runtime.reload();
 
+// ═══════════════════════════════════════════
+// On Load
+// ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
-  
+  // Check if popup requested Settings tab
+  chrome.storage.local.get('openSettingsTab', (data) => {
+    if (data && data.openSettingsTab) {
+      chrome.storage.local.remove('openSettingsTab');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelector('[data-tab="settings"]').classList.add('active');
+      document.getElementById('settingsView').classList.add('active');
+    }
+  });
+  // Check for pending task from popup
   chrome.storage.local.get('pendingTask', (data) => {
     if (data && data.pendingTask) {
       const prompt = data.pendingTask;
@@ -797,105 +645,104 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        const chatTab = document.querySelector('[data-tab="chat"]');
-        if (chatTab) chatTab.classList.add('active');
-        const chatView = document.getElementById('chatView');
-        if (chatView) chatView.classList.add('active');
-        
+        document.querySelector('[data-tab="chat"]').classList.add('active');
+        document.getElementById('chatView').classList.add('active');
         send(prompt);
       }, 300);
     }
   });
 });
 
-// --- Chat & Automation Section JS ---
-const messages = document.getElementById('messages')
-const input = document.getElementById('input')
-const sendBtn = document.getElementById('sendBtn')
-const stopBtn = document.getElementById('stopBtn')
-const autoBtn = document.getElementById('autoBtn')
-const empty = document.getElementById('empty')
-const errbar = document.getElementById('errbar')
-let streaming = false, assistantEl = null, port = null
-let history = []
-let autoMode = false // Browser automation mode
+// ═══════════════════════════════════════════
+// Chat & Automation Engine
+// ═══════════════════════════════════════════
+const messages = document.getElementById('messages');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
+const autoBtn = document.getElementById('autoBtn');
+const empty = document.getElementById('empty');
+const errbar = document.getElementById('errbar');
+let streaming = false, assistantEl = null, port = null;
+let history = [];
+let autoMode = false;
 
-function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function addMsg(role, text) {
-  empty.style.display = 'none'
-  const el = document.createElement('div')
-  el.className = 'msg ' + role
-  el.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : 'CyberCoder') + '</div><div class="bubble">' + (role === 'user' ? esc(text) : '') + '</div>'
-  messages.appendChild(el)
-  messages.scrollTop = messages.scrollHeight
-  return el
+  empty.style.display = 'none';
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  el.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : (MODEL_LABELS[selectedModel] || 'CyberCoder')) + '</div><div class="bubble">' + (role === 'user' ? esc(text) : '') + '</div>';
+  messages.appendChild(el);
+  messages.scrollTop = messages.scrollHeight;
+  return el;
 }
 
 function addToolStep(summary) {
-  const el = document.createElement('div')
-  el.className = 'tool-step running'
-  el.innerHTML = '<span class="icon spin">⟳</span><span class="name">' + esc(summary) + '</span><span class="time"></span>'
-  messages.appendChild(el)
-  messages.scrollTop = messages.scrollHeight
-  return el
+  const el = document.createElement('div');
+  el.className = 'tool-step running';
+  el.innerHTML = '<span class="icon spin">⟳</span><span class="name">' + esc(summary) + '</span><span class="time"></span>';
+  messages.appendChild(el);
+  messages.scrollTop = messages.scrollHeight;
+  return el;
 }
 
 function renderMD(t) {
-  var BT = String.fromCharCode(96)
-  var RE1 = new RegExp('(' + BT+BT+BT + '[\\w-]*\\n[\\s\\S]*?' + BT+BT+BT + ')', 'g')
-  var RE2 = new RegExp('^' + BT+BT+BT + '([\\w-]*)\\n([\\s\\S]*?)' + BT+BT+BT + '$')
+  var BT = String.fromCharCode(96);
+  var RE1 = new RegExp('(' + BT+BT+BT + '[\\w-]*\\n[\\s\\S]*?' + BT+BT+BT + ')', 'g');
+  var RE2 = new RegExp('^' + BT+BT+BT + '([\\w-]*)\\n([\\s\\S]*?)' + BT+BT+BT + '$');
   return t.split(RE1).map(p => {
-    const m = p.match(RE2)
-    if (m) return '<pre><code>' + esc(m[2]) + '</code></pre>'
-    let h = esc(p)
-    h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    h = h.replace(/\n/g, '<br>')
-    return '<span>' + h + '</span>'
-  }).join('')
+    const m = p.match(RE2);
+    if (m) return '<pre><code>' + esc(m[2]) + '</code></pre>';
+    let h = esc(p);
+    h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/\n/g, '<br>');
+    return '<span>' + h + '</span>';
+  }).join('');
 }
 
 async function getPageContext() {
   try {
-    const res = await chrome.runtime.sendMessage({ type: 'get-page-content' })
-    return res?.text ? '[Page: ' + (res.title || 'untitled') + ']\n' + res.text.slice(0, 8000) : ''
-  } catch { return '' }
+    const res = await chrome.runtime.sendMessage({ type: 'get-page-content' });
+    return res?.text ? '[Page: ' + (res.title || 'untitled') + ']\n' + res.text.slice(0, 8000) : '';
+  } catch { return ''; }
 }
 
 async function getPageElements() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    if (!tab?.id) return []
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' })
-    return res?.elements || []
-  } catch { return [] }
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab?.id) return [];
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' });
+    return res?.elements || [];
+  } catch { return []; }
 }
 
 async function executeAutomation(action) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    if (!tab?.id) return { ok: false, error: 'No active tab' }
-    const res = await chrome.tabs.sendMessage(tab.id, action)
-    return res || { ok: false, error: 'No response' }
-  } catch (e) { return { ok: false, error: e.message } }
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab?.id) return { ok: false, error: 'No active tab' };
+    const res = await chrome.tabs.sendMessage(tab.id, action);
+    return res || { ok: false, error: 'No response' };
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 
 // ── Agentic self-correcting automation loop ──
 async function send(textOverride) {
-  const text = (textOverride || input.value).trim()
-  if (!text || streaming) return
-  input.value = ''
-  input.style.height = 'auto'
+  const text = (textOverride || input.value).trim();
+  if (!text || streaming) return;
+  input.value = '';
+  input.style.height = 'auto';
 
-  addMsg('user', text)
-  streaming = true
-  sendBtn.disabled = true
-  stopBtn.style.display = 'flex'
+  addMsg('user', text);
+  streaming = true;
+  sendBtn.disabled = true;
+  stopBtn.style.display = 'flex';
 
-  let currentPrompt = text
-  let loopCount = 0
-  const maxLoops = 5
-  let stopRequest = false
+  let currentPrompt = text;
+  let loopCount = 0;
+  const maxLoops = 5;
+  let stopRequest = false;
 
   stopBtn.onclick = () => {
     stopRequest = true;
@@ -904,187 +751,181 @@ async function send(textOverride) {
   };
 
   while (loopCount < maxLoops && !stopRequest) {
-    const pageCtx = await getPageContext()
-    let elementsCtx = ''
+    const pageCtx = await getPageContext();
+    let elementsCtx = '';
     
     if (autoMode) {
-      const elements = await getPageElements()
+      const elements = await getPageElements();
       if (elements.length) {
         elementsCtx = '\n\n[Interactive elements on page:]\n' + elements.slice(0, 30).map((e, i) =>
           i + '. <' + e.tag + '> ' + (e.text || e.href || e.type || '').slice(0, 60) + ' [selector: ' + e.selector + ']'
-        ).join('\n')
+        ).join('\n');
       }
     }
 
-    const userContent = pageCtx ? currentPrompt + '\n\n---\n' + pageCtx + elementsCtx : currentPrompt + elementsCtx
-    
-    // Push prompt block into conversation history
-    history.push({ role: 'user', content: userContent })
+    const userContent = pageCtx ? currentPrompt + '\n\n---\n' + pageCtx + elementsCtx : currentPrompt + elementsCtx;
+    history.push({ role: 'user', content: userContent });
 
-    assistantEl = addMsg('assistant', '')
-    assistantEl.querySelector('.bubble').innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>'
+    assistantEl = addMsg('assistant', '');
+    assistantEl.querySelector('.bubble').innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
     
-    let full = ''
-    let hasContent = false
-    let resolvePromise
+    let full = '';
+    let hasContent = false;
+    let resolvePromise;
     const messageComplete = new Promise(resolve => { resolvePromise = resolve; });
 
     const system = autoMode
       ? 'You are CyberCoder, an AI assistant with browser automation capabilities. You can control the browser by outputting JSON commands in a special format. When the user asks you to interact with the page (click, type, navigate, scroll), respond with the action AND a brief explanation. Format automation commands as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain what you are doing. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. The page elements are listed in the context.'
-      : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.'
+      : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.';
 
-    port = chrome.runtime.connect({ name: 'stream' })
+    port = chrome.runtime.connect({ name: 'stream' });
     
     port.onDisconnect.addListener(() => {
-      const err = chrome.runtime.lastError?.message || 'Connection to background script lost.'
-      errbar.textContent = err
-      errbar.classList.remove('hidden')
-      setTimeout(() => errbar.classList.add('hidden'), 5000)
-      resolvePromise(full || '')
-    })
+      const err = chrome.runtime.lastError?.message || '';
+      if (err && !stopRequest) {
+        errbar.textContent = 'Connection lost: ' + err;
+        errbar.classList.remove('hidden');
+        setTimeout(() => errbar.classList.add('hidden'), 5000);
+      }
+      resolvePromise(full || '');
+    });
 
     port.onMessage.addListener(async (msg) => {
       if (msg.type === 'chunk') {
-        if (!hasContent) { hasContent = true; assistantEl.querySelector('.bubble').innerHTML = '' }
-        full += msg.text
-        assistantEl.querySelector('.bubble').innerHTML = renderMD(full)
-        assistantEl.querySelector('.bubble').classList.add('typing-cursor')
-        messages.scrollTop = messages.scrollHeight
+        if (!hasContent) { hasContent = true; assistantEl.querySelector('.bubble').innerHTML = ''; }
+        full += msg.text;
+        assistantEl.querySelector('.bubble').innerHTML = renderMD(full);
+        assistantEl.querySelector('.bubble').classList.add('typing-cursor');
+        messages.scrollTop = messages.scrollHeight;
       } else if (msg.type === 'done') {
-        resolvePromise(full)
+        resolvePromise(full);
       } else if (msg.type === 'error') {
-        errbar.textContent = msg.message
-        errbar.classList.remove('hidden')
-        setTimeout(() => errbar.classList.add('hidden'), 5000)
-        resolvePromise(full || '')
+        if (!hasContent) {
+          assistantEl.querySelector('.bubble').innerHTML = '<span style="color:var(--error);">⚠ ' + esc(msg.message) + '</span><br><span style="color:var(--muted);font-size:11px;">Go to Settings tab → add a provider API key (Groq, Gemini, etc.) or check your backend connection.</span>';
+        } else {
+          errbar.textContent = msg.message;
+          errbar.classList.remove('hidden');
+          setTimeout(() => errbar.classList.add('hidden'), 5000);
+        }
+        resolvePromise(full || '');
       }
-    })
+    });
 
-    port.postMessage({ type: 'start', messages: history, system })
+    port.postMessage({ type: 'start', messages: history, system, model: selectedModel });
 
-    // Wait for the stream completion response chunk
     const resultText = await messageComplete;
-    if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor')
-    history.push({ role: 'assistant', content: resultText })
+    if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor');
+    if (resultText) history.push({ role: 'assistant', content: resultText });
 
-    if (!autoMode || stopRequest) {
-      break;
-    }
+    if (!autoMode || stopRequest) break;
 
     // Process actions
-    const actionRegex = /\[ACTION:(\{[^}]+\})\]/g
-    let match
-    const actionResults = []
+    const actionRegex = /\[ACTION:(\{[^}]+\})\]/g;
+    let match;
+    const actionResults = [];
     
     while ((match = actionRegex.exec(resultText)) !== null) {
       try {
-        const action = JSON.parse(match[1])
-        const step = addToolStep((action.type || 'action') + ': ' + (action.selector || action.url || action.text || '').slice(0, 40))
-        const res = await executeAutomation(action)
-        step.classList.remove('running')
+        const action = JSON.parse(match[1]);
+        const step = addToolStep((action.type || 'action') + ': ' + (action.selector || action.url || action.text || '').slice(0, 40));
+        const res = await executeAutomation(action);
+        step.classList.remove('running');
         if (res.ok !== false) {
-          step.classList.add('ok')
-          step.querySelector('.icon').textContent = '✓'
-          step.querySelector('.icon').classList.remove('spin')
-          step.querySelector('.icon').style.color = 'var(--success)'
-          actionResults.push(`${action.type} succeeded.`);
+          step.classList.add('ok');
+          step.querySelector('.icon').textContent = '✓';
+          step.querySelector('.icon').classList.remove('spin');
+          step.querySelector('.icon').style.color = 'var(--success)';
+          actionResults.push(action.type + ' succeeded.');
         } else {
-          step.classList.add('fail')
-          step.querySelector('.icon').textContent = '✕'
-          step.querySelector('.icon').classList.remove('spin')
-          step.querySelector('.icon').style.color = 'var(--error)'
-          step.querySelector('.time').textContent = res.error || 'failed'
-          actionResults.push(`${action.type} failed: ${res.error || 'element not found'}.`);
+          step.classList.add('fail');
+          step.querySelector('.icon').textContent = '✕';
+          step.querySelector('.icon').classList.remove('spin');
+          step.querySelector('.icon').style.color = 'var(--error)';
+          step.querySelector('.time').textContent = res.error || 'failed';
+          actionResults.push(action.type + ' failed: ' + (res.error || 'element not found') + '.');
         }
       } catch (e) {
-        actionResults.push(`Invalid action parse error: ${e.message}`);
+        actionResults.push('Invalid action parse error: ' + e.message);
       }
     }
 
     if (actionResults.length > 0) {
-      // Loop with execution results feedback
-      currentPrompt = `[Automation Feedback Results]\n` + actionResults.join('\n') + `\n\nBased on these results, please proceed with the next actions or give the final output.`;
-      loopCount++
-      addToolStep(`Action results fed back to AI. Running step ${loopCount + 1}...`)
+      currentPrompt = '[Automation Feedback Results]\n' + actionResults.join('\n') + '\n\nBased on these results, please proceed with the next actions or give the final output.';
+      loopCount++;
+      addToolStep('Action results fed back to AI. Running step ' + (loopCount + 1) + '...');
     } else {
-      break; // No actions outputted, exit loop
+      break;
     }
   }
 
-  finish('')
+  finish('');
 }
 
-function finish(full) {
-  streaming = false
-  sendBtn.disabled = false
-  stopBtn.style.display = 'none'
-  if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor')
-  port = null
+function finish() {
+  streaming = false;
+  sendBtn.disabled = false;
+  stopBtn.style.display = 'none';
+  if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor');
+  port = null;
 }
 
-// Auto-resize textarea
-input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 100) + 'px' })
+// ── Event Bindings ──
+input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 100) + 'px'; });
+sendBtn.onclick = () => send();
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
 
-sendBtn.onclick = () => send()
-input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } })
-document.getElementById('clearBtn').onclick = () => { history = []; messages.querySelectorAll('.msg,.tool-step').forEach(n => n.remove()); empty.style.display = 'flex' }
+// New Chat (clearBtn) — THE FIX for the fatal crash
+document.getElementById('clearBtn').onclick = () => {
+  history = [];
+  messages.querySelectorAll('.msg,.tool-step').forEach(n => n.remove());
+  empty.style.display = 'flex';
+};
 
+// Chips
 document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
-  const p = c.dataset.p
-  const pLower = p.toLowerCase()
+  const p = c.dataset.p;
+  const pLower = p.toLowerCase();
   if (pLower.includes('fill') || pLower.includes('click') || pLower.includes('describe') || pLower.includes('viewport') || pLower.includes('screenshot')) {
     if (!autoMode) {
-      autoMode = true
-      autoBtn.classList.add('active')
-      document.getElementById('autoBadge').style.display = 'inline-flex'
-      input.placeholder = 'Tell AI what to do on this page…'
+      autoMode = true;
+      autoBtn.classList.add('active');
+      document.getElementById('autoBadge').style.display = 'inline-flex';
+      input.placeholder = 'Tell AI what to do on this page…';
     }
   }
-  send(p)
-})
+  send(p);
+});
 
 // Toggle automation mode
 autoBtn.onclick = () => {
-  autoMode = !autoMode
-  autoBtn.classList.toggle('active', autoMode)
-  document.getElementById('autoBadge').style.display = autoMode ? 'inline-flex' : 'none'
-  input.placeholder = autoMode ? 'Tell AI what to do on this page…' : 'Ask about this page…'
-}
-// Default: auto badge hidden
-document.getElementById('autoBadge').style.display = 'none'
+  autoMode = !autoMode;
+  autoBtn.classList.toggle('active', autoMode);
+  document.getElementById('autoBadge').style.display = autoMode ? 'inline-flex' : 'none';
+  input.placeholder = autoMode ? 'Tell AI what to do on this page…' : 'Ask about this page…';
+};
 
-// Load background cowork jobs list
+// ═══════════════════════════════════════════
+// Automations Tab
+// ═══════════════════════════════════════════
 async function loadJobs() {
   const jobsList = document.getElementById('jobsList');
   const emptyJobs = document.getElementById('emptyJobs');
-  
   try {
     const res = await chrome.runtime.sendMessage({ type: 'cowork-list' });
     const tasks = res?.tasks || [];
-    
-    // Clear list but preserve empty element
     jobsList.querySelectorAll('.job-card').forEach(c => c.remove());
-    
     if (tasks.length > 0) {
       emptyJobs.classList.add('hidden');
       tasks.forEach(t => {
         const div = document.createElement('div');
         div.className = 'job-card';
-        div.innerHTML = `
-          <div class="job-header">
-            <span class="job-title" title="${esc(t.prompt)}">${esc(t.prompt)}</span>
-            <span class="job-status status-${t.status}">${t.status}</span>
-          </div>
-          ${t.result ? `<div class="job-result">${esc(t.result)}</div>` : ''}
-        `;
+        div.innerHTML = '<div class="job-header"><span class="job-title" title="' + esc(t.prompt) + '">' + esc(t.prompt) + '</span><span class="job-status status-' + t.status + '">' + t.status + '</span></div>' + (t.result ? '<div class="job-result">' + esc(t.result) + '</div>' : '');
         jobsList.appendChild(div);
       });
     } else {
       emptyJobs.classList.remove('hidden');
     }
-  } catch (e) {
-    console.error('Failed to load cowork list:', e);
-  }
+  } catch (e) { console.error('Failed to load jobs:', e); }
 }
 
 document.getElementById('clearJobsBtn').onclick = async () => {
@@ -1092,10 +933,29 @@ document.getElementById('clearJobsBtn').onclick = async () => {
   loadJobs();
 };
 
+// Add new background task from Automations tab
+document.getElementById('addTaskBtn').onclick = async () => {
+  const inp = document.getElementById('newTaskInput');
+  const prompt = inp.value.trim();
+  if (!prompt) return;
+  inp.value = '';
+  await chrome.runtime.sendMessage({ type: 'cowork-add', prompt });
+  loadJobs();
+};
+document.getElementById('newTaskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addTaskBtn').click(); }
+});
+
+// Listen for task completion updates
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'cowork-done') loadJobs();
+});
+
+// ═══════════════════════════════════════════
 // Listen for tasks from popup/background
+// ═══════════════════════════════════════════
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'run-task' && msg.prompt) {
-    // switch to chat view
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelector('[data-tab="chat"]').classList.add('active');

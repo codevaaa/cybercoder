@@ -211,7 +211,16 @@ async function* smartStream(messages, system, signal) {
   
   // Fallback to Codeva API base (with apiKey if authenticated, or null for guest fallback)
   const auth = await getAuth()
-  yield* streamCodeva(messages, system, auth?.apiKey || null, signal)
+  try {
+    yield* streamCodeva(messages, system, auth?.apiKey || null, signal)
+  } catch (e) {
+    // If Codeva backend fails too, give actionable error
+    const hasAnyKey = Object.values(keys).some(k => k)
+    if (!hasAnyKey && !auth?.apiKey) {
+      throw new Error('No API keys configured and Codeva backend is unreachable. Go to Settings → add a free Groq or Gemini API key to start chatting.')
+    }
+    throw e
+  }
 }
 
 // ── Context menus ──
@@ -340,12 +349,45 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onMessage.addListener(async (msg) => {
       if (msg.type === 'start') {
         try {
-          for await (const chunk of smartStream(msg.messages, msg.system, controller.signal)) {
+          const model = msg.model || 'auto'
+          const keys = await getProviderKeys()
+          let stream
+
+          // Route based on user-selected model
+          if (model === 'groq' && keys.groq) {
+            stream = streamGroq(msg.messages, msg.system, keys.groq, controller.signal)
+          } else if (model === 'gemini' && keys.gemini) {
+            stream = streamGemini(msg.messages, msg.system, keys.gemini, controller.signal)
+          } else if (model === 'openai' && keys.openai) {
+            stream = streamOpenAI(msg.messages, msg.system, keys.openai, controller.signal)
+          } else if (model === 'anthropic' && keys.anthropic) {
+            stream = streamAnthropic(msg.messages, msg.system, keys.anthropic, controller.signal)
+          } else if (model === 'openrouter' && keys.openrouter) {
+            stream = streamOpenRouter(msg.messages, msg.system, keys.openrouter, controller.signal)
+          } else if (model !== 'auto' && !keys[model]) {
+            // User selected a specific provider but has no key
+            port.postMessage({ type: 'error', message: 'No API key set for ' + model + '. Go to Settings → Provider API Keys to add one.' })
+            return
+          } else {
+            // Auto mode or fallback
+            stream = smartStream(msg.messages, msg.system, controller.signal)
+          }
+
+          for await (const chunk of stream) {
             port.postMessage({ type: 'chunk', text: chunk })
           }
           port.postMessage({ type: 'done' })
         } catch (err) {
-          port.postMessage({ type: 'error', message: err.message })
+          const errMsg = err.message || 'Unknown error'
+          if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg.includes('ERR_')) {
+            port.postMessage({ type: 'error', message: 'Cannot reach the AI provider. Check your internet connection or try a different model.' })
+          } else if (errMsg.includes('401') || errMsg.includes('403')) {
+            port.postMessage({ type: 'error', message: 'API key is invalid or expired. Update your key in Settings.' })
+          } else if (errMsg.includes('429')) {
+            port.postMessage({ type: 'error', message: 'Rate limit exceeded. Wait a moment and try again, or switch to a different model.' })
+          } else {
+            port.postMessage({ type: 'error', message: errMsg })
+          }
         }
       }
     })
