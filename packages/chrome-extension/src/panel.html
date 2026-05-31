@@ -152,7 +152,7 @@ let streaming = false, assistantEl = null, port = null
 let history = []
 let autoMode = false // Browser automation mode
 
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
 function addMsg(role, text) {
   empty.style.display = 'none'
@@ -212,9 +212,7 @@ async function executeAutomation(action) {
     return res || { ok: false, error: 'No response' }
   } catch (e) { return { ok: false, error: e.message } }
 }
-</script>
 
-<script>
 async function send(textOverride) {
   const text = (textOverride || input.value).trim()
   if (!text || streaming) return

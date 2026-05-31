@@ -204,8 +204,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true
   }
   if (msg.type === 'open-settings') {
-    // Open extension options or popup
-    chrome.action.openPopup?.() || chrome.tabs.create({ url: 'src/popup.html' })
+    chrome.tabs.create({ url: 'src/popup.html' })
     sendResponse({ ok: true })
     return true
   }
