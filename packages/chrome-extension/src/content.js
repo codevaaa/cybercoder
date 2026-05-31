@@ -207,3 +207,24 @@ function hideFab() {
 document.addEventListener('mousedown', (e) => {
   if (e.target?.id !== 'cybercoder-fab') hideFab()
 })
+
+// ── Auth Sync from Web App ──
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return
+  const msg = event.data
+  if (msg && msg.type === 'CYBERCLI_AUTH_SYNC') {
+    if (msg.token) {
+      chrome.runtime.sendMessage({
+        type: 'set-auth',
+        auth: {
+          token: msg.token,
+          user: msg.user,
+          apiKey: msg.token
+        }
+      }).catch(err => console.error('[Content] Auth sync set error:', err))
+    } else {
+      chrome.runtime.sendMessage({ type: 'clear-auth' })
+        .catch(err => console.error('[Content] Auth sync clear error:', err))
+    }
+  }
+})

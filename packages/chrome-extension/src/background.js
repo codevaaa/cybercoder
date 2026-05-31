@@ -6,7 +6,7 @@
  * popup/panel/content scripts.
  */
 
-const API_BASE = 'https://cybercli-api.onrender.com/api/v1'
+const API_BASE = 'https://codeva-api.onrender.com/api/v1'
 
 // ── Storage helpers ──
 async function getAuth() {
@@ -209,24 +209,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true })
     return true
   }
-  if (msg.type === 'stream') {
-    // Stream a completion — uses a port for chunked responses.
-    const port = chrome.runtime.connect({ name: 'stream' })
-    const controller = new AbortController()
-    port.onDisconnect.addListener(() => controller.abort())
-    ;(async () => {
-      try {
-        for await (const chunk of smartStream(msg.messages, msg.system, controller.signal)) {
-          port.postMessage({ type: 'chunk', text: chunk })
-        }
-        port.postMessage({ type: 'done' })
-      } catch (err) {
-        port.postMessage({ type: 'error', message: err.message })
-      }
-    })()
-    sendResponse({ streaming: true })
-    return true
-  }
   if (msg.type === 'get-page-content') {
     // Ask content script for the page text
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -236,6 +218,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })
     })
     return true
+  }
+})
+
+// ── Stream connection handler ──
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'stream') {
+    let controller = new AbortController()
+    port.onDisconnect.addListener(() => {
+      controller.abort()
+    })
+    port.onMessage.addListener(async (msg) => {
+      if (msg.type === 'start') {
+        try {
+          for await (const chunk of smartStream(msg.messages, msg.system, controller.signal)) {
+            port.postMessage({ type: 'chunk', text: chunk })
+          }
+          port.postMessage({ type: 'done' })
+        } catch (err) {
+          port.postMessage({ type: 'error', message: err.message })
+        }
+      }
+    })
   }
 })
 

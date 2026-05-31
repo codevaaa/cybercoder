@@ -250,7 +250,7 @@ async function send(textOverride) {
     ? 'You are CyberCoder, an AI assistant with browser automation capabilities. You can control the browser by outputting JSON commands in a special format. When the user asks you to interact with the page (click, type, navigate, scroll), respond with the action AND a brief explanation. Format automation commands as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain what you are doing. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. The page elements are listed in the context.'
     : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.'
 
-  // Stream via background
+  // Stream via background port
   port = chrome.runtime.connect({ name: 'stream' })
   port.onMessage.addListener(async (msg) => {
     if (msg.type === 'chunk') {
@@ -271,7 +271,7 @@ async function send(textOverride) {
     }
   })
 
-  chrome.runtime.sendMessage({ type: 'stream', messages: history, system })
+  port.postMessage({ type: 'start', messages: history, system })
 }
 
 async function processAutomationCommands(text) {
@@ -317,7 +317,18 @@ stopBtn.onclick = () => { if (port) port.disconnect(); finish('') }
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } })
 document.getElementById('clearBtn').onclick = () => { history = []; messages.querySelectorAll('.msg,.tool-step').forEach(n => n.remove()); empty.style.display = 'flex' }
 document.getElementById('settingsBtn').onclick = () => { chrome.runtime.sendMessage({ type: 'open-settings' }) }
-document.querySelectorAll('.chip').forEach(c => c.onclick = () => send(c.dataset.p))
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+  const p = c.dataset.p
+  if (p.includes('Fill') || p.includes('click') || p.includes('Take a screenshot')) {
+    if (!autoMode) {
+      autoMode = true
+      autoBtn.classList.add('active')
+      document.getElementById('autoBadge').style.display = 'inline-flex'
+      input.placeholder = 'Tell AI what to do on this page…'
+    }
+  }
+  send(p)
+})
 
 // Toggle automation mode
 autoBtn.onclick = () => {
