@@ -3920,7 +3920,7 @@ function delay(ms) {
 // ../core/src/consensus.ts
 async function runConsensus(messages, opts) {
   const timeout = opts.timeoutMs ?? 6e4;
-  const tasks = opts.providers.map(async (p, i) => {
+  const tasks = opts.providers.map(async (p2, i) => {
     const req = {
       model: opts.models?.[i] ?? "auto",
       messages,
@@ -3930,7 +3930,7 @@ async function runConsensus(messages, opts) {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeout);
     try {
-      for await (const chunk of p.chat({ ...req, signal: ac.signal })) {
+      for await (const chunk of p2.chat({ ...req, signal: ac.signal })) {
         if (chunk.type === "text") out.text += chunk.text;
         else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
       }
@@ -3939,7 +3939,7 @@ async function runConsensus(messages, opts) {
     } finally {
       clearTimeout(timer);
     }
-    return { provider: p.info.id, model: req.model, text: out.text, error: out.error };
+    return { provider: p2.info.id, model: req.model, text: out.text, error: out.error };
   });
   const perProvider = await Promise.all(tasks);
   const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
@@ -4582,8 +4582,8 @@ var ProviderRouter = class {
   /** First preferred-and-ready provider, or the fallback. */
   activeProvider() {
     for (const id of this.preferred) {
-      const p = this.providers.get(id);
-      if (p?.info.ready) return p;
+      const p2 = this.providers.get(id);
+      if (p2?.info.ready) return p2;
     }
     return this.fallback;
   }
@@ -4816,8 +4816,8 @@ var WorkspaceCheckpoints = class {
     const cpDir = join9(this.dir, String(seq));
     mkdirSync10(cpDir, { recursive: true });
     const files = [];
-    for (const p of paths) {
-      const abs = resolve2(this.cwd, p);
+    for (const p2 of paths) {
+      const abs = resolve2(this.cwd, p2);
       const existed = existsSync11(abs);
       const safeName = createHash2("sha1").update(abs).digest("hex");
       if (existed) {
@@ -4948,10 +4948,10 @@ var McpServer = class {
       try {
         const msg = JSON.parse(line);
         if (typeof msg.id === "number" && this.pending.has(msg.id)) {
-          const p = this.pending.get(msg.id);
+          const p2 = this.pending.get(msg.id);
           this.pending.delete(msg.id);
-          if (msg.error) p.reject(new Error(msg.error.message ?? "MCP error"));
-          else p.resolve(msg.result);
+          if (msg.error) p2.reject(new Error(msg.error.message ?? "MCP error"));
+          else p2.resolve(msg.result);
         }
       } catch {
       }
@@ -4984,7 +4984,7 @@ var McpServer = class {
     this.proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
   }
   failAll(err) {
-    for (const p of this.pending.values()) p.reject(err);
+    for (const p2 of this.pending.values()) p2.reject(err);
     this.pending.clear();
   }
 };
@@ -5098,18 +5098,18 @@ var readManyTool = {
     const paths = Array.isArray(input.paths) ? input.paths.map(String) : [];
     if (paths.length === 0) throw new Error('read_many requires a non-empty "paths" array');
     const limited = paths.slice(0, MAX_FILES);
-    const blocks = limited.map((p) => {
-      const abs = resolve4(ctx.cwd, p);
+    const blocks = limited.map((p2) => {
+      const abs = resolve4(ctx.cwd, p2);
       try {
         const st = statSync(abs);
-        if (!st.isFile()) return `### ${p}
+        if (!st.isFile()) return `### ${p2}
 [not a file]`;
         const raw = readFileSync13(abs);
         const text = raw.byteLength > MAX_BYTES_PER_FILE ? raw.subarray(0, MAX_BYTES_PER_FILE).toString("utf8") + "\n[truncated]" : raw.toString("utf8");
-        return `### ${p}
+        return `### ${p2}
 ${numberLines2(text)}`;
       } catch (err) {
-        return `### ${p}
+        return `### ${p2}
 [error: ${err instanceof Error ? err.message : String(err)}]`;
       }
     });
@@ -5484,6 +5484,128 @@ function extractSymbols(file) {
   return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
 }
 
+// ../tools/src/builtin/project-memory-tool.ts
+import { existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync18, writeFileSync as writeFileSync13, statSync as statSync5 } from "fs";
+import { join as join14 } from "path";
+var CYBER_DIR = ".cyber";
+var DEFAULTS = {
+  version: 1,
+  stack: [],
+  entryPoints: [],
+  commands: {},
+  conventions: [],
+  importantPaths: [],
+  glossary: [],
+  decisions: []
+};
+function p(cwd, ...parts) {
+  return join14(cwd, CYBER_DIR, ...parts);
+}
+function ensureDir(cwd) {
+  const d = join14(cwd, CYBER_DIR);
+  if (!existsSync14(d)) mkdirSync12(d, { recursive: true });
+}
+function read(cwd) {
+  const f = p(cwd, "project.json");
+  if (!existsSync14(f)) return null;
+  try {
+    return { ...DEFAULTS, ...JSON.parse(readFileSync18(f, "utf8")) };
+  } catch {
+    return null;
+  }
+}
+function readNotes(cwd) {
+  const f = p(cwd, "memory.md");
+  if (!existsSync14(f)) return "";
+  try {
+    return readFileSync18(f, "utf8");
+  } catch {
+    return "";
+  }
+}
+function mergeArr(a, b) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const item of [...a ?? [], ...b ?? []]) {
+    const k = typeof item === "string" ? item : JSON.stringify(item);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(item);
+    }
+  }
+  return out;
+}
+var projectMemoryTool = {
+  schema: {
+    name: "project_memory",
+    description: "Persist or read self-learning project memory in the .cyber/ folder so future sessions understand this project from .cyber/ alone. Use action='read' to recall, 'update' to save structured facts (stack, entryPoints, commands, conventions, importantPaths, glossary, decisions, name, summary), and 'note' to append a free-form learning. Call 'update'/'note' whenever you discover something durable about the project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["read", "update", "note"], description: "read | update | note" },
+        name: { type: "string" },
+        summary: { type: "string" },
+        stack: { type: "array", items: { type: "string" } },
+        entryPoints: { type: "array", items: { type: "string" } },
+        commands: { type: "object", description: 'map of label -> shell command, e.g. {"build":"npm run build"}' },
+        conventions: { type: "array", items: { type: "string" } },
+        importantPaths: { type: "array", items: { type: "object", properties: { path: { type: "string" }, note: { type: "string" } } } },
+        glossary: { type: "array", items: { type: "object", properties: { term: { type: "string" }, meaning: { type: "string" } } } },
+        decisions: { type: "array", items: { type: "string" } },
+        note: { type: "string", description: "For action='note': the learning to append." }
+      },
+      required: ["action"]
+    }
+  },
+  destructive: false,
+  async execute(input, ctx) {
+    const cwd = ctx.cwd;
+    const action = String(input.action ?? "read");
+    if (action === "read") {
+      const mem = read(cwd);
+      const notes = readNotes(cwd);
+      if (!mem && !notes) return 'No .cyber/ project memory yet. Use action="update"/"note" to start one.';
+      return JSON.stringify({ project: mem, notes }, null, 2);
+    }
+    if (action === "note") {
+      const note = String(input.note ?? "").trim();
+      if (!note) return "Provide a non-empty `note`.";
+      ensureDir(cwd);
+      const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ");
+      const prev = readNotes(cwd) || "# Project Memory Log\n";
+      writeFileSync13(p(cwd, "memory.md"), `${prev}
+- [${stamp}] ${note}
+`, "utf8");
+      return `Recorded learning to .cyber/memory.md`;
+    }
+    ensureDir(cwd);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const current = read(cwd) ?? { ...DEFAULTS, createdAt: now };
+    const patch = input;
+    const next = {
+      ...current,
+      ...patch.name !== void 0 ? { name: patch.name } : {},
+      ...patch.summary !== void 0 ? { summary: patch.summary } : {},
+      version: 1,
+      stack: mergeArr(current.stack, patch.stack),
+      entryPoints: mergeArr(current.entryPoints, patch.entryPoints),
+      conventions: mergeArr(current.conventions, patch.conventions),
+      decisions: mergeArr(current.decisions, patch.decisions),
+      importantPaths: mergeArr(current.importantPaths, patch.importantPaths),
+      glossary: mergeArr(current.glossary, patch.glossary),
+      commands: { ...current.commands ?? {}, ...patch.commands ?? {} },
+      createdAt: current.createdAt ?? now,
+      updatedAt: now
+    };
+    writeFileSync13(p(cwd, "project.json"), JSON.stringify(next, null, 2), "utf8");
+    const readme = p(cwd, "README.md");
+    if (!existsSync14(readme)) {
+      writeFileSync13(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
+    }
+    return `Updated .cyber/project.json (${Object.keys(patch).filter((k) => k !== "action").join(", ") || "no fields"}).`;
+  }
+};
+
 // ../tools/src/builtin/run-command.ts
 import { spawn as spawn2 } from "child_process";
 var DEFAULT_TIMEOUT_MS = 6e4;
@@ -5711,7 +5833,8 @@ function builtinTools() {
     repoMapTool,
     runCommandTool,
     webSearchTool,
-    webFetchTool
+    webFetchTool,
+    projectMemoryTool
   ];
 }
 
@@ -5769,8 +5892,8 @@ ${issues}`);
 }
 
 // ../skills/src/loader.ts
-import { existsSync as existsSync14, readFileSync as readFileSync18, readdirSync as readdirSync8, statSync as statSync5 } from "fs";
-import { dirname as dirname4, join as join14, resolve as resolve10 } from "path";
+import { existsSync as existsSync15, readFileSync as readFileSync19, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
+import { dirname as dirname4, join as join15, resolve as resolve10 } from "path";
 import { fileURLToPath } from "url";
 var log17 = createLogger("skills:loader");
 function getBundledDir() {
@@ -5778,7 +5901,7 @@ function getBundledDir() {
   let dir = here;
   for (let i = 0; i < 8; i++) {
     const candidate = resolve10(dir, "skills-bundled");
-    if (existsSync14(candidate)) return candidate;
+    if (existsSync15(candidate)) return candidate;
     const parent = resolve10(dir, "..");
     if (parent === dir) break;
     dir = parent;
@@ -5786,7 +5909,7 @@ function getBundledDir() {
   return resolve10(here, "..", "..", "..", "skills-bundled");
 }
 function scanDir(root, source) {
-  if (!existsSync14(root)) return [];
+  if (!existsSync15(root)) return [];
   const out = [];
   let entries;
   try {
@@ -5796,18 +5919,18 @@ function scanDir(root, source) {
     return [];
   }
   for (const name of entries) {
-    const folder = join14(root, name);
+    const folder = join15(root, name);
     let stat;
     try {
-      stat = statSync5(folder);
+      stat = statSync6(folder);
     } catch {
       continue;
     }
     if (!stat.isDirectory()) continue;
-    const skillFile = join14(folder, "SKILL.md");
-    if (!existsSync14(skillFile)) continue;
+    const skillFile = join15(folder, "SKILL.md");
+    if (!existsSync15(skillFile)) continue;
     try {
-      const raw = readFileSync18(skillFile, "utf8");
+      const raw = readFileSync19(skillFile, "utf8");
       const { frontmatter, body } = parseSkillSource(raw);
       const id = `${source}/${frontmatter.name}`;
       out.push({ id, source, path: skillFile, frontmatter, body });
@@ -6210,14 +6333,129 @@ function gitContextPrompt(ctx) {
   return parts.join("\n");
 }
 
+// src/utils/project-memory.ts
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync7 } from "fs";
+import { join as join16 } from "path";
+var CYBER_DIR2 = ".cyber";
+function cyberPath(cwd, ...parts) {
+  return join16(cwd, CYBER_DIR2, ...parts);
+}
+function cyberDirExists(cwd = process.cwd()) {
+  try {
+    return statSync7(join16(cwd, CYBER_DIR2)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+var DEFAULT_MEMORY = {
+  version: 1,
+  stack: [],
+  entryPoints: [],
+  commands: {},
+  conventions: [],
+  importantPaths: [],
+  glossary: [],
+  decisions: []
+};
+function readProjectMemory(cwd = process.cwd()) {
+  const file = cyberPath(cwd, "project.json");
+  if (!existsSync16(file)) return null;
+  try {
+    const raw = readFileSync20(file, "utf8");
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_MEMORY, ...parsed };
+  } catch {
+    return null;
+  }
+}
+function readProjectMemoryNotes(cwd = process.cwd()) {
+  const file = cyberPath(cwd, "memory.md");
+  if (!existsSync16(file)) return "";
+  try {
+    return readFileSync20(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+function ensureCyberDir(cwd) {
+  const dir = join16(cwd, CYBER_DIR2);
+  if (!existsSync16(dir)) mkdirSync13(dir, { recursive: true });
+}
+var README = `# .cyber \u2014 Project Memory
+
+This folder is CyberCoder's self-learning memory for **this** project.
+
+**Contract:** To understand this project, an AI agent should read THIS folder
+first. \`project.json\` holds structured facts (stack, entry points, commands,
+conventions). \`memory.md\` is a running log of learnings and decisions.
+
+CyberCoder maintains these files automatically as it works. You can edit them
+by hand too \u2014 they're plain JSON/Markdown. Safe to commit to version control so
+the whole team (and future sessions) share the same understanding.
+`;
+function initProjectMemory(cwd = process.cwd(), seed) {
+  ensureCyberDir(cwd);
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const existing = readProjectMemory(cwd);
+  const memory = {
+    ...DEFAULT_MEMORY,
+    ...existing,
+    ...seed,
+    version: 1,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now
+  };
+  writeFileSync14(cyberPath(cwd, "project.json"), JSON.stringify(memory, null, 2), "utf8");
+  if (!existsSync16(cyberPath(cwd, "README.md"))) {
+    writeFileSync14(cyberPath(cwd, "README.md"), README, "utf8");
+  }
+  if (!existsSync16(cyberPath(cwd, "memory.md"))) {
+    writeFileSync14(cyberPath(cwd, "memory.md"), `# Project Memory Log
+
+_CyberCoder records learnings and decisions here as it works._
+`, "utf8");
+  }
+  return memory;
+}
+function projectMemoryPrompt(cwd = process.cwd()) {
+  const mem = readProjectMemory(cwd);
+  const notes = readProjectMemoryNotes(cwd);
+  if (!mem && !notes) return "";
+  const parts = ["[Project memory \u2014 .cyber/ (read this to understand the project)]"];
+  if (mem?.name) parts.push(`name: ${mem.name}`);
+  if (mem?.summary) parts.push(`summary: ${mem.summary}`);
+  if (mem?.stack?.length) parts.push(`stack: ${mem.stack.join(", ")}`);
+  if (mem?.entryPoints?.length) parts.push(`entry points: ${mem.entryPoints.join(", ")}`);
+  if (mem?.commands && Object.keys(mem.commands).length) {
+    parts.push(`commands: ${Object.entries(mem.commands).map(([k, v]) => `${k}=\`${v}\``).join(", ")}`);
+  }
+  if (mem?.conventions?.length) parts.push(`conventions: ${mem.conventions.slice(0, 8).join("; ")}`);
+  if (mem?.importantPaths?.length) {
+    parts.push(`key paths: ${mem.importantPaths.slice(0, 8).map((p2) => `${p2.path} (${p2.note})`).join("; ")}`);
+  }
+  if (mem?.glossary?.length) {
+    parts.push(`glossary: ${mem.glossary.slice(0, 8).map((g) => `${g.term}=${g.meaning}`).join("; ")}`);
+  }
+  if (mem?.decisions?.length) parts.push(`decisions: ${mem.decisions.slice(0, 6).join("; ")}`);
+  let block = parts.join("\n");
+  if (notes) {
+    const trimmedNotes = notes.length > 2e3 ? notes.slice(notes.length - 2e3) : notes;
+    block += `
+
+[Recent learnings \u2014 .cyber/memory.md]
+${trimmedNotes.trim()}`;
+  }
+  return block.length > 6e3 ? block.slice(0, 6e3) + "\n\u2026[memory truncated]" : block;
+}
+
 // src/runtime/hooks.ts
 import { execSync as execSync2 } from "child_process";
-import { existsSync as existsSync15, readFileSync as readFileSync19 } from "fs";
-import { join as join15 } from "path";
+import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
+import { join as join17 } from "path";
 import { homedir as homedir5 } from "os";
 function readHooksFile(path2) {
   try {
-    if (existsSync15(path2)) return JSON.parse(readFileSync19(path2, "utf8"));
+    if (existsSync17(path2)) return JSON.parse(readFileSync21(path2, "utf8"));
   } catch {
   }
   return {};
@@ -6225,8 +6463,8 @@ function readHooksFile(path2) {
 var cached = null;
 function loadHooks(cwd = process.cwd()) {
   if (cached) return cached;
-  const global = readHooksFile(join15(homedir5(), ".codeva", "hooks.json"));
-  const project = readHooksFile(join15(cwd, ".codeva", "hooks.json"));
+  const global = readHooksFile(join17(homedir5(), ".codeva", "hooks.json"));
+  const project = readHooksFile(join17(cwd, ".codeva", "hooks.json"));
   const merged = { ...global };
   for (const key of Object.keys(project)) {
     merged[key] = project[key];
@@ -6351,6 +6589,11 @@ prefer code over prose, and never invent file paths. You have access to these to
 - run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
 - web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
 - web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
+- project_memory(action, \u2026) \u2014 self-learning project memory in .cyber/: action='read'
+  to recall what's known, 'update' to save durable facts (stack, entry points,
+  commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
+  Update it whenever you discover something durable so future sessions (or any AI)
+  understand this project from .cyber/ alone.
 - spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
   code-review, \u2026) which runs in an isolated context and returns a summary
 - spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
@@ -6445,9 +6688,8 @@ ${h.output}`;
     }
   }));
   const gitBlock = gitContextPrompt(getGitContext());
-  const systemPrompt = gitBlock ? `${SYSTEM_PROMPT}
-
-${gitBlock}` : SYSTEM_PROMPT;
+  const memoryBlock = projectMemoryPrompt();
+  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
   return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
 }
 async function runChat(history, opts) {
@@ -6818,14 +7060,14 @@ function buildConsensusCommand(ctx) {
       }
       const router = getRouter();
       const candidates = ["cybermind-cloud", "anthropic", "ollama"];
-      const providers = candidates.map((id) => router.get(id)).filter((p) => Boolean(p && p.info.ready)).slice(0, n);
+      const providers = candidates.map((id) => router.get(id)).filter((p2) => Boolean(p2 && p2.info.ready)).slice(0, n);
       if (providers.length === 0) {
         reply(
           "No ready providers found. Set CYBERMIND_API_KEY or ANTHROPIC_API_KEY, or make sure Ollama is running on 127.0.0.1:11434."
         );
         return;
       }
-      reply(`Running consensus across ${providers.length} provider(s): ${providers.map((p) => p.info.id).join(", ")}\u2026`);
+      reply(`Running consensus across ${providers.length} provider(s): ${providers.map((p2) => p2.info.id).join(", ")}\u2026`);
       try {
         const result = await runConsensus([{ role: "user", content: prompt }], { providers });
         const sections = [];
@@ -6945,7 +7187,7 @@ function buildReleaseNotesCommand(ctx) {
 
 // src/commands/hooks.ts
 import { homedir as homedir6 } from "os";
-import { join as join16 } from "path";
+import { join as join18 } from "path";
 function buildHooksCommand(ctx) {
   return {
     name: "hooks",
@@ -6965,7 +7207,7 @@ function buildHooksCommand(ctx) {
         reply(
           `No hooks configured.
 
-Create ${join16(process.cwd(), ".codeva", "hooks.json")} (project) or ${join16(homedir6(), ".codeva", "hooks.json")} (global). Example:
+Create ${join18(process.cwd(), ".codeva", "hooks.json")} (project) or ${join18(homedir6(), ".codeva", "hooks.json")} (global). Example:
 
 {
   "postEdit":  [{ "match": "\\\\.ts$", "command": "npx prettier --write {file}" }],
@@ -6991,8 +7233,8 @@ Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, session
 }
 
 // src/commands/workflow.ts
-import { existsSync as existsSync16, readFileSync as readFileSync20, readdirSync as readdirSync9, statSync as statSync6 } from "fs";
-import { join as join17, resolve as resolve11 } from "path";
+import { existsSync as existsSync18, readFileSync as readFileSync22, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
+import { join as join19, resolve as resolve11 } from "path";
 import { parse as parseYaml2 } from "yaml";
 import { z as z10 } from "zod";
 var WORKFLOW_DIR = ".cybermind/workflows";
@@ -7017,7 +7259,7 @@ function buildWorkflowCommand(ctx) {
       const reply = (content) => ctx.appendMessage({ id: `wf-${Date.now()}`, role: "system", content, createdAt: Date.now() });
       const workflowsDir = resolve11(process.cwd(), WORKFLOW_DIR);
       if (!trimmed || trimmed === "list") {
-        if (!existsSync16(workflowsDir)) {
+        if (!existsSync18(workflowsDir)) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
           return;
         }
@@ -7039,8 +7281,8 @@ function buildWorkflowCommand(ctx) {
       }
       let path2 = "";
       for (const ext of [".yml", ".yaml"]) {
-        const candidate = join17(workflowsDir, name + ext);
-        if (existsSync16(candidate) && statSync6(candidate).isFile()) {
+        const candidate = join19(workflowsDir, name + ext);
+        if (existsSync18(candidate) && statSync8(candidate).isFile()) {
           path2 = candidate;
           break;
         }
@@ -7051,7 +7293,7 @@ function buildWorkflowCommand(ctx) {
       }
       let parsed;
       try {
-        const raw = readFileSync20(path2, "utf8");
+        const raw = readFileSync22(path2, "utf8");
         const doc = parseYaml2(raw);
         parsed = WorkflowSchema.parse(doc);
       } catch (err) {
@@ -7503,7 +7745,7 @@ Share this URL with other participants to enable live collaboration.`);
             `Web Mirror: ${sessionMirror ? `Running on port ${sessionMirror.port}` : "Not started"}`,
             "",
             "Participants:",
-            ...statusSession.participants.map((p) => `  - ${p}`),
+            ...statusSession.participants.map((p2) => `  - ${p2}`),
             "",
             "Worktrees:",
             ...Object.entries(statusSession.worktrees).map(([agent, path2]) => `  - ${agent}: ${path2}`),
@@ -7902,25 +8144,25 @@ File size: ${html.length} characters`);
 }
 
 // src/commands/ecosystem.ts
-import { existsSync as existsSync17, readFileSync as readFileSync21, writeFileSync as writeFileSync13, mkdirSync as mkdirSync12 } from "fs";
+import { existsSync as existsSync19, readFileSync as readFileSync23, writeFileSync as writeFileSync15, mkdirSync as mkdirSync14 } from "fs";
 import { homedir as homedir7 } from "os";
-import { join as join18, dirname as dirname5 } from "path";
+import { join as join20, dirname as dirname5 } from "path";
 function mcpConfigPath() {
-  return join18(process.cwd(), ".codeva", "mcp.json");
+  return join20(process.cwd(), ".codeva", "mcp.json");
 }
 function readMcp() {
-  for (const p of [mcpConfigPath(), join18(homedir7(), ".codeva", "mcp.json")]) {
+  for (const p2 of [mcpConfigPath(), join20(homedir7(), ".codeva", "mcp.json")]) {
     try {
-      if (existsSync17(p)) return JSON.parse(readFileSync21(p, "utf8"));
+      if (existsSync19(p2)) return JSON.parse(readFileSync23(p2, "utf8"));
     } catch {
     }
   }
   return { mcpServers: {} };
 }
 function writeMcp(cfg) {
-  const p = mcpConfigPath();
-  mkdirSync12(dirname5(p), { recursive: true });
-  writeFileSync13(p, JSON.stringify(cfg, null, 2), "utf8");
+  const p2 = mcpConfigPath();
+  mkdirSync14(dirname5(p2), { recursive: true });
+  writeFileSync15(p2, JSON.stringify(cfg, null, 2), "utf8");
 }
 function buildMCPCommand(ctx) {
   return {
@@ -9164,7 +9406,28 @@ ${guidelines}
 `;
       try {
         fs.writeFileSync(targetPath, template, "utf8");
-        reply(`\u2705 Successfully initialized project! Created CYBER.md for **${projectType}**.`);
+        let memoryNote = "";
+        try {
+          const stackMap = {
+            "Node.js / TypeScript": ["Node.js", "TypeScript"],
+            "Rust": ["Rust"],
+            "Go": ["Go"],
+            "Python": ["Python"],
+            "Generic": []
+          };
+          const alreadyHad = cyberDirExists(cwd);
+          initProjectMemory(cwd, {
+            name: path.basename(cwd),
+            summary: `${projectType} project.`,
+            stack: stackMap[projectType] ?? [],
+            commands: { build: buildCommand, test: testCommand },
+            entryPoints: [],
+            conventions: ["See CYBER.md for full coding conventions."]
+          });
+          memoryNote = alreadyHad ? "\n\nUpdated `.cyber/` project memory." : "\n\nAlso created `.cyber/` self-learning project memory (project.json, memory.md). Future sessions will understand this project from `.cyber/` alone.";
+        } catch {
+        }
+        reply(`\u2705 Successfully initialized project! Created CYBER.md for **${projectType}**.${memoryNote}`);
       } catch (err) {
         reply(`\u274C Failed to create CYBER.md: ${err instanceof Error ? err.message : String(err)}`);
       }
