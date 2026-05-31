@@ -6,7 +6,7 @@
  * popup/panel/content scripts.
  */
 
-const API_BASE = 'https://codeva-api.onrender.com/api/v1'
+const API_BASE = 'https://cybercli-api.onrender.com/api/v1'
 
 // ── Storage helpers ──
 async function getAuth() {
