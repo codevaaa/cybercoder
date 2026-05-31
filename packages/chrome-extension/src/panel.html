@@ -537,15 +537,6 @@
         <div class="empty" id="empty">
           <div class="mascot">✳</div>
           <div class="hint">Ask questions about this page, extract tables/links, fill forms, or run automation tasks.</div>
-          <div class="chips">
-            <button class="chip" data-p="Summarize this page in bullet points">📝 Summarize</button>
-            <button class="chip" data-p="Extract all interactive buttons, links and tables from this page">📊 Extract</button>
-            <button class="chip" data-p="Explain this page content simply in 3 sentences">💡 Explain</button>
-            <button class="chip" data-p="Translate the main content of this page to Hindi">🌐 Translate</button>
-            <button class="chip" data-p="Fill all inputs on this page with realistic sample data">📋 Fill Forms</button>
-            <button class="chip" data-p="Find the main submit or signup button and click it">🖱 Auto-Click</button>
-            <button class="chip" data-p="Summarize the visual structure of this viewport">📸 Describe</button>
-          </div>
         </div>
       </div>
       <div id="errbar" class="err hidden"></div>
@@ -796,7 +787,26 @@ document.getElementById('reloadExtBtn').onclick = () => {
   chrome.runtime.reload();
 };
 
-document.addEventListener('DOMContentLoaded', loadSettings);
+document.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  
+  chrome.storage.local.get('pendingTask', (data) => {
+    if (data && data.pendingTask) {
+      const prompt = data.pendingTask;
+      chrome.storage.local.remove('pendingTask');
+      setTimeout(() => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        const chatTab = document.querySelector('[data-tab="chat"]');
+        if (chatTab) chatTab.classList.add('active');
+        const chatView = document.getElementById('chatView');
+        if (chatView) chatView.classList.add('active');
+        
+        send(prompt);
+      }, 300);
+    }
+  });
+});
 
 // --- Chat & Automation Section JS ---
 const messages = document.getElementById('messages')
@@ -854,7 +864,7 @@ async function getPageContext() {
 
 async function getPageElements() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
     if (!tab?.id) return []
     const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' })
     return res?.elements || []
@@ -863,7 +873,7 @@ async function getPageElements() {
 
 async function executeAutomation(action) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
     if (!tab?.id) return { ok: false, error: 'No active tab' }
     const res = await chrome.tabs.sendMessage(tab.id, action)
     return res || { ok: false, error: 'No response' }

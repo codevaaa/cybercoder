@@ -320,7 +320,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'get-page-content') {
     // Ask content script for the page text
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
       if (!tabs[0]?.id) { sendResponse({ text: '' }); return }
       chrome.tabs.sendMessage(tabs[0].id, { type: 'extract-text' }, (res) => {
         sendResponse(res || { text: '' })
@@ -355,7 +355,7 @@ chrome.runtime.onConnect.addListener((port) => {
 // ── Keyboard shortcuts ──
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'summarize_page') {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
     if (tab?.id) chrome.sidePanel.open({ tabId: tab.id })
     setTimeout(() => {
       chrome.runtime.sendMessage({ type: 'run-task', prompt: 'Summarize this page concisely.' })

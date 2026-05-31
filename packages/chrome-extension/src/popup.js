@@ -50,7 +50,7 @@ signoutBtn.addEventListener('click', async () => {
 
 pinBtn.addEventListener('click', async () => {
   // Open side panel
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id) chrome.sidePanel.open({ tabId: tab.id })
 })
 
@@ -60,12 +60,6 @@ closeBtn.addEventListener('click', () => window.close())
 document.querySelectorAll('.task-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
     const task = btn.dataset.task
-    if (task === 'chat') {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (tab?.id) chrome.sidePanel.open({ tabId: tab.id })
-      window.close()
-      return
-    }
     const prompts = {
       summarize: 'Summarize this page concisely in bullet points.',
       extract: 'Extract the key structured data from this page as a table or JSON.',
@@ -75,11 +69,18 @@ document.querySelectorAll('.task-btn').forEach(btn => {
       code: 'Find and explain all code snippets on this page.',
       md: 'Convert this page content to clean Markdown format.',
     }
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (tab?.id) chrome.sidePanel.open({ tabId: tab.id })
-    setTimeout(() => {
-      chrome.runtime.sendMessage({ type: 'run-task', prompt: prompts[task] || task })
-    }, 600)
+    const prompt = prompts[task] || task
+
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    if (tab?.id) {
+      if (task !== 'chat') {
+        await chrome.storage.local.set({ pendingTask: prompt })
+      }
+      await chrome.sidePanel.open({ tabId: tab.id })
+      if (task !== 'chat') {
+        chrome.runtime.sendMessage({ type: 'run-task', prompt }).catch(() => {})
+      }
+    }
     window.close()
   })
 })
