@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CyberCoder for Chrome",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI assistant in your browser. Summarize pages, extract data, fill forms, automate tasks, and chat — powered by 8+ AI providers. Free tier available.",
   "permissions": [
     "activeTab",

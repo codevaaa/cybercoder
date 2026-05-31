@@ -2,145 +2,803 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<title>CyberCoder Side Panel</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --accent: #C96442;
-    --accent-hover: #d4714f;
-    --accent-glow: rgba(201,100,66,0.12);
-    --bg: #1a1918;
-    --bg2: #222120;
-    --bg3: #2a2826;
-    --fg: #e8e4de;
-    --muted: #9a9590;
-    --dim: #6b6560;
-    --border: rgba(255,255,255,0.07);
-    --success: #4ade80;
-    --error: #f87171;
+    --accent: #7C3AED;
+    --accent-hover: #8B5CF6;
+    --accent-glow: rgba(124, 58, 237, 0.12);
+    --bg: #0A0A0F;
+    --bg2: #12121A;
+    --bg3: #1A1A26;
+    --fg: #E6E6FA;
+    --muted: #8F8FA3;
+    --dim: #5C5C7A;
+    --border: rgba(255, 255, 255, 0.06);
+    --success: #10B981;
+    --error: #EF4444;
     --r-sm: 6px;
     --r-md: 10px;
     --r-lg: 14px;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
   }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
 
   /* Header */
-  .header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .header .logo { color: var(--accent); font-size: 16px; }
-  .header .title { font-weight: 600; font-size: 14px; flex: 1; }
-  .header .btn { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 11px; padding: 4px 10px; border-radius: var(--r-sm); font-weight: 500; transition: all 0.15s; }
-  .header .btn:hover { background: rgba(255,255,255,0.05); color: var(--fg); border-color: rgba(255,255,255,0.12); }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header .logo {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: bold;
+  }
+  .header .title {
+    font-weight: 600;
+    font-size: 14px;
+    flex: 1;
+  }
 
-  /* Messages */
-  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-  .msg { display: flex; flex-direction: column; gap: 4px; animation: fadeIn 0.3s var(--ease); }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-  .msg .role { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 600; }
-  .msg.user .bubble { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 10px 12px; white-space: pre-wrap; font-size: 13px; line-height: 1.55; }
-  .msg.assistant .bubble { white-space: pre-wrap; font-size: 13px; line-height: 1.6; }
-</style>
-</head>
-<body>
-<style>
-  pre { background: #141210; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
-  code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11.5px; color: #e0d6cc; }
-  .thinking { display: inline-flex; align-items: center; gap: 3px; padding: 6px 0; }
-  .thinking .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: bounce 1.4s ease-in-out infinite; }
+  /* Navigation Tabs */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 10px 0;
+    text-align: center;
+    transition: all 0.15s var(--ease);
+  }
+  .tab-btn:hover {
+    color: var(--fg);
+  }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Content Views */
+  .view-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .view {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s var(--ease);
+  }
+  .view.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 10;
+  }
+
+  /* Messages Pane */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: fadeIn 0.3s var(--ease);
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg .role {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    font-weight: 700;
+  }
+  .msg.user .bubble {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .msg.assistant .bubble {
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  pre {
+    background: #06060c;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 6px 0;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: #cbd5e1;
+  }
+  .thinking {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 0;
+  }
+  .thinking .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: bounce 1.4s ease-in-out infinite;
+  }
   .thinking .dot:nth-child(2) { animation-delay: 0.16s; }
   .thinking .dot:nth-child(3) { animation-delay: 0.32s; }
-  @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
-  .typing-cursor::after { content: '▋'; color: var(--accent); animation: blink 1s steps(2) infinite; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-5px); }
+  }
+  .typing-cursor::after {
+    content: '▋';
+    color: var(--accent);
+    animation: blink 1s steps(2) infinite;
+  }
   @keyframes blink { 50% { opacity: 0; } }
 
   /* Tool steps */
-  .tool-step { border: 1px solid var(--border); border-radius: 8px; margin: 3px 0; padding: 8px 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
-  .tool-step.running { border-color: rgba(201,100,66,0.3); }
-  .tool-step.ok { border-color: rgba(74,222,128,0.2); }
-  .tool-step.fail { border-color: rgba(248,113,113,0.2); }
+  .tool-step {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin: 4px 0;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    background: var(--bg2);
+  }
+  .tool-step.running { border-color: rgba(124, 58, 237, 0.3); }
+  .tool-step.ok { border-color: rgba(16, 185, 129, 0.2); }
+  .tool-step.fail { border-color: rgba(239, 68, 68, 0.2); }
   .tool-step .icon { font-size: 12px; }
   .tool-step .icon.spin { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .tool-step .name { flex: 1; color: var(--fg); font-weight: 500; }
-  .tool-step .time { color: var(--dim); font-size: 10px; font-family: monospace; }
+  .tool-step .time { color: var(--dim); font-size: 9px; font-family: monospace; }
 
   /* Empty state */
-  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 14px; }
-  .empty .mascot { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: var(--bg2); border: 1px solid var(--border); font-size: 28px; }
-  .empty .hint { font-size: 13px; color: var(--muted); max-width: 260px; line-height: 1.6; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
-  .chip { font-size: 11px; border: 1px solid var(--border); background: var(--bg2); color: var(--fg); padding: 6px 11px; border-radius: 16px; cursor: pointer; font-weight: 500; transition: all 0.15s; }
-  .chip:hover { border-color: var(--accent); background: var(--accent-glow); }
+  .empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    gap: 14px;
+  }
+  .empty .mascot {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    font-size: 24px;
+  }
+  .empty .hint {
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 250px;
+    line-height: 1.6;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .chip {
+    font-size: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--fg);
+    padding: 6px 10px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
 
   /* Automation indicator */
-  .auto-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; background: rgba(139,92,246,0.1); color: #a78bfa; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
+  .auto-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    background: rgba(124, 58, 237, 0.15);
+    color: #a78bfa;
+    padding: 2px 7px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
 
   /* Composer */
-  .composer { border-top: 1px solid var(--border); padding: 12px 16px; flex-shrink: 0; }
-  .composer-box { border: 2px solid var(--accent); border-radius: 14px; background: var(--bg2); padding: 10px 12px; transition: box-shadow 0.2s; }
-  .composer-box:focus-within { box-shadow: 0 0 0 3px var(--accent-glow); }
-  textarea { width: 100%; resize: none; background: transparent; color: var(--fg); border: none; outline: none; font-family: inherit; font-size: 13px; line-height: 1.5; min-height: 34px; max-height: 100px; }
+  .composer {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    flex-shrink: 0;
+  }
+  .composer-box {
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    background: var(--bg2);
+    padding: 8px 12px;
+    transition: box-shadow 0.2s;
+  }
+  .composer-box:focus-within {
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  textarea {
+    width: 100%;
+    resize: none;
+    background: transparent;
+    color: var(--fg);
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 34px;
+    max-height: 100px;
+  }
   textarea::placeholder { color: var(--dim); }
-  .crow { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .crow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+  }
   .crow-left { display: flex; align-items: center; gap: 6px; }
-  .page-ctx { font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 4px; }
-  .page-ctx .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
+  .page-ctx {
+    font-size: 10px;
+    color: var(--dim);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .page-ctx .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--success);
+  }
   .crow-right { display: flex; align-items: center; gap: 6px; }
-  .send { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+  .send {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
   .send:hover { background: var(--accent-hover); transform: scale(1.05); }
   .send:disabled { opacity: 0.4; transform: none; }
-  .stop { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; }
+  .stop {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
   .stop:hover { border-color: var(--error); color: var(--error); }
-  .auto-btn { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
-  .auto-btn:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.08); }
-  .auto-btn.active { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.12); }
-  .err { color: var(--error); font-size: 12px; padding: 8px 16px; background: rgba(248,113,113,0.08); border-radius: 8px; margin: 0 16px; animation: fadeIn 0.2s; }
+  .auto-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .auto-btn:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(124, 58, 237, 0.08); }
+  .auto-btn.active { border-color: #a78bfa; color: #a78bfa; background: rgba(124, 58, 237, 0.15); }
+  
+  .err {
+    color: var(--error);
+    font-size: 12px;
+    padding: 8px 16px;
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: 8px;
+    margin: 0 16px;
+    animation: fadeIn 0.2s;
+  }
+
+  /* Settings Page Styles */
+  .settings-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  input[type="text"], select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--fg);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+  }
+  .row-flex {
+    display: flex;
+    gap: 8px;
+  }
+  .action-btn {
+    padding: 8px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .action-btn:hover { background: var(--accent-hover); }
+  .action-btn-secondary {
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .action-btn-secondary:hover { background: rgba(255,255,255,0.05); }
+
+  /* Automations list */
+  .automations-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .job-card {
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    border-radius: var(--r-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .job-card .job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .job-card .job-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+  .job-card .job-status {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .status-done { background: rgba(16,185,129,0.1); color: var(--success); }
+  .status-running { background: rgba(124,58,237,0.1); color: #a78bfa; }
+  .status-pending { background: rgba(255,255,255,0.05); color: var(--muted); }
+  .status-failed { background: rgba(239,68,68,0.1); color: var(--error); }
+  .job-card .job-result {
+    font-size: 11px;
+    color: var(--muted);
+    max-height: 80px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    background: var(--bg3);
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+  
   .hidden { display: none !important; }
 </style>
+</head>
+<body>
 
+  <!-- Header -->
   <div class="header">
     <span class="logo">✳</span>
     <span class="title">CyberCoder</span>
-    <span class="auto-badge" id="autoBadge" title="Browser automation available">🤖 Auto</span>
-    <button class="btn" id="clearBtn">Clear</button>
-    <button class="btn" id="settingsBtn">⚙</button>
+    <span class="auto-badge" id="autoBadge" title="Browser automation mode is active">🤖 Auto Mode</span>
   </div>
 
-  <div class="messages" id="messages">
-    <div class="empty" id="empty">
-      <div class="mascot">✳</div>
-      <div class="hint">Ask about this page, automate browser tasks, extract data, or chat freely.</div>
-      <div class="chips">
-        <button class="chip" data-p="Summarize this page in bullet points">📝 Summarize</button>
-        <button class="chip" data-p="Extract all links and key data from this page as structured data">📊 Extract</button>
-        <button class="chip" data-p="Explain this page simply in 3 sentences">💡 Explain</button>
-        <button class="chip" data-p="Translate this page content to Hindi">🌐 Translate</button>
-        <button class="chip" data-p="Fill all form fields on this page with appropriate test data">📋 Fill Forms</button>
-        <button class="chip" data-p="Find and click the main call-to-action button on this page">🖱 Auto-Click</button>
-        <button class="chip" data-p="Take a screenshot description of what's visible on this page">📸 Describe</button>
-        <button class="chip" data-p="Compare prices/features if this is a product page">💰 Compare</button>
-      </div>
-    </div>
+  <!-- Navigation Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+    <button class="tab-btn" data-tab="automations">🤖 Automations</button>
+    <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
   </div>
 
-  <div id="errbar" class="err hidden"></div>
+  <!-- Content Views -->
+  <div class="view-container">
 
-  <div class="composer">
-    <div class="composer-box">
-      <textarea id="input" placeholder="Ask about this page or automate tasks…" rows="1"></textarea>
-      <div class="crow">
-        <div class="crow-left">
-          <span class="page-ctx" id="pageCtx"><span class="dot"></span> Page context</span>
+    <!-- 1. CHAT VIEW -->
+    <div id="chatView" class="view active">
+      <div class="messages" id="messages">
+        <div class="empty" id="empty">
+          <div class="mascot">✳</div>
+          <div class="hint">Ask questions about this page, extract tables/links, fill forms, or run automation tasks.</div>
+          <div class="chips">
+            <button class="chip" data-p="Summarize this page in bullet points">📝 Summarize</button>
+            <button class="chip" data-p="Extract all interactive buttons, links and tables from this page">📊 Extract</button>
+            <button class="chip" data-p="Explain this page content simply in 3 sentences">💡 Explain</button>
+            <button class="chip" data-p="Translate the main content of this page to Hindi">🌐 Translate</button>
+            <button class="chip" data-p="Fill all inputs on this page with realistic sample data">📋 Fill Forms</button>
+            <button class="chip" data-p="Find the main submit or signup button and click it">🖱 Auto-Click</button>
+            <button class="chip" data-p="Summarize the visual structure of this viewport">📸 Describe</button>
+          </div>
         </div>
-        <div class="crow-right">
-          <button class="auto-btn" id="autoBtn" title="Toggle browser automation (AI controls the page)">🤖</button>
-          <button class="stop" id="stopBtn">■</button>
-          <button class="send" id="sendBtn">↑</button>
+      </div>
+      <div id="errbar" class="err hidden"></div>
+      <div class="composer">
+        <div class="composer-box">
+          <textarea id="input" placeholder="Ask about this page or automate..." rows="1"></textarea>
+          <div class="crow">
+            <div class="crow-left">
+              <span class="page-ctx" id="pageCtx"><span class="dot"></span> Active tab context</span>
+            </div>
+            <div class="crow-right">
+              <button class="auto-btn" id="autoBtn" title="Toggle browser automation (AI takes actions)">🤖</button>
+              <button class="stop" id="stopBtn">■</button>
+              <button class="send" id="sendBtn">↑</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 2. AUTOMATIONS VIEW -->
+    <div id="automationsView" class="view">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; font-weight: bold; color: var(--muted); text-transform: uppercase;">Background Task Queue</span>
+        <button class="action-btn-secondary" id="clearJobsBtn" style="padding: 3px 8px; font-size: 10px;">Clear Queue</button>
+      </div>
+      <div class="automations-pane" id="jobsList">
+        <div class="empty" id="emptyJobs">
+          <div style="font-size: 24px; opacity: 0.5;">📋</div>
+          <div class="hint">No background tasks running. Trigger background tasks from Chat or Popup.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SETTINGS VIEW -->
+    <div id="settingsView" class="view">
+      <div class="settings-pane">
+        
+        <!-- Account Status -->
+        <div class="settings-section">
+          <span class="settings-title">Account & Credentials</span>
+          <div class="form-group">
+            <label>Codeva API / JWT Token</label>
+            <div class="row-flex">
+              <input type="text" id="codevaKeyInput" placeholder="Manually paste sk_cyber_... token if unsynced" />
+              <button class="action-btn" id="saveCodevaKey">Save</button>
+            </div>
+            <span style="font-size: 9px; color: var(--dim);" id="authStatusText">Auth Status: Connecting...</span>
+          </div>
+        </div>
+
+        <!-- Gateway Config -->
+        <div class="settings-section">
+          <span class="settings-title">Gateway Settings</span>
+          <div class="form-group">
+            <label>Backend API Base URL</label>
+            <select id="backendUrlSelect">
+              <option value="https://cybercli-api.onrender.com/api/v1">Production Cloud (https://cybercli-api.onrender.com)</option>
+              <option value="http://localhost:3000/api/v1">Local Server (http://localhost:3000)</option>
+              <option value="custom">Custom Endpoint...</option>
+            </select>
+          </div>
+          <div class="form-group hidden" id="customBackendGroup">
+            <label>Custom Backend API Base</label>
+            <div class="row-flex">
+              <input type="text" id="customBackendInput" placeholder="http://127.0.0.1:3000/api/v1" />
+              <button class="action-btn" id="saveCustomBackend">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bring Your Own Keys (BYOK) -->
+        <div class="settings-section">
+          <span class="settings-title">Local Providers Keys (BYOK)</span>
+          <div style="font-size: 9.5px; color: var(--muted); margin-bottom: 4px;">If configured, queries route directly to the provider. Otherwise, they use Codeva Cloud.</div>
+          
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>Groq API Key</label>
+            <input type="text" id="groqKey" class="byok-input" placeholder="gsk_..." data-provider="groq" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>Gemini API Key</label>
+            <input type="text" id="geminiKey" class="byok-input" placeholder="AIza..." data-provider="gemini" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>OpenAI API Key</label>
+            <input type="text" id="openaiKey" class="byok-input" placeholder="sk-proj-..." data-provider="openai" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>Anthropic API Key</label>
+            <input type="text" id="anthropicKey" class="byok-input" placeholder="sk-ant-..." data-provider="anthropic" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>OpenRouter API Key</label>
+            <input type="text" id="openrouterKey" class="byok-input" placeholder="sk-or-..." data-provider="openrouter" />
+          </div>
+        </div>
+
+        <!-- Update Features -->
+        <div class="settings-section" style="border-bottom: none;">
+          <span class="settings-title">Developer & Updates</span>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+              <span>Extension Version: <strong style="color: var(--accent);">0.2.0</strong></span>
+              <button class="action-btn-secondary" id="checkUpdateBtn" style="padding: 4px 8px; font-size: 10px;">Check Updates</button>
+            </div>
+            <div id="updateStatusMsg" style="font-size: 10px; color: var(--success); font-weight: 500;" class="hidden"></div>
+            <button class="action-btn-secondary" id="reloadExtBtn" style="width: 100%; font-size: 11px; padding: 8px 0; border-color: rgba(124,58,237,0.2); color: #a78bfa; font-weight: 600;">🔄 Reload Extension (Apply Updates)</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
 <script>
+// --- Navigation Tab Switcher ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    
+    btn.classList.add('active');
+    const tabId = btn.dataset.tab;
+    document.getElementById(tabId + 'View').classList.add('active');
+    
+    if (tabId === 'automations') {
+      loadJobs();
+    }
+  });
+});
+
+// --- Settings Section Functions ---
+const codevaKeyInput = document.getElementById('codevaKeyInput');
+const saveCodevaKey = document.getElementById('saveCodevaKey');
+const authStatusText = document.getElementById('authStatusText');
+const backendUrlSelect = document.getElementById('backendUrlSelect');
+const customBackendGroup = document.getElementById('customBackendGroup');
+const customBackendInput = document.getElementById('customBackendInput');
+const saveCustomBackend = document.getElementById('saveCustomBackend');
+
+// Load stored settings on open
+async function loadSettings() {
+  const auth = await chrome.runtime.sendMessage({ type: 'get-auth' });
+  if (auth?.token) {
+    codevaKeyInput.value = auth.token.slice(0, 15) + '...';
+    authStatusText.textContent = `Auth Status: Connected (${auth.email || 'Cloud Account'})`;
+    authStatusText.style.color = 'var(--success)';
+  } else {
+    authStatusText.textContent = 'Auth Status: Disconnected (No API key synced)';
+    authStatusText.style.color = 'var(--error)';
+  }
+
+  // Load direct BYOK provider keys
+  const providers = await chrome.runtime.sendMessage({ type: 'get-providers' }) || {};
+  document.getElementById('groqKey').value = providers.groq || '';
+  document.getElementById('geminiKey').value = providers.gemini || '';
+  document.getElementById('openaiKey').value = providers.openai || '';
+  document.getElementById('anthropicKey').value = providers.anthropic || '';
+  document.getElementById('openrouterKey').value = providers.openrouter || '';
+
+  // Load backend URL configuration
+  const currentBackend = await chrome.runtime.sendMessage({ type: 'get-backend' });
+  if (currentBackend === 'https://cybercli-api.onrender.com/api/v1') {
+    backendUrlSelect.value = 'https://cybercli-api.onrender.com/api/v1';
+    customBackendGroup.classList.add('hidden');
+  } else if (currentBackend === 'http://localhost:3000/api/v1') {
+    backendUrlSelect.value = 'http://localhost:3000/api/v1';
+    customBackendGroup.classList.add('hidden');
+  } else {
+    backendUrlSelect.value = 'custom';
+    customBackendInput.value = currentBackend;
+    customBackendGroup.classList.remove('hidden');
+  }
+}
+
+// Handle manual API key saving
+saveCodevaKey.onclick = async () => {
+  const val = codevaKeyInput.value.trim();
+  if (val && !val.includes('...')) {
+    await chrome.runtime.sendMessage({
+      type: 'set-auth',
+      auth: { token: val, apiKey: val, email: 'custom-key@codeva.internal', plan: 'pro' }
+    });
+    authStatusText.textContent = 'Auth Status: Connected (Saved Manual Key)';
+    authStatusText.style.color = 'var(--success)';
+    codevaKeyInput.value = val.slice(0, 15) + '...';
+  }
+};
+
+// Handle backend url toggle
+backendUrlSelect.onchange = async () => {
+  const val = backendUrlSelect.value;
+  if (val === 'custom') {
+    customBackendGroup.classList.remove('hidden');
+  } else {
+    customBackendGroup.classList.add('hidden');
+    await chrome.runtime.sendMessage({ type: 'set-backend', url: val });
+  }
+};
+
+saveCustomBackend.onclick = async () => {
+  const val = customBackendInput.value.trim();
+  if (val) {
+    await chrome.runtime.sendMessage({ type: 'set-backend', url: val });
+    alert('Custom backend URL saved: ' + val);
+  }
+};
+
+// Handle BYOK key saving
+document.querySelectorAll('.byok-input').forEach(inputField => {
+  inputField.addEventListener('change', async () => {
+    const provider = inputField.dataset.provider;
+    const key = inputField.value.trim();
+    await chrome.runtime.sendMessage({ type: 'set-provider', provider, key });
+  });
+});
+
+// Update check button
+document.getElementById('checkUpdateBtn').onclick = async () => {
+  const statusMsg = document.getElementById('updateStatusMsg');
+  statusMsg.classList.remove('hidden');
+  statusMsg.textContent = 'Checking updates from Render CDN...';
+  statusMsg.style.color = 'var(--muted)';
+  
+  try {
+    const backend = await chrome.runtime.sendMessage({ type: 'get-backend' });
+    const res = await fetch(backend + '/downloads/extension/version');
+    if (!res.ok) throw new Error('Status ' + res.status);
+    const data = await res.json();
+    
+    if (data.version && data.version !== '0.2.0') {
+      statusMsg.innerHTML = '⚡ Update available: <strong>v' + data.version + '</strong>. <a href="' + data.downloadUrl + '" target="_blank" style="color: var(--accent); font-weight: bold; text-decoration: underline;">Download Zip</a>';
+      statusMsg.style.color = '#F59E0B';
+    } else {
+      statusMsg.textContent = '✓ CyberCoder v0.2.0 is up to date!';
+      statusMsg.style.color = 'var(--success)';
+    }
+  } catch (e) {
+    statusMsg.textContent = 'No update manifest found or server is booting.';
+    statusMsg.style.color = 'var(--error)';
+  }
+};
+
+// Manual Reload Extension
+document.getElementById('reloadExtBtn').onclick = () => {
+  chrome.runtime.reload();
+};
+
+document.addEventListener('DOMContentLoaded', loadSettings);
+
+// --- Chat & Automation Section JS ---
 const messages = document.getElementById('messages')
 const input = document.getElementById('input')
 const sendBtn = document.getElementById('sendBtn')
@@ -204,7 +862,6 @@ async function getPageElements() {
 }
 
 async function executeAutomation(action) {
-  // Execute browser automation commands from AI
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (!tab?.id) return { ok: false, error: 'No active tab' }
@@ -213,89 +870,129 @@ async function executeAutomation(action) {
   } catch (e) { return { ok: false, error: e.message } }
 }
 
+// ── Agentic self-correcting automation loop ──
 async function send(textOverride) {
   const text = (textOverride || input.value).trim()
   if (!text || streaming) return
   input.value = ''
   input.style.height = 'auto'
 
-  const pageCtx = await getPageContext()
-
-  // If auto mode is on, include page elements for AI to decide actions
-  let elementsCtx = ''
-  if (autoMode) {
-    const elements = await getPageElements()
-    if (elements.length) {
-      elementsCtx = '\n\n[Interactive elements on page:]\n' + elements.slice(0, 30).map((e, i) =>
-        i + '. <' + e.tag + '> ' + (e.text || e.href || e.type || '').slice(0, 60) + ' [selector: ' + e.selector + ']'
-      ).join('\n')
-    }
-  }
-
-  const userContent = pageCtx ? text + '\n\n---\n' + pageCtx + elementsCtx : text + elementsCtx
-  history.push({ role: 'user', content: userContent })
   addMsg('user', text)
-
   streaming = true
   sendBtn.disabled = true
   stopBtn.style.display = 'flex'
-  assistantEl = addMsg('assistant', '')
-  assistantEl.querySelector('.bubble').innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>'
-  let full = ''
-  let hasContent = false
 
-  const system = autoMode
-    ? 'You are CyberCoder, an AI assistant with browser automation capabilities. You can control the browser by outputting JSON commands in a special format. When the user asks you to interact with the page (click, type, navigate, scroll), respond with the action AND a brief explanation. Format automation commands as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain what you are doing. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. The page elements are listed in the context.'
-    : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.'
+  let currentPrompt = text
+  let loopCount = 0
+  const maxLoops = 5
+  let stopRequest = false
 
-  // Stream via background port
-  port = chrome.runtime.connect({ name: 'stream' })
-  port.onMessage.addListener(async (msg) => {
-    if (msg.type === 'chunk') {
-      if (!hasContent) { hasContent = true; assistantEl.querySelector('.bubble').innerHTML = '' }
-      full += msg.text
-      assistantEl.querySelector('.bubble').innerHTML = renderMD(full)
-      assistantEl.querySelector('.bubble').classList.add('typing-cursor')
-      messages.scrollTop = messages.scrollHeight
-    } else if (msg.type === 'done') {
-      // Check for automation commands in the response
-      if (autoMode) await processAutomationCommands(full)
-      finish(full)
-    } else if (msg.type === 'error') {
-      finish(full || '')
-      errbar.textContent = msg.message
-      errbar.classList.remove('hidden')
-      setTimeout(() => errbar.classList.add('hidden'), 5000)
-    }
-  })
+  stopBtn.onclick = () => {
+    stopRequest = true;
+    if (port) port.disconnect();
+    finish('');
+  };
 
-  port.postMessage({ type: 'start', messages: history, system })
-}
-
-async function processAutomationCommands(text) {
-  // Extract [ACTION:{...}] commands from AI response
-  const actionRegex = /\[ACTION:(\{[^}]+\})\]/g
-  let match
-  while ((match = actionRegex.exec(text)) !== null) {
-    try {
-      const action = JSON.parse(match[1])
-      const step = addToolStep((action.type || 'action') + ': ' + (action.selector || action.url || action.text || '').slice(0, 40))
-      const result = await executeAutomation(action)
-      step.classList.remove('running')
-      if (result.ok !== false) {
-        step.classList.add('ok')
-        step.querySelector('.icon').textContent = '✓'
-        step.querySelector('.icon').classList.remove('spin')
-        step.querySelector('.icon').style.color = 'var(--success)'
-      } else {
-        step.classList.add('fail')
-        step.querySelector('.icon').textContent = '✕'
-        step.querySelector('.icon').classList.remove('spin')
-        step.querySelector('.icon').style.color = 'var(--error)'
-        step.querySelector('.time').textContent = result.error || 'failed'
+  while (loopCount < maxLoops && !stopRequest) {
+    const pageCtx = await getPageContext()
+    let elementsCtx = ''
+    
+    if (autoMode) {
+      const elements = await getPageElements()
+      if (elements.length) {
+        elementsCtx = '\n\n[Interactive elements on page:]\n' + elements.slice(0, 30).map((e, i) =>
+          i + '. <' + e.tag + '> ' + (e.text || e.href || e.type || '').slice(0, 60) + ' [selector: ' + e.selector + ']'
+        ).join('\n')
       }
-    } catch (e) { /* ignore malformed actions */ }
+    }
+
+    const userContent = pageCtx ? currentPrompt + '\n\n---\n' + pageCtx + elementsCtx : currentPrompt + elementsCtx
+    
+    // Push prompt block into conversation history
+    history.push({ role: 'user', content: userContent })
+
+    assistantEl = addMsg('assistant', '')
+    assistantEl.querySelector('.bubble').innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>'
+    
+    let full = ''
+    let hasContent = false
+    let resolvePromise
+    const messageComplete = new Promise(resolve => { resolvePromise = resolve; });
+
+    const system = autoMode
+      ? 'You are CyberCoder, an AI assistant with browser automation capabilities. You can control the browser by outputting JSON commands in a special format. When the user asks you to interact with the page (click, type, navigate, scroll), respond with the action AND a brief explanation. Format automation commands as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain what you are doing. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. The page elements are listed in the context.'
+      : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.'
+
+    port = chrome.runtime.connect({ name: 'stream' })
+    port.onMessage.addListener(async (msg) => {
+      if (msg.type === 'chunk') {
+        if (!hasContent) { hasContent = true; assistantEl.querySelector('.bubble').innerHTML = '' }
+        full += msg.text
+        assistantEl.querySelector('.bubble').innerHTML = renderMD(full)
+        assistantEl.querySelector('.bubble').classList.add('typing-cursor')
+        messages.scrollTop = messages.scrollHeight
+      } else if (msg.type === 'done') {
+        resolvePromise(full)
+      } else if (msg.type === 'error') {
+        errbar.textContent = msg.message
+        errbar.classList.remove('hidden')
+        setTimeout(() => errbar.classList.add('hidden'), 5000)
+        resolvePromise(full || '')
+      }
+    })
+
+    port.postMessage({ type: 'start', messages: history, system })
+
+    // Wait for the stream completion response chunk
+    const resultText = await messageComplete;
+    if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor')
+    history.push({ role: 'assistant', content: resultText })
+
+    if (!autoMode || stopRequest) {
+      break;
+    }
+
+    // Process actions
+    const actionRegex = /\[ACTION:(\{[^}]+\})\]/g
+    let match
+    const actionResults = []
+    
+    while ((match = actionRegex.exec(resultText)) !== null) {
+      try {
+        const action = JSON.parse(match[1])
+        const step = addToolStep((action.type || 'action') + ': ' + (action.selector || action.url || action.text || '').slice(0, 40))
+        const res = await executeAutomation(action)
+        step.classList.remove('running')
+        if (res.ok !== false) {
+          step.classList.add('ok')
+          step.querySelector('.icon').textContent = '✓'
+          step.querySelector('.icon').classList.remove('spin')
+          step.querySelector('.icon').style.color = 'var(--success)'
+          actionResults.push(`${action.type} succeeded.`);
+        } else {
+          step.classList.add('fail')
+          step.querySelector('.icon').textContent = '✕'
+          step.querySelector('.icon').classList.remove('spin')
+          step.querySelector('.icon').style.color = 'var(--error)'
+          step.querySelector('.time').textContent = res.error || 'failed'
+          actionResults.push(`${action.type} failed: ${res.error || 'element not found'}.`);
+        }
+      } catch (e) {
+        actionResults.push(`Invalid action parse error: ${e.message}`);
+      }
+    }
+
+    if (actionResults.length > 0) {
+      // Loop with execution results feedback
+      currentPrompt = `[Automation Feedback Results]\n` + actionResults.join('\n') + `\n\nBased on these results, please proceed with the next actions or give the final output.`;
+      loopCount++
+      addToolStep(`Action results fed back to AI. Running step ${loopCount + 1}...`)
+    } else {
+      break; // No actions outputted, exit loop
+    }
   }
+
+  finish('')
 }
 
 function finish(full) {
@@ -303,7 +1000,6 @@ function finish(full) {
   sendBtn.disabled = false
   stopBtn.style.display = 'none'
   if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor')
-  if (full) history.push({ role: 'assistant', content: full })
   port = null
 }
 
@@ -311,13 +1007,12 @@ function finish(full) {
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 100) + 'px' })
 
 sendBtn.onclick = () => send()
-stopBtn.onclick = () => { if (port) port.disconnect(); finish('') }
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } })
 document.getElementById('clearBtn').onclick = () => { history = []; messages.querySelectorAll('.msg,.tool-step').forEach(n => n.remove()); empty.style.display = 'flex' }
-document.getElementById('settingsBtn').onclick = () => { chrome.runtime.sendMessage({ type: 'open-settings' }) }
+
 document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
   const p = c.dataset.p
-  if (p.includes('Fill') || p.includes('click') || p.includes('Take a screenshot')) {
+  if (p.includes('Fill') || p.includes('Click') || p.includes('screenshot')) {
     if (!autoMode) {
       autoMode = true
       autoBtn.classList.add('active')
@@ -338,10 +1033,56 @@ autoBtn.onclick = () => {
 // Default: auto badge hidden
 document.getElementById('autoBadge').style.display = 'none'
 
+// Load background cowork jobs list
+async function loadJobs() {
+  const jobsList = document.getElementById('jobsList');
+  const emptyJobs = document.getElementById('emptyJobs');
+  
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'cowork-list' });
+    const tasks = res?.tasks || [];
+    
+    // Clear list but preserve empty element
+    jobsList.querySelectorAll('.job-card').forEach(c => c.remove());
+    
+    if (tasks.length > 0) {
+      emptyJobs.classList.add('hidden');
+      tasks.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'job-card';
+        div.innerHTML = `
+          <div class="job-header">
+            <span class="job-title" title="${esc(t.prompt)}">${esc(t.prompt)}</span>
+            <span class="job-status status-${t.status}">${t.status}</span>
+          </div>
+          ${t.result ? `<div class="job-result">${esc(t.result)}</div>` : ''}
+        `;
+        jobsList.appendChild(div);
+      });
+    } else {
+      emptyJobs.classList.remove('hidden');
+    }
+  } catch (e) {
+    console.error('Failed to load cowork list:', e);
+  }
+}
+
+document.getElementById('clearJobsBtn').onclick = async () => {
+  await chrome.runtime.sendMessage({ type: 'cowork-clear' });
+  loadJobs();
+};
+
 // Listen for tasks from popup/background
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'run-task' && msg.prompt) send(msg.prompt)
-})
+  if (msg.type === 'run-task' && msg.prompt) {
+    // switch to chat view
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelector('[data-tab="chat"]').classList.add('active');
+    document.getElementById('chatView').classList.add('active');
+    send(msg.prompt);
+  }
+});
 </script>
 </body>
 </html>

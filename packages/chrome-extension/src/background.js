@@ -79,11 +79,17 @@ async function* streamGemini(messages, system, key, signal) {
   }
 }
 
+async function getApiBase() {
+  const { customApiBase } = await chrome.storage.local.get('customApiBase')
+  return customApiBase || 'https://cybercli-api.onrender.com/api/v1'
+}
+
 async function* streamCodeva(messages, system, apiKey, signal) {
+  const apiBase = await getApiBase()
   const headers = { 'Content-Type': 'application/json' }
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`
   const body = { messages: system ? [{ role: 'system', content: system }, ...messages] : messages, model: 'auto', stream: true }
-  const res = await fetch(`${API_BASE}/completions`, { method: 'POST', headers, body: JSON.stringify(body), signal })
+  const res = await fetch(`${apiBase}/completions`, { method: 'POST', headers, body: JSON.stringify(body), signal })
   if (!res.ok) throw new Error(`Codeva ${res.status}`)
   const reader = res.body.getReader()
   const dec = new TextDecoder()
@@ -102,9 +108,104 @@ async function* streamCodeva(messages, system, apiKey, signal) {
   }
 }
 
+async function* streamOpenAI(messages, system, key, signal) {
+  const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST', signal,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: 'gpt-4o-mini', messages: msgs, temperature: 0.5, stream: true }),
+  })
+  if (!res.ok) throw new Error(`OpenAI ${res.status}`)
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    const lines = buf.split('\n'); buf = lines.pop()
+    for (const l of lines) {
+      if (!l.startsWith('data:')) continue
+      const d = l.slice(5).trim()
+      if (d === '[DONE]') return
+      try { const j = JSON.parse(d); const t = j.choices?.[0]?.delta?.content; if (t) yield t } catch {}
+    }
+  }
+}
+
+async function* streamAnthropic(messages, system, key, signal) {
+  const msgs = messages.map(m => ({ role: m.role, content: m.content }))
+  const body = {
+    model: 'claude-3-5-sonnet-20241022',
+    messages: msgs,
+    max_tokens: 4096,
+    stream: true,
+    ...(system ? { system } : {})
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST', signal,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerously-allow-html-user-agents': 'true'
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Anthropic ${res.status}`)
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    const lines = buf.split('\n'); buf = lines.pop()
+    for (const l of lines) {
+      if (!l.startsWith('data:')) continue
+      const d = l.slice(5).trim()
+      try {
+        const j = JSON.parse(d)
+        if (j.type === 'content_block_delta') {
+          const t = j.delta?.text
+          if (t) yield t
+        }
+      } catch {}
+    }
+  }
+}
+
+async function* streamOpenRouter(messages, system, key, signal) {
+  const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST', signal,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages: msgs, temperature: 0.5, stream: true }),
+  })
+  if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    const lines = buf.split('\n'); buf = lines.pop()
+    for (const l of lines) {
+      if (!l.startsWith('data:')) continue
+      const d = l.slice(5).trim()
+      if (d === '[DONE]') return
+      try { const j = JSON.parse(d); const t = j.choices?.[0]?.delta?.content; if (t) yield t } catch {}
+    }
+  }
+}
+
 /** Pick the best available provider and stream. */
 async function* smartStream(messages, system, signal) {
   const keys = await getProviderKeys()
+  if (keys.openai) { yield* streamOpenAI(messages, system, keys.openai, signal); return }
+  if (keys.anthropic) { yield* streamAnthropic(messages, system, keys.anthropic, signal); return }
+  if (keys.openrouter) { yield* streamOpenRouter(messages, system, keys.openrouter, signal); return }
   if (keys.groq) { yield* streamGroq(messages, system, keys.groq, signal); return }
   if (keys.gemini) { yield* streamGemini(messages, system, keys.gemini, signal); return }
   const auth = await getAuth()
@@ -204,8 +305,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true
   }
   if (msg.type === 'open-settings') {
-    chrome.tabs.create({ url: 'src/popup.html' })
+    // Open settings tab inside side panel or popup instead of forcing redirect
     sendResponse({ ok: true })
+    return true
+  }
+  if (msg.type === 'get-backend') {
+    getApiBase().then(sendResponse)
+    return true
+  }
+  if (msg.type === 'set-backend') {
+    chrome.storage.local.set({ customApiBase: msg.url }).then(() => sendResponse({ ok: true }))
     return true
   }
   if (msg.type === 'get-page-content') {

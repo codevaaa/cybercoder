@@ -120,6 +120,52 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'get-elements') {
     // Get a list of interactive elements on the page (for AI to choose from)
     try {
+      const getUniqueSelector = (el, index) => {
+        if (el.id) return `#${CSS.escape(el.id)}`;
+        
+        if (el.getAttribute('name')) {
+          return `${el.tagName.toLowerCase()}[name="${CSS.escape(el.getAttribute('name'))}"]`;
+        }
+        if (el.getAttribute('placeholder')) {
+          return `${el.tagName.toLowerCase()}[placeholder="${CSS.escape(el.getAttribute('placeholder'))}"]`;
+        }
+        
+        const firstClass = el.className && typeof el.className === 'string' ? el.className.trim().split(/\s+/)[0] : '';
+        if (firstClass && !firstClass.includes('animated') && !firstClass.includes('transition') && !firstClass.includes('hover:') && !firstClass.includes('focus:') && !firstClass.includes('/') && !firstClass.includes('[')) {
+          try {
+            const sel = `.${CSS.escape(firstClass)}`;
+            if (document.querySelectorAll(sel).length === 1) return sel;
+          } catch (e) {}
+        }
+        
+        // Fallback to tag name with nth-of-type path
+        let path = [];
+        let parent = el;
+        while (parent && parent.nodeType === Node.ELEMENT_NODE && parent.tagName !== 'HTML') {
+          let sibCount = 0;
+          let sibIndex = 0;
+          if (parent.parentNode) {
+            for (let sib of parent.parentNode.children) {
+              if (sib.tagName === parent.tagName) {
+                sibCount++;
+                if (sib === parent) sibIndex = sibCount;
+              }
+            }
+          }
+          const tagName = parent.tagName.toLowerCase();
+          if (parent.id) {
+            path.unshift(`#${CSS.escape(parent.id)}`);
+            break;
+          } else if (sibCount > 1) {
+            path.unshift(`${tagName}:nth-of-type(${sibIndex})`);
+          } else {
+            path.unshift(tagName);
+          }
+          parent = parent.parentNode;
+        }
+        return path.length > 0 ? path.join(' > ') : `${el.tagName.toLowerCase()}:nth-of-type(${index + 1})`;
+      };
+
       const els = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [onclick]')
       const items = Array.from(els).slice(0, 50).map((el, i) => ({
         index: i,
@@ -127,7 +173,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         type: el.getAttribute('type') || '',
         text: (el.textContent || el.getAttribute('placeholder') || el.getAttribute('aria-label') || '').trim().slice(0, 80),
         href: el.getAttribute('href') || '',
-        selector: el.id ? `#${el.id}` : el.className ? `.${el.className.split(' ')[0]}` : `${el.tagName.toLowerCase()}:nth-of-type(${i + 1})`,
+        selector: getUniqueSelector(el, i),
       }))
       sendResponse({ elements: items })
     } catch (e) { sendResponse({ elements: [], error: e.message }) }
