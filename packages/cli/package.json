@@ -27,6 +27,11 @@
     "bundle-skills": "node scripts/bundle-skills.mjs",
     "prebuild": "node scripts/bundle-skills.mjs",
     "build": "tsup",
+    "build:rpc": "tsup src/rpc-entry.ts --format esm --target node20 --outDir dist/rpc --clean",
+    "compile": "npm run build:rpc && node scripts/compile-binary.mjs",
+    "compile:win": "npm run build && node scripts/compile-binary.mjs --target win",
+    "compile:mac": "npm run build && node scripts/compile-binary.mjs --target mac",
+    "compile:linux": "npm run build && node scripts/compile-binary.mjs --target linux",
     "prepublishOnly": "node scripts/bundle-skills.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo '(tests added in M14)'"

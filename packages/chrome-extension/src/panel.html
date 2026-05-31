@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #C96442;
+    --accent-hover: #d4714f;
+    --accent-glow: rgba(201,100,66,0.12);
+    --bg: #1a1918;
+    --bg2: #222120;
+    --bg3: #2a2826;
+    --fg: #e8e4de;
+    --muted: #9a9590;
+    --dim: #6b6560;
+    --border: rgba(255,255,255,0.07);
+    --success: #4ade80;
+    --error: #f87171;
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased; }
+
+  /* Header */
+  .header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .header .logo { color: var(--accent); font-size: 16px; }
+  .header .title { font-weight: 600; font-size: 14px; flex: 1; }
+  .header .btn { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 11px; padding: 4px 10px; border-radius: var(--r-sm); font-weight: 500; transition: all 0.15s; }
+  .header .btn:hover { background: rgba(255,255,255,0.05); color: var(--fg); border-color: rgba(255,255,255,0.12); }
+
+  /* Messages */
+  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; flex-direction: column; gap: 4px; animation: fadeIn 0.3s var(--ease); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .msg .role { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 600; }
+  .msg.user .bubble { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 10px 12px; white-space: pre-wrap; font-size: 13px; line-height: 1.55; }
+  .msg.assistant .bubble { white-space: pre-wrap; font-size: 13px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<style>
+  pre { background: #141210; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+  code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11.5px; color: #e0d6cc; }
+  .thinking { display: inline-flex; align-items: center; gap: 3px; padding: 6px 0; }
+  .thinking .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: bounce 1.4s ease-in-out infinite; }
+  .thinking .dot:nth-child(2) { animation-delay: 0.16s; }
+  .thinking .dot:nth-child(3) { animation-delay: 0.32s; }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+  .typing-cursor::after { content: '▋'; color: var(--accent); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Tool steps */
+  .tool-step { border: 1px solid var(--border); border-radius: 8px; margin: 3px 0; padding: 8px 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .tool-step.running { border-color: rgba(201,100,66,0.3); }
+  .tool-step.ok { border-color: rgba(74,222,128,0.2); }
+  .tool-step.fail { border-color: rgba(248,113,113,0.2); }
+  .tool-step .icon { font-size: 12px; }
+  .tool-step .icon.spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tool-step .name { flex: 1; color: var(--fg); font-weight: 500; }
+  .tool-step .time { color: var(--dim); font-size: 10px; font-family: monospace; }
+
+  /* Empty state */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 14px; }
+  .empty .mascot { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: var(--bg2); border: 1px solid var(--border); font-size: 28px; }
+  .empty .hint { font-size: 13px; color: var(--muted); max-width: 260px; line-height: 1.6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+  .chip { font-size: 11px; border: 1px solid var(--border); background: var(--bg2); color: var(--fg); padding: 6px 11px; border-radius: 16px; cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .chip:hover { border-color: var(--accent); background: var(--accent-glow); }
+
+  /* Automation indicator */
+  .auto-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; background: rgba(139,92,246,0.1); color: #a78bfa; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
+
+  /* Composer */
+  .composer { border-top: 1px solid var(--border); padding: 12px 16px; flex-shrink: 0; }
+  .composer-box { border: 2px solid var(--accent); border-radius: 14px; background: var(--bg2); padding: 10px 12px; transition: box-shadow 0.2s; }
+  .composer-box:focus-within { box-shadow: 0 0 0 3px var(--accent-glow); }
+  textarea { width: 100%; resize: none; background: transparent; color: var(--fg); border: none; outline: none; font-family: inherit; font-size: 13px; line-height: 1.5; min-height: 34px; max-height: 100px; }
+  textarea::placeholder { color: var(--dim); }
+  .crow { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .crow-left { display: flex; align-items: center; gap: 6px; }
+  .page-ctx { font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 4px; }
+  .page-ctx .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
+  .crow-right { display: flex; align-items: center; gap: 6px; }
+  .send { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+  .send:hover { background: var(--accent-hover); transform: scale(1.05); }
+  .send:disabled { opacity: 0.4; transform: none; }
+  .stop { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; }
+  .stop:hover { border-color: var(--error); color: var(--error); }
+  .auto-btn { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+  .auto-btn:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.08); }
+  .auto-btn.active { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.12); }
+  .err { color: var(--error); font-size: 12px; padding: 8px 16px; background: rgba(248,113,113,0.08); border-radius: 8px; margin: 0 16px; animation: fadeIn 0.2s; }
+  .hidden { display: none !important; }
+</style>
+
+  <div class="header">
+    <span class="logo">✳</span>
+    <span class="title">CyberCoder</span>
+    <span class="auto-badge" id="autoBadge" title="Browser automation available">🤖 Auto</span>
+    <button class="btn" id="clearBtn">Clear</button>
+    <button class="btn" id="settingsBtn">⚙</button>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="empty" id="empty">
+      <div class="mascot">✳</div>
+      <div class="hint">Ask about this page, automate browser tasks, extract data, or chat freely.</div>
+      <div class="chips">
+        <button class="chip" data-p="Summarize this page in bullet points">📝 Summarize</button>
+        <button class="chip" data-p="Extract all links and key data from this page as structured data">📊 Extract</button>
+        <button class="chip" data-p="Explain this page simply in 3 sentences">💡 Explain</button>
+        <button class="chip" data-p="Translate this page content to Hindi">🌐 Translate</button>
+        <button class="chip" data-p="Fill all form fields on this page with appropriate test data">📋 Fill Forms</button>
+        <button class="chip" data-p="Find and click the main call-to-action button on this page">🖱 Auto-Click</button>
+        <button class="chip" data-p="Take a screenshot description of what's visible on this page">📸 Describe</button>
+        <button class="chip" data-p="Compare prices/features if this is a product page">💰 Compare</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="errbar" class="err hidden"></div>
+
+  <div class="composer">
+    <div class="composer-box">
+      <textarea id="input" placeholder="Ask about this page or automate tasks…" rows="1"></textarea>
+      <div class="crow">
+        <div class="crow-left">
+          <span class="page-ctx" id="pageCtx"><span class="dot"></span> Page context</span>
+        </div>
+        <div class="crow-right">
+          <button class="auto-btn" id="autoBtn" title="Toggle browser automation (AI controls the page)">🤖</button>
+          <button class="stop" id="stopBtn">■</button>
+          <button class="send" id="sendBtn">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const messages = document.getElementById('messages')
+const input = document.getElementById('input')
+const sendBtn = document.getElementById('sendBtn')
+const stopBtn = document.getElementById('stopBtn')
+const autoBtn = document.getElementById('autoBtn')
+const empty = document.getElementById('empty')
+const errbar = document.getElementById('errbar')
+let streaming = false, assistantEl = null, port = null
+let history = []
+let autoMode = false // Browser automation mode
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function addMsg(role, text) {
+  empty.style.display = 'none'
+  const el = document.createElement('div')
+  el.className = 'msg ' + role
+  el.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : 'CyberCoder') + '</div><div class="bubble">' + (role === 'user' ? esc(text) : '') + '</div>'
+  messages.appendChild(el)
+  messages.scrollTop = messages.scrollHeight
+  return el
+}
+
+function addToolStep(summary) {
+  const el = document.createElement('div')
+  el.className = 'tool-step running'
+  el.innerHTML = '<span class="icon spin">⟳</span><span class="name">' + esc(summary) + '</span><span class="time"></span>'
+  messages.appendChild(el)
+  messages.scrollTop = messages.scrollHeight
+  return el
+}
+
+function renderMD(t) {
+  var BT = String.fromCharCode(96)
+  var RE1 = new RegExp('(' + BT+BT+BT + '[\\w-]*\\n[\\s\\S]*?' + BT+BT+BT + ')', 'g')
+  var RE2 = new RegExp('^' + BT+BT+BT + '([\\w-]*)\\n([\\s\\S]*?)' + BT+BT+BT + '$')
+  return t.split(RE1).map(p => {
+    const m = p.match(RE2)
+    if (m) return '<pre><code>' + esc(m[2]) + '</code></pre>'
+    let h = esc(p)
+    h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    h = h.replace(/\n/g, '<br>')
+    return '<span>' + h + '</span>'
+  }).join('')
+}
+
+async function getPageContext() {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'get-page-content' })
+    return res?.text ? '[Page: ' + (res.title || 'untitled') + ']\n' + res.text.slice(0, 8000) : ''
+  } catch { return '' }
+}
+
+async function getPageElements() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) return []
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' })
+    return res?.elements || []
+  } catch { return [] }
+}
+
+async function executeAutomation(action) {
+  // Execute browser automation commands from AI
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) return { ok: false, error: 'No active tab' }
+    const res = await chrome.tabs.sendMessage(tab.id, action)
+    return res || { ok: false, error: 'No response' }
+  } catch (e) { return { ok: false, error: e.message } }
+}
+</script>
+
+<script>
+async function send(textOverride) {
+  const text = (textOverride || input.value).trim()
+  if (!text || streaming) return
+  input.value = ''
+  input.style.height = 'auto'
+
+  const pageCtx = await getPageContext()
+
+  // If auto mode is on, include page elements for AI to decide actions
+  let elementsCtx = ''
+  if (autoMode) {
+    const elements = await getPageElements()
+    if (elements.length) {
+      elementsCtx = '\n\n[Interactive elements on page:]\n' + elements.slice(0, 30).map((e, i) =>
+        i + '. <' + e.tag + '> ' + (e.text || e.href || e.type || '').slice(0, 60) + ' [selector: ' + e.selector + ']'
+      ).join('\n')
+    }
+  }
+
+  const userContent = pageCtx ? text + '\n\n---\n' + pageCtx + elementsCtx : text + elementsCtx
+  history.push({ role: 'user', content: userContent })
+  addMsg('user', text)
+
+  streaming = true
+  sendBtn.disabled = true
+  stopBtn.style.display = 'flex'
+  assistantEl = addMsg('assistant', '')
+  assistantEl.querySelector('.bubble').innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>'
+  let full = ''
+  let hasContent = false
+
+  const system = autoMode
+    ? 'You are CyberCoder, an AI assistant with browser automation capabilities. You can control the browser by outputting JSON commands in a special format. When the user asks you to interact with the page (click, type, navigate, scroll), respond with the action AND a brief explanation. Format automation commands as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain what you are doing. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. The page elements are listed in the context.'
+    : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.'
+
+  // Stream via background
+  port = chrome.runtime.connect({ name: 'stream' })
+  port.onMessage.addListener(async (msg) => {
+    if (msg.type === 'chunk') {
+      if (!hasContent) { hasContent = true; assistantEl.querySelector('.bubble').innerHTML = '' }
+      full += msg.text
+      assistantEl.querySelector('.bubble').innerHTML = renderMD(full)
+      assistantEl.querySelector('.bubble').classList.add('typing-cursor')
+      messages.scrollTop = messages.scrollHeight
+    } else if (msg.type === 'done') {
+      // Check for automation commands in the response
+      if (autoMode) await processAutomationCommands(full)
+      finish(full)
+    } else if (msg.type === 'error') {
+      finish(full || '')
+      errbar.textContent = msg.message
+      errbar.classList.remove('hidden')
+      setTimeout(() => errbar.classList.add('hidden'), 5000)
+    }
+  })
+
+  chrome.runtime.sendMessage({ type: 'stream', messages: history, system })
+}
+
+async function processAutomationCommands(text) {
+  // Extract [ACTION:{...}] commands from AI response
+  const actionRegex = /\[ACTION:(\{[^}]+\})\]/g
+  let match
+  while ((match = actionRegex.exec(text)) !== null) {
+    try {
+      const action = JSON.parse(match[1])
+      const step = addToolStep((action.type || 'action') + ': ' + (action.selector || action.url || action.text || '').slice(0, 40))
+      const result = await executeAutomation(action)
+      step.classList.remove('running')
+      if (result.ok !== false) {
+        step.classList.add('ok')
+        step.querySelector('.icon').textContent = '✓'
+        step.querySelector('.icon').classList.remove('spin')
+        step.querySelector('.icon').style.color = 'var(--success)'
+      } else {
+        step.classList.add('fail')
+        step.querySelector('.icon').textContent = '✕'
+        step.querySelector('.icon').classList.remove('spin')
+        step.querySelector('.icon').style.color = 'var(--error)'
+        step.querySelector('.time').textContent = result.error || 'failed'
+      }
+    } catch (e) { /* ignore malformed actions */ }
+  }
+}
+
+function finish(full) {
+  streaming = false
+  sendBtn.disabled = false
+  stopBtn.style.display = 'none'
+  if (assistantEl) assistantEl.querySelector('.bubble').classList.remove('typing-cursor')
+  if (full) history.push({ role: 'assistant', content: full })
+  port = null
+}
+
+// Auto-resize textarea
+input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 100) + 'px' })
+
+sendBtn.onclick = () => send()
+stopBtn.onclick = () => { if (port) port.disconnect(); finish('') }
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } })
+document.getElementById('clearBtn').onclick = () => { history = []; messages.querySelectorAll('.msg,.tool-step').forEach(n => n.remove()); empty.style.display = 'flex' }
+document.getElementById('settingsBtn').onclick = () => { chrome.runtime.sendMessage({ type: 'open-settings' }) }
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => send(c.dataset.p))
+
+// Toggle automation mode
+autoBtn.onclick = () => {
+  autoMode = !autoMode
+  autoBtn.classList.toggle('active', autoMode)
+  document.getElementById('autoBadge').style.display = autoMode ? 'inline-flex' : 'none'
+  input.placeholder = autoMode ? 'Tell AI what to do on this page…' : 'Ask about this page…'
+}
+// Default: auto badge hidden
+document.getElementById('autoBadge').style.display = 'none'
+
+// Listen for tasks from popup/background
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'run-task' && msg.prompt) send(msg.prompt)
+})
+</script>
+</body>
+</html>

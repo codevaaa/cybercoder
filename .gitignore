@@ -12,3 +12,7 @@ Thumbs.db
 coverage/
 *.tsbuildinfo
 .pnpm-store/
+
+# Compiled binaries (too large for GitHub)
+packages/vscode-extension/bin/
+*.exe

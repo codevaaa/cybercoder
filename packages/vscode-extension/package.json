@@ -2,7 +2,7 @@
   "name": "cybercoder-vscode",
   "displayName": "CyberCoder — AI Coding Agent",
   "description": "Agentic AI coding assistant in your editor. Chat, edit, and ship with 8+ AI providers. A free, powerful alternative to Claude Code.",
-  "version": "0.3.0",
+  "version": "0.6.0",
   "publisher": "codeva",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -111,6 +111,7 @@
     "build": "node scripts/gen-icon.mjs && node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "package": "node scripts/gen-icon.mjs && node esbuild.mjs --production && npx @vscode/vsce package --no-dependencies -o cybercoder.vsix",
+    "package:full": "node scripts/gen-icon.mjs && node esbuild.mjs --production && node scripts/copy-binary.mjs && npx @vscode/vsce package --no-dependencies -o cybercoder-full.vsix",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

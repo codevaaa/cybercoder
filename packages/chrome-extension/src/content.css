@@ -1,0 +1,22 @@
+/* CyberCoder Chrome Extension — Content Script Styles */
+#cybercoder-fab {
+  position: absolute;
+  z-index: 2147483647;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #C96442;
+  color: #fff;
+  font-size: 14px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(201, 100, 66, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+#cybercoder-fab:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 20px rgba(201, 100, 66, 0.6);
+}

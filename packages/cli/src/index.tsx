@@ -20,7 +20,15 @@ async function main(): Promise<void> {
     .option('-p, --print <prompt>', 'print mode: run a single prompt non-interactively and exit')
     .option('--model <name>', 'override the default model for this session')
     .option('--provider <name>', 'override the default provider for this session')
-    .action((opts) => {
+    .option('--rpc', 'start as a JSON-RPC server (used by the VS Code extension)')
+    .action(async (opts) => {
+      // RPC mode: run as a persistent JSON-RPC server for the extension
+      if (opts.rpc) {
+        const { startRpcServer } = await import('./rpc-server.js')
+        startRpcServer()
+        return // never returns (stdin loop)
+      }
+
       if (opts.debug) {
         process.env.CYBERMIND_LOG_LEVEL = 'debug';
         process.env.CYBERMIND_LOG_STDERR = 'true';

@@ -4,6 +4,7 @@ import { SessionStore } from './sessionStore.js'
 import { SessionsTreeProvider } from './sessionsTree.js'
 import { ChatPanel } from './chatPanel.js'
 import { BugScanner } from './bugScanner.js'
+import { pickerItems } from './models.js'
 
 let api: CyberCoderApi
 let store: SessionStore
@@ -18,6 +19,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // Sessions rail in the activity bar (like Claude Code's left rail).
   const tree = new SessionsTreeProvider(store)
   context.subscriptions.push(vscode.window.registerTreeDataProvider('cybercoder.sessions', tree))
+
+  // Auto-open the chat panel when the CyberCoder view becomes visible.
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {}), // keep extension active
+  )
 
   // Status bar entry.
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
@@ -76,7 +82,7 @@ async function signIn(): Promise<void> {
     password: true, ignoreFocusOut: true, placeHolder: 'sk_cyber_...',
     validateInput: (v) => (v && v.trim().length > 8 ? null : 'Enter a valid API key'),
   })
-  if (!key) { void vscode.env.openExternal(vscode.Uri.parse('https://cybermindcli.info/settings/api-keys')); return }
+  if (!key) { void vscode.env.openExternal(vscode.Uri.parse('https://cybermindcli.info/api-keys')); return }
 
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: 'Verifying API key…' },
@@ -146,16 +152,22 @@ const PROVIDER_MODELS = [
   'ollama/gemma4:31b-cloud', 'ollama/llama3.3:70b-cloud', 'ollama/qwen2.5-coder:32b', 'ollama/llama3.2',
 ]
 async function selectModel(): Promise<void> {
-  let models = [...PROVIDER_MODELS]
-  try {
-    const res = await api.getModels()
-    const ids = (res.models || []).map((m: any) => m.id || m.name).filter(Boolean)
-    if (ids.length) models = ['auto', ...ids, ...PROVIDER_MODELS.slice(1)]
-  } catch { /* offline — use provider list */ }
-  const pick = await vscode.window.showQuickPick([...new Set(models)], { placeHolder: 'Select default model (provider/model)' })
-  if (pick) {
-    await vscode.workspace.getConfiguration('cybercoder').update('defaultModel', pick, vscode.ConfigurationTarget.Global)
-    void vscode.window.showInformationMessage(`CyberCoder model: ${pick}`)
+  // Grouped picker (Codeva names, BYOK providers, Ollama cloud + local).
+  const items = pickerItems().map((it) =>
+    it.kind === -1
+      ? { label: it.label, kind: vscode.QuickPickItemKind.Separator }
+      : { label: it.label, description: it.description, detail: it.detail },
+  )
+  const current = vscode.workspace.getConfiguration('cybercoder').get<string>('defaultModel', 'auto')
+  const pick = await vscode.window.showQuickPick(items as vscode.QuickPickItem[], {
+    placeHolder: `Select default model (current: ${current})`,
+    matchOnDescription: true, matchOnDetail: true,
+  })
+  if (pick && (pick as any).description) {
+    const id = (pick as any).description as string
+    await vscode.workspace.getConfiguration('cybercoder').update('defaultModel', id, vscode.ConfigurationTarget.Global)
+    void vscode.window.showInformationMessage(`CyberCoder model: ${id}`)
+    ChatPanel.instance?.notifyModel(id)
   }
 }
 

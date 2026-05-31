@@ -1,33 +1,39 @@
 #!/usr/bin/env node
-
-// src/index.tsx
-import { Command } from "commander";
-import { render } from "ink";
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 
 // ../shared/src/types.ts
 import { z } from "zod";
-var RoleSchema = z.enum(["system", "user", "assistant", "tool"]);
-var MessageSchema = z.object({
-  id: z.string(),
-  role: RoleSchema,
-  content: z.string(),
-  createdAt: z.number().int().positive(),
-  /** Optional tool call payload when role === 'assistant' issued a tool call. */
-  toolCalls: z.array(
-    z.object({
+var RoleSchema, MessageSchema;
+var init_types = __esm({
+  "../shared/src/types.ts"() {
+    "use strict";
+    RoleSchema = z.enum(["system", "user", "assistant", "tool"]);
+    MessageSchema = z.object({
       id: z.string(),
-      name: z.string(),
-      input: z.record(z.unknown())
-    })
-  ).optional(),
-  /** Optional reference back to a tool call when role === 'tool'. */
-  toolCallId: z.string().optional()
+      role: RoleSchema,
+      content: z.string(),
+      createdAt: z.number().int().positive(),
+      /** Optional tool call payload when role === 'assistant' issued a tool call. */
+      toolCalls: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          input: z.record(z.unknown())
+        })
+      ).optional(),
+      /** Optional reference back to a tool call when role === 'tool'. */
+      toolCallId: z.string().optional()
+    });
+  }
 });
-
-// ../shared/src/logger.ts
-import chalk from "chalk";
-import { appendFileSync, existsSync, mkdirSync } from "fs";
-import { join as join2 } from "path";
 
 // ../shared/src/paths.ts
 import { homedir } from "os";
@@ -53,30 +59,22 @@ function getDataDir() {
 function getSecretsPath() {
   return join(getHomeDir(), "secrets.enc");
 }
-function getProjectDir(cwd = process.cwd()) {
-  return join(cwd, ".cybermind");
+function getProjectDir(cwd2 = process.cwd()) {
+  return join(cwd2, ".cybermind");
 }
-function getProjectSkillsDir(cwd = process.cwd()) {
-  return join(getProjectDir(cwd), "skills");
+function getProjectSkillsDir(cwd2 = process.cwd()) {
+  return join(getProjectDir(cwd2), "skills");
 }
+var init_paths = __esm({
+  "../shared/src/paths.ts"() {
+    "use strict";
+  }
+});
 
 // ../shared/src/logger.ts
-var LEVEL_ORDER = {
-  debug: 10,
-  info: 20,
-  warn: 30,
-  error: 40
-};
-var COLOR = {
-  debug: (s) => chalk.gray(s),
-  info: (s) => chalk.cyan(s),
-  warn: (s) => chalk.yellow(s),
-  error: (s) => chalk.red(s)
-};
-var envLevel = (process.env.CYBERMIND_LOG_LEVEL ?? "info").toLowerCase();
-var minLevel = LEVEL_ORDER[envLevel] ?? LEVEL_ORDER.info;
-var writeToFile = process.env.CYBERMIND_LOG_FILE !== "false";
-var logFilePath = null;
+import chalk from "chalk";
+import { appendFileSync, existsSync, mkdirSync } from "fs";
+import { join as join2 } from "path";
 function ensureLogFile() {
   if (logFilePath) return logFilePath;
   const dir = getLogsDir();
@@ -122,587 +120,642 @@ function createLogger(scope) {
     child: (sub) => createLogger(`${scope}:${sub}`)
   };
 }
+var LEVEL_ORDER, COLOR, envLevel, minLevel, writeToFile, logFilePath;
+var init_logger = __esm({
+  "../shared/src/logger.ts"() {
+    "use strict";
+    init_paths();
+    LEVEL_ORDER = {
+      debug: 10,
+      info: 20,
+      warn: 30,
+      error: 40
+    };
+    COLOR = {
+      debug: (s) => chalk.gray(s),
+      info: (s) => chalk.cyan(s),
+      warn: (s) => chalk.yellow(s),
+      error: (s) => chalk.red(s)
+    };
+    envLevel = (process.env.CYBERMIND_LOG_LEVEL ?? "info").toLowerCase();
+    minLevel = LEVEL_ORDER[envLevel] ?? LEVEL_ORDER.info;
+    writeToFile = process.env.CYBERMIND_LOG_FILE !== "false";
+    logFilePath = null;
+  }
+});
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.22";
-var CYBERMIND_NAME = "CyberCoder";
-var CYBERCODER_VERSION = CYBERMIND_VERSION;
-var CYBERCODER_NAME = CYBERMIND_NAME;
+var CYBERMIND_VERSION, CYBERMIND_NAME, CYBERCODER_VERSION, CYBERCODER_NAME;
+var init_version = __esm({
+  "../shared/src/version.ts"() {
+    "use strict";
+    CYBERMIND_VERSION = "0.1.22";
+    CYBERMIND_NAME = "CyberCoder";
+    CYBERCODER_VERSION = CYBERMIND_VERSION;
+    CYBERCODER_NAME = CYBERMIND_NAME;
+  }
+});
 
 // ../shared/src/checkpoint.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, writeFileSync, readdirSync } from "fs";
 import { join as join3 } from "path";
 import { z as z2 } from "zod";
-var log = createLogger("checkpoint");
 function getCheckpointsDir() {
   return join3(getDataDir(), "checkpoints");
 }
-var CheckpointSchema = z2.object({
-  id: z2.string(),
-  createdAt: z2.number(),
-  messages: z2.array(
-    z2.object({
+var log, CheckpointSchema, CheckpointManager;
+var init_checkpoint = __esm({
+  "../shared/src/checkpoint.ts"() {
+    "use strict";
+    init_logger();
+    log = createLogger("checkpoint");
+    CheckpointSchema = z2.object({
       id: z2.string(),
-      role: z2.enum(["user", "assistant", "system"]),
-      content: z2.string(),
-      createdAt: z2.number()
-    })
-  ),
-  model: z2.string(),
-  provider: z2.string()
-});
-var CheckpointManager = class {
-  dir;
-  constructor() {
-    this.dir = getCheckpointsDir();
-    if (!existsSync2(this.dir)) mkdirSync2(this.dir, { recursive: true });
-  }
-  /** Persist the current session state to a new checkpoint file. */
-  save(messages, model, provider) {
-    const id = crypto.randomUUID();
-    const checkpoint = {
-      id,
-      createdAt: Date.now(),
-      messages: structuredClone(messages),
-      // deep copy to avoid mutation
-      model,
-      provider
-    };
-    const path2 = join3(this.dir, `${id}.json`);
-    writeFileSync(path2, JSON.stringify(checkpoint, null, 2), "utf8");
-    const latest = join3(this.dir, "latest.json");
-    try {
-      writeFileSync(latest, JSON.stringify(checkpoint, null, 2), "utf8");
-    } catch (err) {
-      log.warn("failed to write latest symlink", String(err));
-    }
-    log.info("saved checkpoint", { id, messageCount: messages.length });
-    return id;
-  }
-  /** Load a checkpoint by id. Returns null if not found or corrupt. */
-  load(id) {
-    const path2 = join3(this.dir, `${id}.json`);
-    if (!existsSync2(path2)) return null;
-    try {
-      const raw = readFileSync(path2, "utf8");
-      const parsed = JSON.parse(raw);
-      const checkpoint = CheckpointSchema.parse(parsed);
-      return checkpoint;
-    } catch (err) {
-      log.warn("failed to load checkpoint", { id, error: String(err) });
-      return null;
-    }
-  }
-  /** Load the most recent checkpoint (latest.json). */
-  loadLatest() {
-    const path2 = join3(this.dir, "latest.json");
-    if (!existsSync2(path2)) return null;
-    try {
-      const raw = readFileSync(path2, "utf8");
-      const parsed = JSON.parse(raw);
-      const checkpoint = CheckpointSchema.parse(parsed);
-      return checkpoint;
-    } catch (err) {
-      log.warn("failed to load latest checkpoint", { error: String(err) });
-      return null;
-    }
-  }
-  /** List all checkpoint ids sorted by creation time (newest first). */
-  list() {
-    if (!existsSync2(this.dir)) return [];
-    const entries = [];
-    const files = readdirSync(this.dir, { withFileTypes: true });
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith(".json")) continue;
-      if (file.name === "latest.json") continue;
-      const id = file.name.slice(0, -5);
-      const cp = this.load(id);
-      if (cp) {
-        entries.push({ id, createdAt: cp.createdAt, messageCount: cp.messages.length });
+      createdAt: z2.number(),
+      messages: z2.array(
+        z2.object({
+          id: z2.string(),
+          role: z2.enum(["user", "assistant", "system"]),
+          content: z2.string(),
+          createdAt: z2.number()
+        })
+      ),
+      model: z2.string(),
+      provider: z2.string()
+    });
+    CheckpointManager = class {
+      dir;
+      constructor() {
+        this.dir = getCheckpointsDir();
+        if (!existsSync2(this.dir)) mkdirSync2(this.dir, { recursive: true });
       }
-    }
-    return entries.sort((a, b) => b.createdAt - a.createdAt);
+      /** Persist the current session state to a new checkpoint file. */
+      save(messages, model, provider) {
+        const id = crypto.randomUUID();
+        const checkpoint = {
+          id,
+          createdAt: Date.now(),
+          messages: structuredClone(messages),
+          // deep copy to avoid mutation
+          model,
+          provider
+        };
+        const path2 = join3(this.dir, `${id}.json`);
+        writeFileSync(path2, JSON.stringify(checkpoint, null, 2), "utf8");
+        const latest = join3(this.dir, "latest.json");
+        try {
+          writeFileSync(latest, JSON.stringify(checkpoint, null, 2), "utf8");
+        } catch (err) {
+          log.warn("failed to write latest symlink", String(err));
+        }
+        log.info("saved checkpoint", { id, messageCount: messages.length });
+        return id;
+      }
+      /** Load a checkpoint by id. Returns null if not found or corrupt. */
+      load(id) {
+        const path2 = join3(this.dir, `${id}.json`);
+        if (!existsSync2(path2)) return null;
+        try {
+          const raw = readFileSync(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          const checkpoint = CheckpointSchema.parse(parsed);
+          return checkpoint;
+        } catch (err) {
+          log.warn("failed to load checkpoint", { id, error: String(err) });
+          return null;
+        }
+      }
+      /** Load the most recent checkpoint (latest.json). */
+      loadLatest() {
+        const path2 = join3(this.dir, "latest.json");
+        if (!existsSync2(path2)) return null;
+        try {
+          const raw = readFileSync(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          const checkpoint = CheckpointSchema.parse(parsed);
+          return checkpoint;
+        } catch (err) {
+          log.warn("failed to load latest checkpoint", { error: String(err) });
+          return null;
+        }
+      }
+      /** List all checkpoint ids sorted by creation time (newest first). */
+      list() {
+        if (!existsSync2(this.dir)) return [];
+        const entries = [];
+        const files = readdirSync(this.dir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".json")) continue;
+          if (file.name === "latest.json") continue;
+          const id = file.name.slice(0, -5);
+          const cp = this.load(id);
+          if (cp) {
+            entries.push({ id, createdAt: cp.createdAt, messageCount: cp.messages.length });
+          }
+        }
+        return entries.sort((a, b) => b.createdAt - a.createdAt);
+      }
+      /** Delete a checkpoint file. */
+      delete(id) {
+        const path2 = join3(this.dir, `${id}.json`);
+        if (!existsSync2(path2)) return false;
+        try {
+          writeFileSync(path2, "");
+          log.info("deleted checkpoint", { id });
+          return true;
+        } catch (err) {
+          log.warn("failed to delete checkpoint", { id, error: String(err) });
+          return false;
+        }
+      }
+    };
   }
-  /** Delete a checkpoint file. */
-  delete(id) {
-    const path2 = join3(this.dir, `${id}.json`);
-    if (!existsSync2(path2)) return false;
-    try {
-      writeFileSync(path2, "");
-      log.info("deleted checkpoint", { id });
-      return true;
-    } catch (err) {
-      log.warn("failed to delete checkpoint", { id, error: String(err) });
-      return false;
-    }
-  }
-};
+});
 
 // ../shared/src/profiles.ts
 import { existsSync as existsSync3, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "fs";
 import { z as z3 } from "zod";
-var log2 = createLogger("profiles");
-var ProfileSchema = z3.object({
-  name: z3.enum(["default", "strict-ts", "hobby", "paranoid"]),
-  /** Model to use for this profile */
-  model: z3.string(),
-  /** Provider to use for this profile */
-  provider: z3.string(),
-  /** Approval mode for tools */
-  approvalMode: z3.enum(["always-ask", "session-bypass", "persistent-bypass"]),
-  /** Whether to enable telemetry */
-  telemetryEnabled: z3.boolean(),
-  /** Whether to enable auto-checkpoint */
-  autoCheckpoint: z3.boolean(),
-  /** Custom accent color */
-  accentColor: z3.string().optional()
-});
-var DEFAULT_PROFILES = {
-  default: {
-    name: "default",
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    approvalMode: "always-ask",
-    telemetryEnabled: false,
-    autoCheckpoint: true,
-    accentColor: "blue"
-  },
-  "strict-ts": {
-    name: "strict-ts",
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    approvalMode: "always-ask",
-    telemetryEnabled: true,
-    autoCheckpoint: true,
-    accentColor: "red"
-  },
-  hobby: {
-    name: "hobby",
-    model: "claude-3-haiku-20241022",
-    provider: "anthropic",
-    approvalMode: "session-bypass",
-    telemetryEnabled: false,
-    autoCheckpoint: false,
-    accentColor: "green"
-  },
-  paranoid: {
-    name: "paranoid",
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    approvalMode: "always-ask",
-    telemetryEnabled: false,
-    autoCheckpoint: true,
-    accentColor: "orange"
-  }
-};
-var SettingsSchema = z3.object({
-  activeProfile: z3.string(),
-  profiles: z3.record(z3.string(), ProfileSchema)
-});
-var ProfileManager = class {
-  settingsPath;
-  constructor() {
-    this.settingsPath = getSettingsPath();
-  }
-  /** Get the current active profile */
-  getActiveProfile() {
-    const settings = this.loadSettings();
-    const active = settings.profiles[settings.activeProfile];
-    if (!active) {
-      log2.warn("Active profile not found, falling back to default");
-      return DEFAULT_PROFILES.default;
-    }
-    return active;
-  }
-  /** Set the active profile by name */
-  setActiveProfile(name) {
-    const settings = this.loadSettings();
-    if (!settings.profiles[name]) {
-      log2.warn("Profile not found", { name });
-      return false;
-    }
-    settings.activeProfile = name;
-    this.saveSettings(settings);
-    log2.info("Switched profile", { name });
-    return true;
-  }
-  /** Get all available profiles */
-  listProfiles() {
-    const settings = this.loadSettings();
-    return settings.profiles;
-  }
-  /** Update a profile's settings */
-  updateProfile(name, updates) {
-    const settings = this.loadSettings();
-    if (!settings.profiles[name]) {
-      log2.warn("Profile not found for update", { name });
-      return false;
-    }
-    settings.profiles[name] = { ...settings.profiles[name], ...updates };
-    this.saveSettings(settings);
-    log2.info("Updated profile", { name, updates: Object.keys(updates) });
-    return true;
-  }
-  /** Reset a profile to its default configuration */
-  resetProfile(name) {
-    const defaultConfig = DEFAULT_PROFILES[name];
-    if (!defaultConfig) {
-      log2.warn("Cannot reset unknown profile", { name });
-      return false;
-    }
-    const { name: _, ...configWithoutName } = defaultConfig;
-    return this.updateProfile(name, configWithoutName);
-  }
-  loadSettings() {
-    if (!existsSync3(this.settingsPath)) {
-      const profiles = {};
-      for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
-        profiles[name] = { ...profile };
+var log2, ProfileSchema, DEFAULT_PROFILES, SettingsSchema, ProfileManager;
+var init_profiles = __esm({
+  "../shared/src/profiles.ts"() {
+    "use strict";
+    init_logger();
+    log2 = createLogger("profiles");
+    ProfileSchema = z3.object({
+      name: z3.enum(["default", "strict-ts", "hobby", "paranoid"]),
+      /** Model to use for this profile */
+      model: z3.string(),
+      /** Provider to use for this profile */
+      provider: z3.string(),
+      /** Approval mode for tools */
+      approvalMode: z3.enum(["always-ask", "session-bypass", "persistent-bypass"]),
+      /** Whether to enable telemetry */
+      telemetryEnabled: z3.boolean(),
+      /** Whether to enable auto-checkpoint */
+      autoCheckpoint: z3.boolean(),
+      /** Custom accent color */
+      accentColor: z3.string().optional()
+    });
+    DEFAULT_PROFILES = {
+      default: {
+        name: "default",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: false,
+        autoCheckpoint: true,
+        accentColor: "blue"
+      },
+      "strict-ts": {
+        name: "strict-ts",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: true,
+        autoCheckpoint: true,
+        accentColor: "red"
+      },
+      hobby: {
+        name: "hobby",
+        model: "claude-3-haiku-20241022",
+        provider: "anthropic",
+        approvalMode: "session-bypass",
+        telemetryEnabled: false,
+        autoCheckpoint: false,
+        accentColor: "green"
+      },
+      paranoid: {
+        name: "paranoid",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: false,
+        autoCheckpoint: true,
+        accentColor: "orange"
       }
-      const settings = {
-        activeProfile: "default",
-        profiles
-      };
-      this.saveSettings(settings);
-      return settings;
-    }
-    try {
-      const raw = readFileSync2(this.settingsPath, "utf8");
-      const parsed = JSON.parse(raw);
-      const settings = SettingsSchema.parse(parsed);
-      return settings;
-    } catch (err) {
-      log2.error("Failed to load settings, using defaults", { error: String(err) });
-      const profiles = {};
-      for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
-        profiles[name] = { ...profile };
+    };
+    SettingsSchema = z3.object({
+      activeProfile: z3.string(),
+      profiles: z3.record(z3.string(), ProfileSchema)
+    });
+    ProfileManager = class {
+      settingsPath;
+      constructor() {
+        this.settingsPath = getSettingsPath();
       }
-      return {
-        activeProfile: "default",
-        profiles
-      };
-    }
+      /** Get the current active profile */
+      getActiveProfile() {
+        const settings = this.loadSettings();
+        const active = settings.profiles[settings.activeProfile];
+        if (!active) {
+          log2.warn("Active profile not found, falling back to default");
+          return DEFAULT_PROFILES.default;
+        }
+        return active;
+      }
+      /** Set the active profile by name */
+      setActiveProfile(name) {
+        const settings = this.loadSettings();
+        if (!settings.profiles[name]) {
+          log2.warn("Profile not found", { name });
+          return false;
+        }
+        settings.activeProfile = name;
+        this.saveSettings(settings);
+        log2.info("Switched profile", { name });
+        return true;
+      }
+      /** Get all available profiles */
+      listProfiles() {
+        const settings = this.loadSettings();
+        return settings.profiles;
+      }
+      /** Update a profile's settings */
+      updateProfile(name, updates) {
+        const settings = this.loadSettings();
+        if (!settings.profiles[name]) {
+          log2.warn("Profile not found for update", { name });
+          return false;
+        }
+        settings.profiles[name] = { ...settings.profiles[name], ...updates };
+        this.saveSettings(settings);
+        log2.info("Updated profile", { name, updates: Object.keys(updates) });
+        return true;
+      }
+      /** Reset a profile to its default configuration */
+      resetProfile(name) {
+        const defaultConfig = DEFAULT_PROFILES[name];
+        if (!defaultConfig) {
+          log2.warn("Cannot reset unknown profile", { name });
+          return false;
+        }
+        const { name: _, ...configWithoutName } = defaultConfig;
+        return this.updateProfile(name, configWithoutName);
+      }
+      loadSettings() {
+        if (!existsSync3(this.settingsPath)) {
+          const profiles = {};
+          for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
+            profiles[name] = { ...profile };
+          }
+          const settings = {
+            activeProfile: "default",
+            profiles
+          };
+          this.saveSettings(settings);
+          return settings;
+        }
+        try {
+          const raw = readFileSync2(this.settingsPath, "utf8");
+          const parsed = JSON.parse(raw);
+          const settings = SettingsSchema.parse(parsed);
+          return settings;
+        } catch (err) {
+          log2.error("Failed to load settings, using defaults", { error: String(err) });
+          const profiles = {};
+          for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
+            profiles[name] = { ...profile };
+          }
+          return {
+            activeProfile: "default",
+            profiles
+          };
+        }
+      }
+      saveSettings(settings) {
+        try {
+          writeFileSync2(this.settingsPath, JSON.stringify(settings, null, 2), "utf8");
+        } catch (err) {
+          log2.error("Failed to save settings", { error: String(err) });
+        }
+      }
+    };
   }
-  saveSettings(settings) {
-    try {
-      writeFileSync2(this.settingsPath, JSON.stringify(settings, null, 2), "utf8");
-    } catch (err) {
-      log2.error("Failed to save settings", { error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/collaboration.ts
 import { existsSync as existsSync4, mkdirSync as mkdirSync3, readFileSync as readFileSync3, writeFileSync as writeFileSync3, readdirSync as readdirSync2 } from "fs";
 import { join as join4 } from "path";
 import { z as z4 } from "zod";
-var log3 = createLogger("collaboration");
-var CollaborationSessionSchema = z4.object({
-  id: z4.string(),
-  name: z4.string(),
-  createdAt: z4.number(),
-  participants: z4.array(z4.string()),
-  worktrees: z4.record(z4.string(), z4.string()),
-  sharedContext: z4.record(z4.unknown()),
-  status: z4.enum(["active", "paused", "completed"])
-});
-var CollaborationManager = class {
-  sessionsDir;
-  worktreesDir;
-  constructor() {
-    this.sessionsDir = join4(getDataDir(), "collaboration", "sessions");
-    this.worktreesDir = join4(getDataDir(), "collaboration", "worktrees");
-    if (!existsSync4(this.sessionsDir)) mkdirSync3(this.sessionsDir, { recursive: true });
-    if (!existsSync4(this.worktreesDir)) mkdirSync3(this.worktreesDir, { recursive: true });
-  }
-  /** Create a new collaboration session */
-  createSession(name, initialAgentId) {
-    const session = {
-      id: crypto.randomUUID(),
-      name,
-      createdAt: Date.now(),
-      participants: [initialAgentId],
-      worktrees: {},
-      sharedContext: {},
-      status: "active"
+var log3, CollaborationSessionSchema, CollaborationManager;
+var init_collaboration = __esm({
+  "../shared/src/collaboration.ts"() {
+    "use strict";
+    init_logger();
+    log3 = createLogger("collaboration");
+    CollaborationSessionSchema = z4.object({
+      id: z4.string(),
+      name: z4.string(),
+      createdAt: z4.number(),
+      participants: z4.array(z4.string()),
+      worktrees: z4.record(z4.string(), z4.string()),
+      sharedContext: z4.record(z4.unknown()),
+      status: z4.enum(["active", "paused", "completed"])
+    });
+    CollaborationManager = class {
+      sessionsDir;
+      worktreesDir;
+      constructor() {
+        this.sessionsDir = join4(getDataDir(), "collaboration", "sessions");
+        this.worktreesDir = join4(getDataDir(), "collaboration", "worktrees");
+        if (!existsSync4(this.sessionsDir)) mkdirSync3(this.sessionsDir, { recursive: true });
+        if (!existsSync4(this.worktreesDir)) mkdirSync3(this.worktreesDir, { recursive: true });
+      }
+      /** Create a new collaboration session */
+      createSession(name, initialAgentId) {
+        const session = {
+          id: crypto.randomUUID(),
+          name,
+          createdAt: Date.now(),
+          participants: [initialAgentId],
+          worktrees: {},
+          sharedContext: {},
+          status: "active"
+        };
+        this.saveSession(session);
+        log3.info("Created collaboration session", { sessionId: session.id, name });
+        return session;
+      }
+      /** Get a session by ID */
+      getSession(sessionId) {
+        const path2 = join4(this.sessionsDir, `${sessionId}.json`);
+        if (!existsSync4(path2)) return null;
+        try {
+          const raw = readFileSync3(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          return CollaborationSessionSchema.parse(parsed);
+        } catch (err) {
+          log3.warn("Failed to load session", { sessionId, error: String(err) });
+          return null;
+        }
+      }
+      /** List all sessions */
+      listSessions() {
+        if (!existsSync4(this.sessionsDir)) return [];
+        const sessions = [];
+        const files = readdirSync2(this.sessionsDir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".json")) continue;
+          const sessionId = file.name.slice(0, -5);
+          const session = this.getSession(sessionId);
+          if (session) sessions.push(session);
+        }
+        return sessions.sort((a, b) => b.createdAt - a.createdAt);
+      }
+      /** Add an agent to a session */
+      addParticipant(sessionId, agentId) {
+        const session = this.getSession(sessionId);
+        if (!session || session.participants.includes(agentId)) {
+          return false;
+        }
+        session.participants.push(agentId);
+        this.saveSession(session);
+        log3.info("Added participant to session", { sessionId, agentId });
+        return true;
+      }
+      /** Create a worktree for an agent in a session */
+      createWorktree(sessionId, agentId, _baseBranch = "main") {
+        const session = this.getSession(sessionId);
+        if (!session) return null;
+        const worktreeName = `${sessionId}-${agentId}`;
+        const worktreePath = join4(this.worktreesDir, worktreeName);
+        session.worktrees[agentId] = worktreePath;
+        this.saveSession(session);
+        log3.info("Created worktree for agent", { sessionId, agentId, worktreePath });
+        return worktreePath;
+      }
+      /** Update shared context for a session */
+      updateSharedContext(sessionId, updates) {
+        const session = this.getSession(sessionId);
+        if (!session) return false;
+        session.sharedContext = { ...session.sharedContext, ...updates };
+        this.saveSession(session);
+        return true;
+      }
+      /** Get shared context for a session */
+      getSharedContext(sessionId) {
+        const session = this.getSession(sessionId);
+        return session?.sharedContext || {};
+      }
+      /** Update session status */
+      updateSessionStatus(sessionId, status) {
+        const session = this.getSession(sessionId);
+        if (!session) return false;
+        session.status = status;
+        this.saveSession(session);
+        log3.info("Updated session status", { sessionId, status });
+        return true;
+      }
+      /** Delete a session and its worktrees */
+      deleteSession(sessionId) {
+        const session = this.getSession(sessionId);
+        if (!session) return false;
+        const sessionPath = join4(this.sessionsDir, `${sessionId}.json`);
+        try {
+          writeFileSync3(sessionPath, "");
+        } catch (err) {
+          log3.warn("Failed to delete session file", { sessionId, error: String(err) });
+        }
+        log3.info("Deleted collaboration session", { sessionId });
+        return true;
+      }
+      saveSession(session) {
+        const path2 = join4(this.sessionsDir, `${session.id}.json`);
+        try {
+          writeFileSync3(path2, JSON.stringify(session, null, 2), "utf8");
+        } catch (err) {
+          log3.error("Failed to save session", { sessionId: session.id, error: String(err) });
+        }
+      }
     };
-    this.saveSession(session);
-    log3.info("Created collaboration session", { sessionId: session.id, name });
-    return session;
   }
-  /** Get a session by ID */
-  getSession(sessionId) {
-    const path2 = join4(this.sessionsDir, `${sessionId}.json`);
-    if (!existsSync4(path2)) return null;
-    try {
-      const raw = readFileSync3(path2, "utf8");
-      const parsed = JSON.parse(raw);
-      return CollaborationSessionSchema.parse(parsed);
-    } catch (err) {
-      log3.warn("Failed to load session", { sessionId, error: String(err) });
-      return null;
-    }
-  }
-  /** List all sessions */
-  listSessions() {
-    if (!existsSync4(this.sessionsDir)) return [];
-    const sessions = [];
-    const files = readdirSync2(this.sessionsDir, { withFileTypes: true });
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith(".json")) continue;
-      const sessionId = file.name.slice(0, -5);
-      const session = this.getSession(sessionId);
-      if (session) sessions.push(session);
-    }
-    return sessions.sort((a, b) => b.createdAt - a.createdAt);
-  }
-  /** Add an agent to a session */
-  addParticipant(sessionId, agentId) {
-    const session = this.getSession(sessionId);
-    if (!session || session.participants.includes(agentId)) {
-      return false;
-    }
-    session.participants.push(agentId);
-    this.saveSession(session);
-    log3.info("Added participant to session", { sessionId, agentId });
-    return true;
-  }
-  /** Create a worktree for an agent in a session */
-  createWorktree(sessionId, agentId, _baseBranch = "main") {
-    const session = this.getSession(sessionId);
-    if (!session) return null;
-    const worktreeName = `${sessionId}-${agentId}`;
-    const worktreePath = join4(this.worktreesDir, worktreeName);
-    session.worktrees[agentId] = worktreePath;
-    this.saveSession(session);
-    log3.info("Created worktree for agent", { sessionId, agentId, worktreePath });
-    return worktreePath;
-  }
-  /** Update shared context for a session */
-  updateSharedContext(sessionId, updates) {
-    const session = this.getSession(sessionId);
-    if (!session) return false;
-    session.sharedContext = { ...session.sharedContext, ...updates };
-    this.saveSession(session);
-    return true;
-  }
-  /** Get shared context for a session */
-  getSharedContext(sessionId) {
-    const session = this.getSession(sessionId);
-    return session?.sharedContext || {};
-  }
-  /** Update session status */
-  updateSessionStatus(sessionId, status) {
-    const session = this.getSession(sessionId);
-    if (!session) return false;
-    session.status = status;
-    this.saveSession(session);
-    log3.info("Updated session status", { sessionId, status });
-    return true;
-  }
-  /** Delete a session and its worktrees */
-  deleteSession(sessionId) {
-    const session = this.getSession(sessionId);
-    if (!session) return false;
-    const sessionPath = join4(this.sessionsDir, `${sessionId}.json`);
-    try {
-      writeFileSync3(sessionPath, "");
-    } catch (err) {
-      log3.warn("Failed to delete session file", { sessionId, error: String(err) });
-    }
-    log3.info("Deleted collaboration session", { sessionId });
-    return true;
-  }
-  saveSession(session) {
-    const path2 = join4(this.sessionsDir, `${session.id}.json`);
-    try {
-      writeFileSync3(path2, JSON.stringify(session, null, 2), "utf8");
-    } catch (err) {
-      log3.error("Failed to save session", { sessionId: session.id, error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/web-mirror.ts
 import { existsSync as existsSync5, mkdirSync as mkdirSync4, readFileSync as readFileSync4, writeFileSync as writeFileSync4, readdirSync as readdirSync3 } from "fs";
 import { join as join5 } from "path";
 import { createServer } from "http";
 import { z as z5 } from "zod";
-var log4 = createLogger("web-mirror");
-var MirrorSessionSchema = z5.object({
-  id: z5.string(),
-  sessionId: z5.string(),
-  name: z5.string(),
-  createdAt: z5.number(),
-  port: z5.number(),
-  clients: z5.array(z5.object({
-    id: z5.string(),
-    type: z5.enum(["cli", "web"]),
-    connectedAt: z5.number(),
-    lastActivity: z5.number(),
-    metadata: z5.record(z5.unknown()).optional()
-  })),
-  state: z5.object({
-    messages: z5.array(z5.unknown()),
-    agents: z5.record(z5.unknown()),
-    cursors: z5.record(z5.object({
-      line: z5.number(),
-      column: z5.number(),
-      file: z5.string()
-    })),
-    ui: z5.object({
-      activePanel: z5.string().optional(),
-      scrollPosition: z5.number().optional(),
-      focusedInput: z5.boolean().optional()
-    })
-  })
-});
-var WebMirrorManager = class {
-  mirrorsDir;
-  servers = /* @__PURE__ */ new Map();
-  sessions = /* @__PURE__ */ new Map();
-  constructor() {
-    this.mirrorsDir = join5(getDataDir(), "collaboration", "mirrors");
-    if (!existsSync5(this.mirrorsDir)) mkdirSync4(this.mirrorsDir, { recursive: true });
-    this.loadExistingSessions();
-  }
-  /** Create a new mirror session for a collaboration session */
-  createMirror(sessionId, name) {
-    const mirror = {
-      id: crypto.randomUUID(),
-      sessionId,
-      name,
-      createdAt: Date.now(),
-      port: this.allocatePort(),
-      clients: [],
-      state: {
-        messages: [],
-        agents: {},
-        cursors: {},
-        ui: {}
+var log4, MirrorSessionSchema, WebMirrorManager;
+var init_web_mirror = __esm({
+  "../shared/src/web-mirror.ts"() {
+    "use strict";
+    init_logger();
+    log4 = createLogger("web-mirror");
+    MirrorSessionSchema = z5.object({
+      id: z5.string(),
+      sessionId: z5.string(),
+      name: z5.string(),
+      createdAt: z5.number(),
+      port: z5.number(),
+      clients: z5.array(z5.object({
+        id: z5.string(),
+        type: z5.enum(["cli", "web"]),
+        connectedAt: z5.number(),
+        lastActivity: z5.number(),
+        metadata: z5.record(z5.unknown()).optional()
+      })),
+      state: z5.object({
+        messages: z5.array(z5.unknown()),
+        agents: z5.record(z5.unknown()),
+        cursors: z5.record(z5.object({
+          line: z5.number(),
+          column: z5.number(),
+          file: z5.string()
+        })),
+        ui: z5.object({
+          activePanel: z5.string().optional(),
+          scrollPosition: z5.number().optional(),
+          focusedInput: z5.boolean().optional()
+        })
+      })
+    });
+    WebMirrorManager = class {
+      mirrorsDir;
+      servers = /* @__PURE__ */ new Map();
+      sessions = /* @__PURE__ */ new Map();
+      constructor() {
+        this.mirrorsDir = join5(getDataDir(), "collaboration", "mirrors");
+        if (!existsSync5(this.mirrorsDir)) mkdirSync4(this.mirrorsDir, { recursive: true });
+        this.loadExistingSessions();
       }
-    };
-    this.sessions.set(mirror.id, mirror);
-    this.saveMirror(mirror);
-    this.startMirrorServer(mirror);
-    log4.info("Created web mirror", { mirrorId: mirror.id, sessionId, port: mirror.port });
-    return mirror;
-  }
-  /** Get a mirror session by ID */
-  getMirror(mirrorId) {
-    return this.sessions.get(mirrorId) || null;
-  }
-  /** Get mirror by collaboration session ID */
-  getMirrorBySession(sessionId) {
-    for (const mirror of this.sessions.values()) {
-      if (mirror.sessionId === sessionId) return mirror;
-    }
-    return null;
-  }
-  /** Add a client to a mirror session */
-  addClient(mirrorId, clientType, metadata) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return null;
-    const client = {
-      id: crypto.randomUUID(),
-      type: clientType,
-      connectedAt: Date.now(),
-      lastActivity: Date.now(),
-      metadata
-    };
-    mirror.clients.push(client);
-    this.saveMirror(mirror);
-    this.broadcastClientUpdate(mirror, "join", client);
-    log4.info("Added client to mirror", { mirrorId, clientId: client.id, type: clientType });
-    return client.id;
-  }
-  /** Remove a client from a mirror session */
-  removeClient(mirrorId, clientId) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    const index = mirror.clients.findIndex((c) => c.id === clientId);
-    if (index === -1) return false;
-    const client = mirror.clients[index];
-    if (!client) return false;
-    const clientType = client.type;
-    mirror.clients.splice(index, 1);
-    this.saveMirror(mirror);
-    this.broadcastClientUpdate(mirror, "leave", client);
-    log4.info("Removed client from mirror", { mirrorId, clientId, type: clientType });
-    return true;
-  }
-  /** Update mirror state */
-  updateState(mirrorId, updates) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    mirror.state = { ...mirror.state, ...updates };
-    this.saveMirror(mirror);
-    this.broadcastStateUpdate(mirror);
-    return true;
-  }
-  /** Update cursor position for an agent */
-  updateCursor(mirrorId, agentId, position) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    mirror.state.cursors[agentId] = position;
-    this.saveMirror(mirror);
-    this.broadcastCursorUpdate(mirror, agentId, position);
-    return true;
-  }
-  /** Add a message to the mirror */
-  addMessage(mirrorId, message) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    mirror.state.messages.push(message);
-    this.saveMirror(mirror);
-    this.broadcastMessage(mirror, message);
-    return true;
-  }
-  /** Get mirror URL for web access */
-  getMirrorUrl(mirrorId) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return null;
-    return `http://localhost:${mirror.port}`;
-  }
-  /** Stop a mirror server */
-  stopMirror(mirrorId) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    const server = this.servers.get(mirrorId);
-    if (server) {
-      server.close();
-      this.servers.delete(mirrorId);
-    }
-    this.sessions.delete(mirrorId);
-    const mirrorPath = join5(this.mirrorsDir, `${mirrorId}.json`);
-    try {
-      writeFileSync4(mirrorPath, "");
-    } catch (err) {
-      log4.warn("Failed to delete mirror file", { mirrorId, error: String(err) });
-    }
-    log4.info("Stopped web mirror", { mirrorId });
-    return true;
-  }
-  allocatePort() {
-    const usedPorts = Array.from(this.sessions.values()).map((s) => s.port);
-    let port = 8080;
-    while (usedPorts.includes(port)) {
-      port++;
-    }
-    return port;
-  }
-  startMirrorServer(mirror) {
-    const server = createServer((_req, res) => {
-      res.writeHead(200, { "Content-Type": "text/html" });
-      res.end(this.generateWebUI(mirror));
-    });
-    server.listen(mirror.port, () => {
-      log4.info("Mirror server started", { mirrorId: mirror.id, port: mirror.port });
-    });
-    this.servers.set(mirror.id, server);
-  }
-  generateWebUI(mirror) {
-    return `
+      /** Create a new mirror session for a collaboration session */
+      createMirror(sessionId, name) {
+        const mirror = {
+          id: crypto.randomUUID(),
+          sessionId,
+          name,
+          createdAt: Date.now(),
+          port: this.allocatePort(),
+          clients: [],
+          state: {
+            messages: [],
+            agents: {},
+            cursors: {},
+            ui: {}
+          }
+        };
+        this.sessions.set(mirror.id, mirror);
+        this.saveMirror(mirror);
+        this.startMirrorServer(mirror);
+        log4.info("Created web mirror", { mirrorId: mirror.id, sessionId, port: mirror.port });
+        return mirror;
+      }
+      /** Get a mirror session by ID */
+      getMirror(mirrorId) {
+        return this.sessions.get(mirrorId) || null;
+      }
+      /** Get mirror by collaboration session ID */
+      getMirrorBySession(sessionId) {
+        for (const mirror of this.sessions.values()) {
+          if (mirror.sessionId === sessionId) return mirror;
+        }
+        return null;
+      }
+      /** Add a client to a mirror session */
+      addClient(mirrorId, clientType, metadata) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return null;
+        const client = {
+          id: crypto.randomUUID(),
+          type: clientType,
+          connectedAt: Date.now(),
+          lastActivity: Date.now(),
+          metadata
+        };
+        mirror.clients.push(client);
+        this.saveMirror(mirror);
+        this.broadcastClientUpdate(mirror, "join", client);
+        log4.info("Added client to mirror", { mirrorId, clientId: client.id, type: clientType });
+        return client.id;
+      }
+      /** Remove a client from a mirror session */
+      removeClient(mirrorId, clientId) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        const index = mirror.clients.findIndex((c) => c.id === clientId);
+        if (index === -1) return false;
+        const client = mirror.clients[index];
+        if (!client) return false;
+        const clientType = client.type;
+        mirror.clients.splice(index, 1);
+        this.saveMirror(mirror);
+        this.broadcastClientUpdate(mirror, "leave", client);
+        log4.info("Removed client from mirror", { mirrorId, clientId, type: clientType });
+        return true;
+      }
+      /** Update mirror state */
+      updateState(mirrorId, updates) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        mirror.state = { ...mirror.state, ...updates };
+        this.saveMirror(mirror);
+        this.broadcastStateUpdate(mirror);
+        return true;
+      }
+      /** Update cursor position for an agent */
+      updateCursor(mirrorId, agentId, position) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        mirror.state.cursors[agentId] = position;
+        this.saveMirror(mirror);
+        this.broadcastCursorUpdate(mirror, agentId, position);
+        return true;
+      }
+      /** Add a message to the mirror */
+      addMessage(mirrorId, message) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        mirror.state.messages.push(message);
+        this.saveMirror(mirror);
+        this.broadcastMessage(mirror, message);
+        return true;
+      }
+      /** Get mirror URL for web access */
+      getMirrorUrl(mirrorId) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return null;
+        return `http://localhost:${mirror.port}`;
+      }
+      /** Stop a mirror server */
+      stopMirror(mirrorId) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        const server = this.servers.get(mirrorId);
+        if (server) {
+          server.close();
+          this.servers.delete(mirrorId);
+        }
+        this.sessions.delete(mirrorId);
+        const mirrorPath = join5(this.mirrorsDir, `${mirrorId}.json`);
+        try {
+          writeFileSync4(mirrorPath, "");
+        } catch (err) {
+          log4.warn("Failed to delete mirror file", { mirrorId, error: String(err) });
+        }
+        log4.info("Stopped web mirror", { mirrorId });
+        return true;
+      }
+      allocatePort() {
+        const usedPorts = Array.from(this.sessions.values()).map((s) => s.port);
+        let port = 8080;
+        while (usedPorts.includes(port)) {
+          port++;
+        }
+        return port;
+      }
+      startMirrorServer(mirror) {
+        const server = createServer((_req, res) => {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(this.generateWebUI(mirror));
+        });
+        server.listen(mirror.port, () => {
+          log4.info("Mirror server started", { mirrorId: mirror.id, port: mirror.port });
+        });
+        this.servers.set(mirror.id, server);
+      }
+      generateWebUI(mirror) {
+        return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -761,209 +814,216 @@ var WebMirrorManager = class {
     </script>
 </body>
 </html>`;
-  }
-  broadcastClientUpdate(mirror, action, client) {
-    log4.debug("Broadcasting client update", { mirrorId: mirror.id, action, clientId: client.id });
-  }
-  broadcastStateUpdate(mirror) {
-    log4.debug("Broadcasting state update", { mirrorId: mirror.id });
-  }
-  broadcastCursorUpdate(mirror, agentId, position) {
-    log4.debug("Broadcasting cursor update", { mirrorId: mirror.id, agentId, position });
-  }
-  broadcastMessage(mirror, message) {
-    log4.debug("Broadcasting message", { mirrorId: mirror.id, messageRole: message.role });
-  }
-  loadExistingSessions() {
-    if (!existsSync5(this.mirrorsDir)) return;
-    const files = readdirSync3(this.mirrorsDir, { withFileTypes: true });
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith(".json")) continue;
-      const mirrorId = file.name.slice(0, -5);
-      const path2 = join5(this.mirrorsDir, file.name);
-      try {
-        const raw = readFileSync4(path2, "utf8");
-        const parsed = JSON.parse(raw);
-        const mirror = MirrorSessionSchema.parse(parsed);
-        this.sessions.set(mirrorId, mirror);
-      } catch (err) {
-        log4.warn("Failed to load mirror session", { mirrorId, error: String(err) });
       }
-    }
+      broadcastClientUpdate(mirror, action, client) {
+        log4.debug("Broadcasting client update", { mirrorId: mirror.id, action, clientId: client.id });
+      }
+      broadcastStateUpdate(mirror) {
+        log4.debug("Broadcasting state update", { mirrorId: mirror.id });
+      }
+      broadcastCursorUpdate(mirror, agentId, position) {
+        log4.debug("Broadcasting cursor update", { mirrorId: mirror.id, agentId, position });
+      }
+      broadcastMessage(mirror, message) {
+        log4.debug("Broadcasting message", { mirrorId: mirror.id, messageRole: message.role });
+      }
+      loadExistingSessions() {
+        if (!existsSync5(this.mirrorsDir)) return;
+        const files = readdirSync3(this.mirrorsDir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".json")) continue;
+          const mirrorId = file.name.slice(0, -5);
+          const path2 = join5(this.mirrorsDir, file.name);
+          try {
+            const raw = readFileSync4(path2, "utf8");
+            const parsed = JSON.parse(raw);
+            const mirror = MirrorSessionSchema.parse(parsed);
+            this.sessions.set(mirrorId, mirror);
+          } catch (err) {
+            log4.warn("Failed to load mirror session", { mirrorId, error: String(err) });
+          }
+        }
+      }
+      saveMirror(mirror) {
+        const path2 = join5(this.mirrorsDir, `${mirror.id}.json`);
+        try {
+          writeFileSync4(path2, JSON.stringify(mirror, null, 2), "utf8");
+        } catch (err) {
+          log4.error("Failed to save mirror", { mirrorId: mirror.id, error: String(err) });
+        }
+      }
+    };
   }
-  saveMirror(mirror) {
-    const path2 = join5(this.mirrorsDir, `${mirror.id}.json`);
-    try {
-      writeFileSync4(path2, JSON.stringify(mirror, null, 2), "utf8");
-    } catch (err) {
-      log4.error("Failed to save mirror", { mirrorId: mirror.id, error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/rich-io.ts
 import { existsSync as existsSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync5, writeFileSync as writeFileSync5 } from "fs";
 import { join as join6 } from "path";
 import { z as z6 } from "zod";
-var log5 = createLogger("rich-io");
-var CostMetricsSchema = z6.object({
-  totalTokens: z6.number(),
-  totalCost: z6.number(),
-  modelBreakdown: z6.record(z6.object({
-    tokens: z6.number(),
-    cost: z6.number()
-  })),
-  sessionStart: z6.number(),
-  lastUpdate: z6.number()
-});
-var RichIOManager = class {
-  dataDir;
-  imagesDir;
-  screenshotsDir;
-  costMetrics;
-  constructor() {
-    this.dataDir = getDataDir();
-    this.imagesDir = join6(this.dataDir, "images");
-    this.screenshotsDir = join6(this.dataDir, "screenshots");
-    if (!existsSync6(this.imagesDir)) mkdirSync5(this.imagesDir, { recursive: true });
-    if (!existsSync6(this.screenshotsDir)) mkdirSync5(this.screenshotsDir, { recursive: true });
-    this.costMetrics = this.loadCostMetrics();
-  }
-  /** Process and store an image from various sources */
-  async processImage(input, alt, caption) {
-    let src;
-    if (typeof input === "string") {
-      if (input.startsWith("data:")) {
-        src = input;
-      } else if (input.startsWith("http")) {
-        src = input;
-        log5.info("Image URL provided", { url: input });
-      } else {
-        if (!existsSync6(input)) {
-          throw new Error(`Image file not found: ${input}`);
-        }
-        const buffer = readFileSync5(input);
-        const base64 = buffer.toString("base64");
-        const mimeType = this.getMimeType(input);
-        src = `data:${mimeType};base64,${base64}`;
+var log5, CostMetricsSchema, RichIOManager;
+var init_rich_io = __esm({
+  "../shared/src/rich-io.ts"() {
+    "use strict";
+    init_logger();
+    log5 = createLogger("rich-io");
+    CostMetricsSchema = z6.object({
+      totalTokens: z6.number(),
+      totalCost: z6.number(),
+      modelBreakdown: z6.record(z6.object({
+        tokens: z6.number(),
+        cost: z6.number()
+      })),
+      sessionStart: z6.number(),
+      lastUpdate: z6.number()
+    });
+    RichIOManager = class {
+      dataDir;
+      imagesDir;
+      screenshotsDir;
+      costMetrics;
+      constructor() {
+        this.dataDir = getDataDir();
+        this.imagesDir = join6(this.dataDir, "images");
+        this.screenshotsDir = join6(this.dataDir, "screenshots");
+        if (!existsSync6(this.imagesDir)) mkdirSync5(this.imagesDir, { recursive: true });
+        if (!existsSync6(this.screenshotsDir)) mkdirSync5(this.screenshotsDir, { recursive: true });
+        this.costMetrics = this.loadCostMetrics();
       }
-    } else {
-      const base64 = input.toString("base64");
-      src = "data:image/png;base64," + base64;
-    }
-    const image = {
-      type: "image",
-      src,
-      alt,
-      caption
-    };
-    log5.info("Processed image", { alt, hasCaption: !!caption });
-    return image;
-  }
-  /** Create a mermaid diagram */
-  createMermaidDiagram(code, title, theme = "default") {
-    const diagram = {
-      type: "mermaid",
-      code,
-      title,
-      theme
-    };
-    log5.info("Created mermaid diagram", { title, theme, codeLength: code.length });
-    return diagram;
-  }
-  /** Update cost metrics */
-  updateCostMetrics(model, tokens, cost) {
-    this.costMetrics.totalTokens += tokens;
-    this.costMetrics.totalCost += cost;
-    if (!this.costMetrics.modelBreakdown[model]) {
-      this.costMetrics.modelBreakdown[model] = { tokens: 0, cost: 0 };
-    }
-    this.costMetrics.modelBreakdown[model].tokens += tokens;
-    this.costMetrics.modelBreakdown[model].cost += cost;
-    this.costMetrics.lastUpdate = Date.now();
-    this.saveCostMetrics();
-    log5.debug("Updated cost metrics", { model, tokens, cost, totalCost: this.costMetrics.totalCost });
-  }
-  /** Get current cost metrics */
-  getCostMetrics() {
-    return { ...this.costMetrics };
-  }
-  /** Get cost formatted as string */
-  getCostString() {
-    const { totalCost, totalTokens } = this.costMetrics;
-    const duration = Date.now() - this.costMetrics.sessionStart;
-    const minutes = Math.floor(duration / 6e4);
-    return `$${totalCost.toFixed(4)} \u2022 ${totalTokens.toLocaleString()} tokens \u2022 ${minutes}m`;
-  }
-  /** Get default hotkey bindings */
-  getDefaultHotkeys() {
-    return [
-      // Navigation
-      { key: "k", modifiers: ["ctrl"], action: "clear", description: "Clear screen", category: "navigation" },
-      { key: "c", modifiers: ["ctrl"], action: "exit", description: "Exit CyberMind", category: "navigation" },
-      { key: "/", modifiers: [], action: "focus-input", description: "Focus input", category: "navigation" },
-      { key: "ArrowUp", modifiers: ["ctrl"], action: "history-prev", description: "Previous command", category: "navigation" },
-      { key: "ArrowDown", modifiers: ["ctrl"], action: "history-next", description: "Next command", category: "navigation" },
-      // Editing
-      { key: "l", modifiers: ["ctrl"], action: "clear-input", description: "Clear input", category: "editing" },
-      { key: "a", modifiers: ["ctrl"], action: "select-all", description: "Select all", category: "editing" },
-      { key: "z", modifiers: ["ctrl"], action: "undo", description: "Undo", category: "editing" },
-      { key: "y", modifiers: ["ctrl"], action: "redo", description: "Redo", category: "editing" },
-      // Session
-      { key: "s", modifiers: ["ctrl"], action: "save-session", description: "Save session", category: "session" },
-      { key: "r", modifiers: ["ctrl"], action: "rewind", description: "Open rewind menu", category: "session" },
-      { key: "p", modifiers: ["ctrl"], action: "profile", description: "Switch profile", category: "session" },
-      // Tools
-      { key: "t", modifiers: ["ctrl"], action: "trust", description: "Trust settings", category: "tools" },
-      { key: "m", modifiers: ["ctrl"], action: "model", description: "Model settings", category: "tools" },
-      { key: "h", modifiers: ["ctrl"], action: "help", description: "Show help", category: "tools" }
-    ];
-  }
-  /** Show hotkey palette */
-  getHotkeyPalette() {
-    const hotkeys = this.getDefaultHotkeys();
-    const grouped = /* @__PURE__ */ new Map();
-    for (const hotkey of hotkeys) {
-      if (!grouped.has(hotkey.category)) {
-        grouped.set(hotkey.category, []);
-      }
-      grouped.get(hotkey.category).push(hotkey);
-    }
-    return Array.from(grouped.entries()).map(([category, bindings]) => ({
-      category: category.charAt(0).toUpperCase() + category.slice(1),
-      bindings: bindings.sort((a, b) => a.key.localeCompare(b.key))
-    }));
-  }
-  /** Analyze a screenshot */
-  async analyzeScreenshot(imagePath) {
-    if (!existsSync6(imagePath)) {
-      throw new Error(`Screenshot file not found: ${imagePath}`);
-    }
-    const analysis = {
-      type: "screenshot",
-      imagePath,
-      analysis: {
-        description: "Screenshot captured successfully",
-        elements: [
-          {
-            type: "window",
-            description: "Application window",
-            position: { x: 0, y: 0, width: 1920, height: 1080 }
+      /** Process and store an image from various sources */
+      async processImage(input, alt, caption) {
+        let src;
+        if (typeof input === "string") {
+          if (input.startsWith("data:")) {
+            src = input;
+          } else if (input.startsWith("http")) {
+            src = input;
+            log5.info("Image URL provided", { url: input });
+          } else {
+            if (!existsSync6(input)) {
+              throw new Error(`Image file not found: ${input}`);
+            }
+            const buffer = readFileSync5(input);
+            const base64 = buffer.toString("base64");
+            const mimeType = this.getMimeType(input);
+            src = `data:${mimeType};base64,${base64}`;
           }
-        ],
-        suggestions: [
-          "Consider using this screenshot as reference for UI development",
-          "You can ask questions about specific elements in the image"
-        ]
-      },
-      timestamp: Date.now()
-    };
-    log5.info("Analyzed screenshot", { imagePath, elementCount: analysis.analysis.elements.length });
-    return analysis;
-  }
-  /** Generate mobile-responsive HTML for content */
-  generateMobileHTML(content, images, diagrams) {
-    return `
+        } else {
+          const base64 = input.toString("base64");
+          src = "data:image/png;base64," + base64;
+        }
+        const image = {
+          type: "image",
+          src,
+          alt,
+          caption
+        };
+        log5.info("Processed image", { alt, hasCaption: !!caption });
+        return image;
+      }
+      /** Create a mermaid diagram */
+      createMermaidDiagram(code, title, theme = "default") {
+        const diagram = {
+          type: "mermaid",
+          code,
+          title,
+          theme
+        };
+        log5.info("Created mermaid diagram", { title, theme, codeLength: code.length });
+        return diagram;
+      }
+      /** Update cost metrics */
+      updateCostMetrics(model, tokens, cost) {
+        this.costMetrics.totalTokens += tokens;
+        this.costMetrics.totalCost += cost;
+        if (!this.costMetrics.modelBreakdown[model]) {
+          this.costMetrics.modelBreakdown[model] = { tokens: 0, cost: 0 };
+        }
+        this.costMetrics.modelBreakdown[model].tokens += tokens;
+        this.costMetrics.modelBreakdown[model].cost += cost;
+        this.costMetrics.lastUpdate = Date.now();
+        this.saveCostMetrics();
+        log5.debug("Updated cost metrics", { model, tokens, cost, totalCost: this.costMetrics.totalCost });
+      }
+      /** Get current cost metrics */
+      getCostMetrics() {
+        return { ...this.costMetrics };
+      }
+      /** Get cost formatted as string */
+      getCostString() {
+        const { totalCost, totalTokens } = this.costMetrics;
+        const duration = Date.now() - this.costMetrics.sessionStart;
+        const minutes = Math.floor(duration / 6e4);
+        return `$${totalCost.toFixed(4)} \u2022 ${totalTokens.toLocaleString()} tokens \u2022 ${minutes}m`;
+      }
+      /** Get default hotkey bindings */
+      getDefaultHotkeys() {
+        return [
+          // Navigation
+          { key: "k", modifiers: ["ctrl"], action: "clear", description: "Clear screen", category: "navigation" },
+          { key: "c", modifiers: ["ctrl"], action: "exit", description: "Exit CyberMind", category: "navigation" },
+          { key: "/", modifiers: [], action: "focus-input", description: "Focus input", category: "navigation" },
+          { key: "ArrowUp", modifiers: ["ctrl"], action: "history-prev", description: "Previous command", category: "navigation" },
+          { key: "ArrowDown", modifiers: ["ctrl"], action: "history-next", description: "Next command", category: "navigation" },
+          // Editing
+          { key: "l", modifiers: ["ctrl"], action: "clear-input", description: "Clear input", category: "editing" },
+          { key: "a", modifiers: ["ctrl"], action: "select-all", description: "Select all", category: "editing" },
+          { key: "z", modifiers: ["ctrl"], action: "undo", description: "Undo", category: "editing" },
+          { key: "y", modifiers: ["ctrl"], action: "redo", description: "Redo", category: "editing" },
+          // Session
+          { key: "s", modifiers: ["ctrl"], action: "save-session", description: "Save session", category: "session" },
+          { key: "r", modifiers: ["ctrl"], action: "rewind", description: "Open rewind menu", category: "session" },
+          { key: "p", modifiers: ["ctrl"], action: "profile", description: "Switch profile", category: "session" },
+          // Tools
+          { key: "t", modifiers: ["ctrl"], action: "trust", description: "Trust settings", category: "tools" },
+          { key: "m", modifiers: ["ctrl"], action: "model", description: "Model settings", category: "tools" },
+          { key: "h", modifiers: ["ctrl"], action: "help", description: "Show help", category: "tools" }
+        ];
+      }
+      /** Show hotkey palette */
+      getHotkeyPalette() {
+        const hotkeys = this.getDefaultHotkeys();
+        const grouped = /* @__PURE__ */ new Map();
+        for (const hotkey of hotkeys) {
+          if (!grouped.has(hotkey.category)) {
+            grouped.set(hotkey.category, []);
+          }
+          grouped.get(hotkey.category).push(hotkey);
+        }
+        return Array.from(grouped.entries()).map(([category, bindings]) => ({
+          category: category.charAt(0).toUpperCase() + category.slice(1),
+          bindings: bindings.sort((a, b) => a.key.localeCompare(b.key))
+        }));
+      }
+      /** Analyze a screenshot */
+      async analyzeScreenshot(imagePath) {
+        if (!existsSync6(imagePath)) {
+          throw new Error(`Screenshot file not found: ${imagePath}`);
+        }
+        const analysis = {
+          type: "screenshot",
+          imagePath,
+          analysis: {
+            description: "Screenshot captured successfully",
+            elements: [
+              {
+                type: "window",
+                description: "Application window",
+                position: { x: 0, y: 0, width: 1920, height: 1080 }
+              }
+            ],
+            suggestions: [
+              "Consider using this screenshot as reference for UI development",
+              "You can ask questions about specific elements in the image"
+            ]
+          },
+          timestamp: Date.now()
+        };
+        log5.info("Analyzed screenshot", { imagePath, elementCount: analysis.analysis.elements.length });
+        return analysis;
+      }
+      /** Generate mobile-responsive HTML for content */
+      generateMobileHTML(content, images, diagrams) {
+        return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1047,577 +1107,4326 @@ var RichIOManager = class {
     <script>mermaid.initialize({ theme: 'dark' });</script>
 </body>
 </html>`;
-  }
-  getMimeType(filePath) {
-    const ext = filePath.toLowerCase().split(".").pop();
-    const mimeTypes = {
-      "jpg": "image/jpeg",
-      "jpeg": "image/jpeg",
-      "png": "image/png",
-      "gif": "image/gif",
-      "webp": "image/webp",
-      "svg": "image/svg+xml"
+      }
+      getMimeType(filePath) {
+        const ext = filePath.toLowerCase().split(".").pop();
+        const mimeTypes = {
+          "jpg": "image/jpeg",
+          "jpeg": "image/jpeg",
+          "png": "image/png",
+          "gif": "image/gif",
+          "webp": "image/webp",
+          "svg": "image/svg+xml"
+        };
+        return mimeTypes[ext || ""] || "image/png";
+      }
+      loadCostMetrics() {
+        const path2 = join6(this.dataDir, "cost-metrics.json");
+        if (!existsSync6(path2)) {
+          const metrics = {
+            totalTokens: 0,
+            totalCost: 0,
+            modelBreakdown: {},
+            sessionStart: Date.now(),
+            lastUpdate: Date.now()
+          };
+          writeFileSync5(path2, JSON.stringify(metrics, null, 2), "utf8");
+          return metrics;
+        }
+        try {
+          const raw = readFileSync5(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          return CostMetricsSchema.parse(parsed);
+        } catch (err) {
+          log5.warn("Failed to load cost metrics, using defaults", { error: String(err) });
+          return {
+            totalTokens: 0,
+            totalCost: 0,
+            modelBreakdown: {},
+            sessionStart: Date.now(),
+            lastUpdate: Date.now()
+          };
+        }
+      }
+      saveCostMetrics() {
+        const path2 = join6(this.dataDir, "cost-metrics.json");
+        try {
+          writeFileSync5(path2, JSON.stringify(this.costMetrics, null, 2), "utf8");
+        } catch (err) {
+          log5.error("Failed to save cost metrics", { error: String(err) });
+        }
+      }
     };
-    return mimeTypes[ext || ""] || "image/png";
   }
-  loadCostMetrics() {
-    const path2 = join6(this.dataDir, "cost-metrics.json");
-    if (!existsSync6(path2)) {
-      const metrics = {
-        totalTokens: 0,
-        totalCost: 0,
-        modelBreakdown: {},
-        sessionStart: Date.now(),
-        lastUpdate: Date.now()
-      };
-      writeFileSync5(path2, JSON.stringify(metrics, null, 2), "utf8");
-      return metrics;
-    }
-    try {
-      const raw = readFileSync5(path2, "utf8");
-      const parsed = JSON.parse(raw);
-      return CostMetricsSchema.parse(parsed);
-    } catch (err) {
-      log5.warn("Failed to load cost metrics, using defaults", { error: String(err) });
-      return {
-        totalTokens: 0,
-        totalCost: 0,
-        modelBreakdown: {},
-        sessionStart: Date.now(),
-        lastUpdate: Date.now()
-      };
-    }
-  }
-  saveCostMetrics() {
-    const path2 = join6(this.dataDir, "cost-metrics.json");
-    try {
-      writeFileSync5(path2, JSON.stringify(this.costMetrics, null, 2), "utf8");
-    } catch (err) {
-      log5.error("Failed to save cost metrics", { error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/ecosystem.ts
 import { existsSync as existsSync7, mkdirSync as mkdirSync6, readFileSync as readFileSync6, writeFileSync as writeFileSync6 } from "fs";
 import { join as join7 } from "path";
 import { z as z7 } from "zod";
-var log6 = createLogger("ecosystem");
-var TelemetrySettingsSchema = z7.object({
-  enabled: z7.boolean(),
-  level: z7.enum(["minimal", "basic", "detailed"]),
-  dataRetention: z7.number(),
-  shareUsageStats: z7.boolean(),
-  shareErrorReports: z7.boolean(),
-  sharePerformanceMetrics: z7.boolean()
+var log6, TelemetrySettingsSchema, EcosystemManager;
+var init_ecosystem = __esm({
+  "../shared/src/ecosystem.ts"() {
+    "use strict";
+    init_logger();
+    log6 = createLogger("ecosystem");
+    TelemetrySettingsSchema = z7.object({
+      enabled: z7.boolean(),
+      level: z7.enum(["minimal", "basic", "detailed"]),
+      dataRetention: z7.number(),
+      shareUsageStats: z7.boolean(),
+      shareErrorReports: z7.boolean(),
+      sharePerformanceMetrics: z7.boolean()
+    });
+    EcosystemManager = class {
+      dataDir;
+      mcpDir;
+      skillsDir;
+      telemetrySettings;
+      constructor() {
+        this.dataDir = getDataDir();
+        this.mcpDir = join7(this.dataDir, "mcp");
+        this.skillsDir = join7(this.dataDir, "skills");
+        if (!existsSync7(this.mcpDir)) mkdirSync6(this.mcpDir, { recursive: true });
+        if (!existsSync7(this.skillsDir)) mkdirSync6(this.skillsDir, { recursive: true });
+        this.telemetrySettings = this.loadTelemetrySettings();
+      }
+      // MCP Marketplace Functions
+      async searchMCPServers(query, tags) {
+        const servers = this.getAvailableMCPServers();
+        return servers.filter((server) => {
+          const matchesQuery = !query || server.name.toLowerCase().includes(query.toLowerCase()) || server.description.toLowerCase().includes(query.toLowerCase());
+          const matchesTags = !tags || tags.length === 0 || tags.some((tag) => server.tags.includes(tag));
+          return matchesQuery && matchesTags;
+        });
+      }
+      getAvailableMCPServers() {
+        const builtInServers = this.getBuiltInMCPServers();
+        const installedServers = this.getInstalledMCPServers();
+        return [...builtInServers, ...installedServers];
+      }
+      async installMCPServer(serverId) {
+        const servers = this.getAvailableMCPServers();
+        const server = servers.find((s) => s.id === serverId);
+        if (!server) {
+          log6.warn("MCP server not found", { serverId });
+          return false;
+        }
+        if (server.installed) {
+          log6.info("MCP server already installed", { serverId });
+          return true;
+        }
+        server.installed = true;
+        server.lastUpdated = Date.now();
+        this.saveMCPServer(server);
+        log6.info("MCP server installed", { serverId, name: server.name });
+        return true;
+      }
+      async uninstallMCPServer(serverId) {
+        const server = this.getMCPServer(serverId);
+        if (!server) return false;
+        server.installed = false;
+        server.lastUpdated = Date.now();
+        this.saveMCPServer(server);
+        log6.info("MCP server uninstalled", { serverId });
+        return true;
+      }
+      // Skill Marketplace Functions
+      async searchSkills(query, category, tags) {
+        const skills = this.getAvailableSkills();
+        return skills.filter((skill) => {
+          const matchesQuery = !query || skill.name.toLowerCase().includes(query.toLowerCase()) || skill.description.toLowerCase().includes(query.toLowerCase());
+          const matchesCategory = !category || skill.category === category;
+          const matchesTags = !tags || tags.length === 0 || tags.some((tag) => skill.tags.includes(tag));
+          return matchesQuery && matchesCategory && matchesTags;
+        });
+      }
+      getAvailableSkills() {
+        const seedSkills = this.getSeedSkills();
+        const installedSkills = this.getInstalledSkills();
+        return [...seedSkills, ...installedSkills];
+      }
+      async installSkill(skillId) {
+        const skills = this.getAvailableSkills();
+        const skill = skills.find((s) => s.id === skillId);
+        if (!skill) {
+          log6.warn("Skill not found", { skillId });
+          return false;
+        }
+        if (skill.installed) {
+          log6.info("Skill already installed", { skillId });
+          return true;
+        }
+        if (skill.dependencies) {
+          for (const depId of skill.dependencies) {
+            const dep = this.getSkill(depId);
+            if (!dep || !dep.installed) {
+              log6.warn("Skill dependency not installed", { skillId, dependency: depId });
+              return false;
+            }
+          }
+        }
+        skill.installed = true;
+        skill.lastUpdated = Date.now();
+        skill.downloadCount++;
+        this.saveSkill(skill);
+        log6.info("Skill installed", { skillId, name: skill.name });
+        return true;
+      }
+      async uninstallSkill(skillId) {
+        const skill = this.getSkill(skillId);
+        if (!skill) return false;
+        skill.installed = false;
+        skill.lastUpdated = Date.now();
+        this.saveSkill(skill);
+        log6.info("Skill uninstalled", { skillId });
+        return true;
+      }
+      // Telemetry Functions
+      getTelemetrySettings() {
+        return { ...this.telemetrySettings };
+      }
+      updateTelemetrySettings(settings) {
+        this.telemetrySettings = { ...this.telemetrySettings, ...settings };
+        this.saveTelemetrySettings();
+        log6.info("Telemetry settings updated", { enabled: this.telemetrySettings.enabled });
+      }
+      isTelemetryEnabled() {
+        return this.telemetrySettings.enabled;
+      }
+      recordUsage(event2, _data) {
+        if (!this.telemetrySettings.enabled) return;
+        log6.debug("Usage recorded", { event: event2, level: this.telemetrySettings.level });
+      }
+      // Private helper methods
+      getBuiltInMCPServers() {
+        return [
+          {
+            id: "filesystem",
+            name: "Filesystem MCP",
+            description: "File system operations and management",
+            version: "1.0.0",
+            author: "CyberMind",
+            tags: ["filesystem", "files", "storage"],
+            installed: true,
+            lastUpdated: Date.now()
+          },
+          {
+            id: "database",
+            name: "Database MCP",
+            description: "Database connections and queries",
+            version: "1.0.0",
+            author: "CyberMind",
+            tags: ["database", "sql", "storage"],
+            installed: false,
+            lastUpdated: Date.now()
+          },
+          {
+            id: "web-api",
+            name: "Web API MCP",
+            description: "HTTP requests and API interactions",
+            version: "1.0.0",
+            author: "CyberMind",
+            tags: ["api", "http", "web"],
+            installed: false,
+            lastUpdated: Date.now()
+          }
+        ];
+      }
+      getSeedSkills() {
+        return [
+          // Development Skills (20)
+          { id: "code-analyzer", name: "Code Analyzer", description: "Analyze code quality and structure", version: "1.0.0", author: "CyberMind", category: "development", tags: ["analysis", "quality"], installed: false, lastUpdated: Date.now(), downloadCount: 1250, rating: 4.5 },
+          { id: "refactor-assistant", name: "Refactor Assistant", description: "Intelligent code refactoring suggestions", version: "1.0.0", author: "CyberMind", category: "development", tags: ["refactor", "cleanup"], installed: false, lastUpdated: Date.now(), downloadCount: 980, rating: 4.7 },
+          { id: "debug-helper", name: "Debug Helper", description: "Debugging assistance and issue diagnosis", version: "1.0.0", author: "CyberMind", category: "development", tags: ["debug", "troubleshoot"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
+          { id: "test-generator", name: "Test Generator", description: "Generate unit and integration tests", version: "1.0.0", author: "CyberMind", category: "development", tags: ["testing", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 1500, rating: 4.8 },
+          { id: "api-designer", name: "API Designer", description: "Design and document REST APIs", version: "1.0.0", author: "CyberMind", category: "development", tags: ["api", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.4 },
+          // Design Skills (15)
+          { id: "ui-mockup", name: "UI Mockup Generator", description: "Create user interface mockups", version: "1.0.0", author: "CyberMind", category: "design", tags: ["ui", "mockup"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.5 },
+          { id: "color-palette", name: "Color Palette Creator", description: "Generate color schemes and palettes", version: "1.0.0", author: "CyberMind", category: "design", tags: ["colors", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.3 },
+          { id: "typography", name: "Typography Advisor", description: "Typography recommendations and pairings", version: "1.0.0", author: "CyberMind", category: "design", tags: ["fonts", "typography"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.2 },
+          { id: "layout-designer", name: "Layout Designer", description: "Create responsive layout designs", version: "1.0.0", author: "CyberMind", category: "design", tags: ["layout", "responsive"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.6 },
+          { id: "icon-generator", name: "Icon Generator", description: "Generate custom icons and symbols", version: "1.0.0", author: "CyberMind", category: "design", tags: ["icons", "graphics"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.4 },
+          // Testing Skills (10)
+          { id: "e2e-tester", name: "E2E Test Generator", description: "Generate end-to-end test scenarios", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["e2e", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.5 },
+          { id: "performance-tester", name: "Performance Tester", description: "Create performance and load tests", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["performance", "load"], installed: false, lastUpdated: Date.now(), downloadCount: 540, rating: 4.3 },
+          { id: "security-scanner", name: "Security Scanner", description: "Security vulnerability scanning", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["security", "scan"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
+          { id: "accessibility-tester", name: "Accessibility Tester", description: "Test for accessibility compliance", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["a11y", "compliance"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.4 },
+          { id: "compatibility-tester", name: "Compatibility Tester", description: "Cross-browser compatibility testing", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["compatibility", "browser"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.2 },
+          // Deployment Skills (10)
+          { id: "docker-generator", name: "Docker Generator", description: "Generate Docker configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["docker", "containers"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
+          { id: "kubernetes-deployer", name: "Kubernetes Deployer", description: "Kubernetes deployment manifests", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["k8s", "orchestration"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.5 },
+          { id: "ci-cd-pipeline", name: "CI/CD Pipeline", description: "Generate CI/CD pipeline configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cicd", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.7 },
+          { id: "cloud-deployer", name: "Cloud Deployer", description: "Cloud deployment configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cloud", "deploy"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.4 },
+          { id: "env-manager", name: "Environment Manager", description: "Manage deployment environments", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["environment", "config"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
+          // Monitoring Skills (5)
+          { id: "log-analyzer", name: "Log Analyzer", description: "Analyze and parse application logs", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["logs", "analysis"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
+          { id: "metrics-collector", name: "Metrics Collector", description: "Collect and visualize metrics", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["metrics", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
+          { id: "alert-manager", name: "Alert Manager", description: "Configure alerts and notifications", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["alerts", "notifications"], installed: false, lastUpdated: Date.now(), downloadCount: 340, rating: 4.3 },
+          { id: "health-checker", name: "Health Checker", description: "Application health monitoring", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["health", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.5 },
+          { id: "uptime-monitor", name: "Uptime Monitor", description: "Monitor service uptime and availability", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["uptime", "availability"], installed: false, lastUpdated: Date.now(), downloadCount: 290, rating: 4.1 },
+          // Security Skills (5)
+          { id: "vulnerability-scanner", name: "Vulnerability Scanner", description: "Scan for security vulnerabilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["security", "vulnerability"], installed: false, lastUpdated: Date.now(), downloadCount: 680, rating: 4.6 },
+          { id: "password-manager", name: "Password Manager", description: "Generate and manage secure passwords", version: "1.0.0", author: "CyberMind", category: "security", tags: ["passwords", "security"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.3 },
+          { id: "encryption-helper", name: "Encryption Helper", description: "Encryption and decryption utilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["encryption", "crypto"], installed: false, lastUpdated: Date.now(), downloadCount: 320, rating: 4.4 },
+          { id: "audit-logger", name: "Audit Logger", description: "Security audit logging", version: "1.0.0", author: "CyberMind", category: "security", tags: ["audit", "logging"], installed: false, lastUpdated: Date.now(), downloadCount: 280, rating: 4.2 },
+          { id: "compliance-checker", name: "Compliance Checker", description: "Check regulatory compliance", version: "1.0.0", author: "CyberMind", category: "security", tags: ["compliance", "regulation"], installed: false, lastUpdated: Date.now(), downloadCount: 360, rating: 4.3 },
+          // Data Skills (5)
+          { id: "data-visualizer", name: "Data Visualizer", description: "Create data visualizations and charts", version: "1.0.0", author: "CyberMind", category: "data", tags: ["visualization", "charts"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.5 },
+          { id: "etl-pipeline", name: "ETL Pipeline", description: "Design ETL data pipelines", version: "1.0.0", author: "CyberMind", category: "data", tags: ["etl", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
+          { id: "data-cleaner", name: "Data Cleaner", description: "Clean and preprocess data", version: "1.0.0", author: "CyberMind", category: "data", tags: ["cleaning", "preprocessing"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
+          { id: "schema-designer", name: "Schema Designer", description: "Design database schemas", version: "1.0.0", author: "CyberMind", category: "data", tags: ["schema", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.6 },
+          { id: "migration-tool", name: "Migration Tool", description: "Database migration assistance", version: "1.0.0", author: "CyberMind", category: "data", tags: ["migration", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
+          // AI Skills (5)
+          { id: "ml-model-trainer", name: "ML Model Trainer", description: "Train machine learning models", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["ml", "training"], installed: false, lastUpdated: Date.now(), downloadCount: 580, rating: 4.5 },
+          { id: "prompt-engineer", name: "Prompt Engineer", description: "Optimize AI prompts", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["prompt", "ai"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
+          { id: "model-evaluator", name: "Model Evaluator", description: "Evaluate AI model performance", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["evaluation", "metrics"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.4 },
+          { id: "data-augmenter", name: "Data Augmenter", description: "Augment training data", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["augmentation", "data"], installed: false, lastUpdated: Date.now(), downloadCount: 350, rating: 4.3 },
+          { id: "ai-deployer", name: "AI Deployer", description: "Deploy AI models to production", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["deployment", "production"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.5 }
+        ];
+      }
+      getMCPServer(serverId) {
+        const servers = this.getAvailableMCPServers();
+        return servers.find((s) => s.id === serverId) || null;
+      }
+      getSkill(skillId) {
+        const skills = this.getAvailableSkills();
+        return skills.find((s) => s.id === skillId) || null;
+      }
+      getInstalledMCPServers() {
+        return [];
+      }
+      getInstalledSkills() {
+        return [];
+      }
+      saveMCPServer(server) {
+        const path2 = join7(this.mcpDir, `${server.id}.json`);
+        try {
+          writeFileSync6(path2, JSON.stringify(server, null, 2), "utf8");
+        } catch (err) {
+          log6.error("Failed to save MCP server", { serverId: server.id, error: String(err) });
+        }
+      }
+      saveSkill(skill) {
+        const path2 = join7(this.skillsDir, `${skill.id}.json`);
+        try {
+          writeFileSync6(path2, JSON.stringify(skill, null, 2), "utf8");
+        } catch (err) {
+          log6.error("Failed to save skill", { skillId: skill.id, error: String(err) });
+        }
+      }
+      loadTelemetrySettings() {
+        const path2 = join7(this.dataDir, "telemetry-settings.json");
+        if (!existsSync7(path2)) {
+          const settings = {
+            enabled: false,
+            // Default to off
+            level: "minimal",
+            dataRetention: 30,
+            shareUsageStats: false,
+            shareErrorReports: false,
+            sharePerformanceMetrics: false
+          };
+          writeFileSync6(path2, JSON.stringify(settings, null, 2), "utf8");
+          return settings;
+        }
+        try {
+          const raw = readFileSync6(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          return TelemetrySettingsSchema.parse(parsed);
+        } catch (err) {
+          log6.warn("Failed to load telemetry settings, using defaults", { error: String(err) });
+          return {
+            enabled: false,
+            level: "minimal",
+            dataRetention: 30,
+            shareUsageStats: false,
+            shareErrorReports: false,
+            sharePerformanceMetrics: false
+          };
+        }
+      }
+      saveTelemetrySettings() {
+        const path2 = join7(this.dataDir, "telemetry-settings.json");
+        try {
+          writeFileSync6(path2, JSON.stringify(this.telemetrySettings, null, 2), "utf8");
+        } catch (err) {
+          log6.error("Failed to save telemetry settings", { error: String(err) });
+        }
+      }
+    };
+  }
 });
-var EcosystemManager = class {
-  dataDir;
-  mcpDir;
-  skillsDir;
-  telemetrySettings;
-  constructor() {
-    this.dataDir = getDataDir();
-    this.mcpDir = join7(this.dataDir, "mcp");
-    this.skillsDir = join7(this.dataDir, "skills");
-    if (!existsSync7(this.mcpDir)) mkdirSync6(this.mcpDir, { recursive: true });
-    if (!existsSync7(this.skillsDir)) mkdirSync6(this.skillsDir, { recursive: true });
-    this.telemetrySettings = this.loadTelemetrySettings();
+
+// ../shared/src/providers/ollama-config.ts
+var log7;
+var init_ollama_config = __esm({
+  "../shared/src/providers/ollama-config.ts"() {
+    "use strict";
+    init_logger();
+    log7 = createLogger("ollama-config");
   }
-  // MCP Marketplace Functions
-  async searchMCPServers(query, tags) {
-    const servers = this.getAvailableMCPServers();
-    return servers.filter((server) => {
-      const matchesQuery = !query || server.name.toLowerCase().includes(query.toLowerCase()) || server.description.toLowerCase().includes(query.toLowerCase());
-      const matchesTags = !tags || tags.length === 0 || tags.some((tag) => server.tags.includes(tag));
-      return matchesQuery && matchesTags;
-    });
-  }
-  getAvailableMCPServers() {
-    const builtInServers = this.getBuiltInMCPServers();
-    const installedServers = this.getInstalledMCPServers();
-    return [...builtInServers, ...installedServers];
-  }
-  async installMCPServer(serverId) {
-    const servers = this.getAvailableMCPServers();
-    const server = servers.find((s) => s.id === serverId);
-    if (!server) {
-      log6.warn("MCP server not found", { serverId });
-      return false;
-    }
-    if (server.installed) {
-      log6.info("MCP server already installed", { serverId });
-      return true;
-    }
-    server.installed = true;
-    server.lastUpdated = Date.now();
-    this.saveMCPServer(server);
-    log6.info("MCP server installed", { serverId, name: server.name });
-    return true;
-  }
-  async uninstallMCPServer(serverId) {
-    const server = this.getMCPServer(serverId);
-    if (!server) return false;
-    server.installed = false;
-    server.lastUpdated = Date.now();
-    this.saveMCPServer(server);
-    log6.info("MCP server uninstalled", { serverId });
-    return true;
-  }
-  // Skill Marketplace Functions
-  async searchSkills(query, category, tags) {
-    const skills = this.getAvailableSkills();
-    return skills.filter((skill) => {
-      const matchesQuery = !query || skill.name.toLowerCase().includes(query.toLowerCase()) || skill.description.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = !category || skill.category === category;
-      const matchesTags = !tags || tags.length === 0 || tags.some((tag) => skill.tags.includes(tag));
-      return matchesQuery && matchesCategory && matchesTags;
-    });
-  }
-  getAvailableSkills() {
-    const seedSkills = this.getSeedSkills();
-    const installedSkills = this.getInstalledSkills();
-    return [...seedSkills, ...installedSkills];
-  }
-  async installSkill(skillId) {
-    const skills = this.getAvailableSkills();
-    const skill = skills.find((s) => s.id === skillId);
-    if (!skill) {
-      log6.warn("Skill not found", { skillId });
-      return false;
-    }
-    if (skill.installed) {
-      log6.info("Skill already installed", { skillId });
-      return true;
-    }
-    if (skill.dependencies) {
-      for (const depId of skill.dependencies) {
-        const dep = this.getSkill(depId);
-        if (!dep || !dep.installed) {
-          log6.warn("Skill dependency not installed", { skillId, dependency: depId });
+});
+
+// ../shared/src/providers/custom-server.ts
+var log8, DEFAULT_CUSTOM_SERVER_CONFIG, CustomServerManager;
+var init_custom_server = __esm({
+  "../shared/src/providers/custom-server.ts"() {
+    "use strict";
+    init_logger();
+    log8 = createLogger("custom-server");
+    DEFAULT_CUSTOM_SERVER_CONFIG = {
+      baseUrl: "https://api.cybermind.ai/v1",
+      models: [
+        {
+          id: "cybermind-ultra",
+          name: "CyberMind Ultra",
+          provider: "CyberMind",
+          description: "Most powerful model for complex tasks",
+          contextWindow: 2e5,
+          inputCost: 5,
+          outputCost: 15,
+          capabilities: ["code", "reasoning", "analysis", "multimodal"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-pro",
+          name: "CyberMind Pro",
+          provider: "CyberMind",
+          description: "Balanced model for most tasks",
+          contextWindow: 128e3,
+          inputCost: 2,
+          outputCost: 6,
+          capabilities: ["code", "reasoning", "analysis"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-speed",
+          name: "CyberMind Speed",
+          provider: "CyberMind",
+          description: "Fast model for quick responses",
+          contextWindow: 32e3,
+          inputCost: 0.5,
+          outputCost: 1.5,
+          capabilities: ["code", "basic-reasoning"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-code",
+          name: "CyberMind Code",
+          provider: "CyberMind",
+          description: "Specialized for coding tasks",
+          contextWindow: 128e3,
+          inputCost: 1.5,
+          outputCost: 4.5,
+          capabilities: ["code", "debugging", "refactoring"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-creative",
+          name: "CyberMind Creative",
+          provider: "CyberMind",
+          description: "Creative and design tasks",
+          contextWindow: 64e3,
+          inputCost: 1,
+          outputCost: 3,
+          capabilities: ["creative", "design", "writing"],
+          endpoint: "/chat/completions",
+          isActive: true
+        }
+      ],
+      timeout: 6e4,
+      retries: 3,
+      rateLimit: {
+        requestsPerMinute: 60,
+        tokensPerMinute: 1e6
+      }
+    };
+    CustomServerManager = class {
+      config;
+      apiKey = null;
+      constructor(config = {}) {
+        this.config = { ...DEFAULT_CUSTOM_SERVER_CONFIG, ...config };
+      }
+      setApiKey(apiKey) {
+        this.apiKey = apiKey;
+        log8.info("Custom server API key set");
+      }
+      getApiKey() {
+        return this.apiKey;
+      }
+      async testConnection() {
+        try {
+          const response = await fetch(`${this.config.baseUrl}/models`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
+            },
+            signal: AbortSignal.timeout(5e3)
+          });
+          if (!response.ok) {
+            log8.warn("Custom server connection failed", { status: response.status });
+            return false;
+          }
+          const data = await response.json();
+          log8.info("Custom server connected successfully", { models: data.data?.length || 0 });
+          return true;
+        } catch (error) {
+          log8.warn("Custom server connection error", { error: String(error) });
           return false;
         }
       }
-    }
-    skill.installed = true;
-    skill.lastUpdated = Date.now();
-    skill.downloadCount++;
-    this.saveSkill(skill);
-    log6.info("Skill installed", { skillId, name: skill.name });
-    return true;
-  }
-  async uninstallSkill(skillId) {
-    const skill = this.getSkill(skillId);
-    if (!skill) return false;
-    skill.installed = false;
-    skill.lastUpdated = Date.now();
-    this.saveSkill(skill);
-    log6.info("Skill uninstalled", { skillId });
-    return true;
-  }
-  // Telemetry Functions
-  getTelemetrySettings() {
-    return { ...this.telemetrySettings };
-  }
-  updateTelemetrySettings(settings) {
-    this.telemetrySettings = { ...this.telemetrySettings, ...settings };
-    this.saveTelemetrySettings();
-    log6.info("Telemetry settings updated", { enabled: this.telemetrySettings.enabled });
-  }
-  isTelemetryEnabled() {
-    return this.telemetrySettings.enabled;
-  }
-  recordUsage(event, _data) {
-    if (!this.telemetrySettings.enabled) return;
-    log6.debug("Usage recorded", { event, level: this.telemetrySettings.level });
-  }
-  // Private helper methods
-  getBuiltInMCPServers() {
-    return [
-      {
-        id: "filesystem",
-        name: "Filesystem MCP",
-        description: "File system operations and management",
-        version: "1.0.0",
-        author: "CyberMind",
-        tags: ["filesystem", "files", "storage"],
-        installed: true,
-        lastUpdated: Date.now()
-      },
-      {
-        id: "database",
-        name: "Database MCP",
-        description: "Database connections and queries",
-        version: "1.0.0",
-        author: "CyberMind",
-        tags: ["database", "sql", "storage"],
-        installed: false,
-        lastUpdated: Date.now()
-      },
-      {
-        id: "web-api",
-        name: "Web API MCP",
-        description: "HTTP requests and API interactions",
-        version: "1.0.0",
-        author: "CyberMind",
-        tags: ["api", "http", "web"],
-        installed: false,
-        lastUpdated: Date.now()
+      async listModels() {
+        try {
+          const response = await fetch(`${this.config.baseUrl}/models`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
+            },
+            signal: AbortSignal.timeout(this.config.timeout)
+          });
+          if (!response.ok) {
+            throw new Error(`Custom server API error: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.data || this.config.models;
+        } catch (error) {
+          log8.error("Failed to list custom server models", { error: String(error) });
+          return this.config.models;
+        }
       }
-    ];
-  }
-  getSeedSkills() {
-    return [
-      // Development Skills (20)
-      { id: "code-analyzer", name: "Code Analyzer", description: "Analyze code quality and structure", version: "1.0.0", author: "CyberMind", category: "development", tags: ["analysis", "quality"], installed: false, lastUpdated: Date.now(), downloadCount: 1250, rating: 4.5 },
-      { id: "refactor-assistant", name: "Refactor Assistant", description: "Intelligent code refactoring suggestions", version: "1.0.0", author: "CyberMind", category: "development", tags: ["refactor", "cleanup"], installed: false, lastUpdated: Date.now(), downloadCount: 980, rating: 4.7 },
-      { id: "debug-helper", name: "Debug Helper", description: "Debugging assistance and issue diagnosis", version: "1.0.0", author: "CyberMind", category: "development", tags: ["debug", "troubleshoot"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
-      { id: "test-generator", name: "Test Generator", description: "Generate unit and integration tests", version: "1.0.0", author: "CyberMind", category: "development", tags: ["testing", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 1500, rating: 4.8 },
-      { id: "api-designer", name: "API Designer", description: "Design and document REST APIs", version: "1.0.0", author: "CyberMind", category: "development", tags: ["api", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.4 },
-      // Design Skills (15)
-      { id: "ui-mockup", name: "UI Mockup Generator", description: "Create user interface mockups", version: "1.0.0", author: "CyberMind", category: "design", tags: ["ui", "mockup"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.5 },
-      { id: "color-palette", name: "Color Palette Creator", description: "Generate color schemes and palettes", version: "1.0.0", author: "CyberMind", category: "design", tags: ["colors", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.3 },
-      { id: "typography", name: "Typography Advisor", description: "Typography recommendations and pairings", version: "1.0.0", author: "CyberMind", category: "design", tags: ["fonts", "typography"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.2 },
-      { id: "layout-designer", name: "Layout Designer", description: "Create responsive layout designs", version: "1.0.0", author: "CyberMind", category: "design", tags: ["layout", "responsive"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.6 },
-      { id: "icon-generator", name: "Icon Generator", description: "Generate custom icons and symbols", version: "1.0.0", author: "CyberMind", category: "design", tags: ["icons", "graphics"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.4 },
-      // Testing Skills (10)
-      { id: "e2e-tester", name: "E2E Test Generator", description: "Generate end-to-end test scenarios", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["e2e", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.5 },
-      { id: "performance-tester", name: "Performance Tester", description: "Create performance and load tests", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["performance", "load"], installed: false, lastUpdated: Date.now(), downloadCount: 540, rating: 4.3 },
-      { id: "security-scanner", name: "Security Scanner", description: "Security vulnerability scanning", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["security", "scan"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
-      { id: "accessibility-tester", name: "Accessibility Tester", description: "Test for accessibility compliance", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["a11y", "compliance"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.4 },
-      { id: "compatibility-tester", name: "Compatibility Tester", description: "Cross-browser compatibility testing", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["compatibility", "browser"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.2 },
-      // Deployment Skills (10)
-      { id: "docker-generator", name: "Docker Generator", description: "Generate Docker configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["docker", "containers"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
-      { id: "kubernetes-deployer", name: "Kubernetes Deployer", description: "Kubernetes deployment manifests", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["k8s", "orchestration"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.5 },
-      { id: "ci-cd-pipeline", name: "CI/CD Pipeline", description: "Generate CI/CD pipeline configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cicd", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.7 },
-      { id: "cloud-deployer", name: "Cloud Deployer", description: "Cloud deployment configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cloud", "deploy"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.4 },
-      { id: "env-manager", name: "Environment Manager", description: "Manage deployment environments", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["environment", "config"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
-      // Monitoring Skills (5)
-      { id: "log-analyzer", name: "Log Analyzer", description: "Analyze and parse application logs", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["logs", "analysis"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
-      { id: "metrics-collector", name: "Metrics Collector", description: "Collect and visualize metrics", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["metrics", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
-      { id: "alert-manager", name: "Alert Manager", description: "Configure alerts and notifications", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["alerts", "notifications"], installed: false, lastUpdated: Date.now(), downloadCount: 340, rating: 4.3 },
-      { id: "health-checker", name: "Health Checker", description: "Application health monitoring", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["health", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.5 },
-      { id: "uptime-monitor", name: "Uptime Monitor", description: "Monitor service uptime and availability", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["uptime", "availability"], installed: false, lastUpdated: Date.now(), downloadCount: 290, rating: 4.1 },
-      // Security Skills (5)
-      { id: "vulnerability-scanner", name: "Vulnerability Scanner", description: "Scan for security vulnerabilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["security", "vulnerability"], installed: false, lastUpdated: Date.now(), downloadCount: 680, rating: 4.6 },
-      { id: "password-manager", name: "Password Manager", description: "Generate and manage secure passwords", version: "1.0.0", author: "CyberMind", category: "security", tags: ["passwords", "security"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.3 },
-      { id: "encryption-helper", name: "Encryption Helper", description: "Encryption and decryption utilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["encryption", "crypto"], installed: false, lastUpdated: Date.now(), downloadCount: 320, rating: 4.4 },
-      { id: "audit-logger", name: "Audit Logger", description: "Security audit logging", version: "1.0.0", author: "CyberMind", category: "security", tags: ["audit", "logging"], installed: false, lastUpdated: Date.now(), downloadCount: 280, rating: 4.2 },
-      { id: "compliance-checker", name: "Compliance Checker", description: "Check regulatory compliance", version: "1.0.0", author: "CyberMind", category: "security", tags: ["compliance", "regulation"], installed: false, lastUpdated: Date.now(), downloadCount: 360, rating: 4.3 },
-      // Data Skills (5)
-      { id: "data-visualizer", name: "Data Visualizer", description: "Create data visualizations and charts", version: "1.0.0", author: "CyberMind", category: "data", tags: ["visualization", "charts"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.5 },
-      { id: "etl-pipeline", name: "ETL Pipeline", description: "Design ETL data pipelines", version: "1.0.0", author: "CyberMind", category: "data", tags: ["etl", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
-      { id: "data-cleaner", name: "Data Cleaner", description: "Clean and preprocess data", version: "1.0.0", author: "CyberMind", category: "data", tags: ["cleaning", "preprocessing"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
-      { id: "schema-designer", name: "Schema Designer", description: "Design database schemas", version: "1.0.0", author: "CyberMind", category: "data", tags: ["schema", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.6 },
-      { id: "migration-tool", name: "Migration Tool", description: "Database migration assistance", version: "1.0.0", author: "CyberMind", category: "data", tags: ["migration", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
-      // AI Skills (5)
-      { id: "ml-model-trainer", name: "ML Model Trainer", description: "Train machine learning models", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["ml", "training"], installed: false, lastUpdated: Date.now(), downloadCount: 580, rating: 4.5 },
-      { id: "prompt-engineer", name: "Prompt Engineer", description: "Optimize AI prompts", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["prompt", "ai"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
-      { id: "model-evaluator", name: "Model Evaluator", description: "Evaluate AI model performance", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["evaluation", "metrics"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.4 },
-      { id: "data-augmenter", name: "Data Augmenter", description: "Augment training data", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["augmentation", "data"], installed: false, lastUpdated: Date.now(), downloadCount: 350, rating: 4.3 },
-      { id: "ai-deployer", name: "AI Deployer", description: "Deploy AI models to production", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["deployment", "production"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.5 }
-    ];
-  }
-  getMCPServer(serverId) {
-    const servers = this.getAvailableMCPServers();
-    return servers.find((s) => s.id === serverId) || null;
-  }
-  getSkill(skillId) {
-    const skills = this.getAvailableSkills();
-    return skills.find((s) => s.id === skillId) || null;
-  }
-  getInstalledMCPServers() {
-    return [];
-  }
-  getInstalledSkills() {
-    return [];
-  }
-  saveMCPServer(server) {
-    const path2 = join7(this.mcpDir, `${server.id}.json`);
-    try {
-      writeFileSync6(path2, JSON.stringify(server, null, 2), "utf8");
-    } catch (err) {
-      log6.error("Failed to save MCP server", { serverId: server.id, error: String(err) });
-    }
-  }
-  saveSkill(skill) {
-    const path2 = join7(this.skillsDir, `${skill.id}.json`);
-    try {
-      writeFileSync6(path2, JSON.stringify(skill, null, 2), "utf8");
-    } catch (err) {
-      log6.error("Failed to save skill", { skillId: skill.id, error: String(err) });
-    }
-  }
-  loadTelemetrySettings() {
-    const path2 = join7(this.dataDir, "telemetry-settings.json");
-    if (!existsSync7(path2)) {
-      const settings = {
-        enabled: false,
-        // Default to off
-        level: "minimal",
-        dataRetention: 30,
-        shareUsageStats: false,
-        shareErrorReports: false,
-        sharePerformanceMetrics: false
-      };
-      writeFileSync6(path2, JSON.stringify(settings, null, 2), "utf8");
-      return settings;
-    }
-    try {
-      const raw = readFileSync6(path2, "utf8");
-      const parsed = JSON.parse(raw);
-      return TelemetrySettingsSchema.parse(parsed);
-    } catch (err) {
-      log6.warn("Failed to load telemetry settings, using defaults", { error: String(err) });
-      return {
-        enabled: false,
-        level: "minimal",
-        dataRetention: 30,
-        shareUsageStats: false,
-        shareErrorReports: false,
-        sharePerformanceMetrics: false
-      };
-    }
-  }
-  saveTelemetrySettings() {
-    const path2 = join7(this.dataDir, "telemetry-settings.json");
-    try {
-      writeFileSync6(path2, JSON.stringify(this.telemetrySettings, null, 2), "utf8");
-    } catch (err) {
-      log6.error("Failed to save telemetry settings", { error: String(err) });
-    }
-  }
-};
-
-// ../shared/src/providers/ollama-config.ts
-var log7 = createLogger("ollama-config");
-
-// ../shared/src/providers/custom-server.ts
-var log8 = createLogger("custom-server");
-var DEFAULT_CUSTOM_SERVER_CONFIG = {
-  baseUrl: "https://api.cybermind.ai/v1",
-  models: [
-    {
-      id: "cybermind-ultra",
-      name: "CyberMind Ultra",
-      provider: "CyberMind",
-      description: "Most powerful model for complex tasks",
-      contextWindow: 2e5,
-      inputCost: 5,
-      outputCost: 15,
-      capabilities: ["code", "reasoning", "analysis", "multimodal"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-pro",
-      name: "CyberMind Pro",
-      provider: "CyberMind",
-      description: "Balanced model for most tasks",
-      contextWindow: 128e3,
-      inputCost: 2,
-      outputCost: 6,
-      capabilities: ["code", "reasoning", "analysis"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-speed",
-      name: "CyberMind Speed",
-      provider: "CyberMind",
-      description: "Fast model for quick responses",
-      contextWindow: 32e3,
-      inputCost: 0.5,
-      outputCost: 1.5,
-      capabilities: ["code", "basic-reasoning"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-code",
-      name: "CyberMind Code",
-      provider: "CyberMind",
-      description: "Specialized for coding tasks",
-      contextWindow: 128e3,
-      inputCost: 1.5,
-      outputCost: 4.5,
-      capabilities: ["code", "debugging", "refactoring"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-creative",
-      name: "CyberMind Creative",
-      provider: "CyberMind",
-      description: "Creative and design tasks",
-      contextWindow: 64e3,
-      inputCost: 1,
-      outputCost: 3,
-      capabilities: ["creative", "design", "writing"],
-      endpoint: "/chat/completions",
-      isActive: true
-    }
-  ],
-  timeout: 6e4,
-  retries: 3,
-  rateLimit: {
-    requestsPerMinute: 60,
-    tokensPerMinute: 1e6
-  }
-};
-var CustomServerManager = class {
-  config;
-  apiKey = null;
-  constructor(config = {}) {
-    this.config = { ...DEFAULT_CUSTOM_SERVER_CONFIG, ...config };
-  }
-  setApiKey(apiKey) {
-    this.apiKey = apiKey;
-    log8.info("Custom server API key set");
-  }
-  getApiKey() {
-    return this.apiKey;
-  }
-  async testConnection() {
-    try {
-      const response = await fetch(`${this.config.baseUrl}/models`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
-        },
-        signal: AbortSignal.timeout(5e3)
-      });
-      if (!response.ok) {
-        log8.warn("Custom server connection failed", { status: response.status });
+      async generateResponse(modelId, messages) {
+        if (!this.apiKey) {
+          throw new Error("API key required for custom server");
+        }
+        try {
+          const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+              model: modelId,
+              messages,
+              stream: false,
+              temperature: 0.7,
+              max_tokens: 2048
+            }),
+            signal: AbortSignal.timeout(this.config.timeout)
+          });
+          if (!response.ok) {
+            throw new Error(`Generation failed: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.choices[0]?.message?.content || "";
+        } catch (error) {
+          log8.error("Failed to generate response from custom server", { model: modelId, error: String(error) });
+          throw error;
+        }
+      }
+      getModel(modelId) {
+        return this.config.models.find((model) => model.id === modelId) || null;
+      }
+      getActiveModels() {
+        return this.config.models.filter((model) => model.isActive);
+      }
+      getModelsByCapability(capability) {
+        return this.config.models.filter(
+          (model) => model.isActive && model.capabilities.includes(capability)
+        );
+      }
+      calculateCost(modelId, inputTokens, outputTokens) {
+        const model = this.getModel(modelId);
+        if (!model) return 0;
+        const inputCost = inputTokens / 1e6 * model.inputCost;
+        const outputCost = outputTokens / 1e6 * model.outputCost;
+        return inputCost + outputCost;
+      }
+      updateConfig(updates) {
+        this.config = { ...this.config, ...updates };
+        log8.info("Custom server config updated", { updates: Object.keys(updates) });
+      }
+      addCustomModel(model) {
+        this.config.models.push(model);
+        log8.info("Custom model added", { modelId: model.id, name: model.name });
+      }
+      removeModel(modelId) {
+        const index = this.config.models.findIndex((model) => model.id === modelId);
+        if (index !== -1) {
+          this.config.models.splice(index, 1);
+          log8.info("Model removed", { modelId });
+          return true;
+        }
         return false;
       }
-      const data = await response.json();
-      log8.info("Custom server connected successfully", { models: data.data?.length || 0 });
-      return true;
-    } catch (error) {
-      log8.warn("Custom server connection error", { error: String(error) });
-      return false;
-    }
-  }
-  async listModels() {
-    try {
-      const response = await fetch(`${this.config.baseUrl}/models`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
-        },
-        signal: AbortSignal.timeout(this.config.timeout)
-      });
-      if (!response.ok) {
-        throw new Error(`Custom server API error: ${response.status}`);
+      getConfig() {
+        return { ...this.config };
       }
-      const data = await response.json();
-      return data.data || this.config.models;
-    } catch (error) {
-      log8.error("Failed to list custom server models", { error: String(error) });
-      return this.config.models;
-    }
-  }
-  async generateResponse(modelId, messages) {
-    if (!this.apiKey) {
-      throw new Error("API key required for custom server");
-    }
-    try {
-      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelId,
-          messages,
-          stream: false,
-          temperature: 0.7,
-          max_tokens: 2048
-        }),
-        signal: AbortSignal.timeout(this.config.timeout)
-      });
-      if (!response.ok) {
-        throw new Error(`Generation failed: ${response.status}`);
+      // Rate limiting
+      rateLimitTracker = {
+        requests: [],
+        tokens: []
+      };
+      async checkRateLimit() {
+        const now = Date.now();
+        const oneMinuteAgo = now - 6e4;
+        this.rateLimitTracker.requests = this.rateLimitTracker.requests.filter((time) => time > oneMinuteAgo);
+        this.rateLimitTracker.tokens = this.rateLimitTracker.tokens.filter((time) => time > oneMinuteAgo);
+        if (this.rateLimitTracker.requests.length >= this.config.rateLimit.requestsPerMinute) {
+          log8.warn("Rate limit exceeded for requests");
+          return false;
+        }
+        return true;
       }
-      const data = await response.json();
-      return data.choices[0]?.message?.content || "";
-    } catch (error) {
-      log8.error("Failed to generate response from custom server", { model: modelId, error: String(error) });
-      throw error;
-    }
+      recordRequest(tokenCount = 0) {
+        this.rateLimitTracker.requests.push(Date.now());
+        this.rateLimitTracker.tokens.push(tokenCount);
+      }
+    };
   }
-  getModel(modelId) {
-    return this.config.models.find((model) => model.id === modelId) || null;
-  }
-  getActiveModels() {
-    return this.config.models.filter((model) => model.isActive);
-  }
-  getModelsByCapability(capability) {
-    return this.config.models.filter(
-      (model) => model.isActive && model.capabilities.includes(capability)
-    );
-  }
-  calculateCost(modelId, inputTokens, outputTokens) {
-    const model = this.getModel(modelId);
-    if (!model) return 0;
-    const inputCost = inputTokens / 1e6 * model.inputCost;
-    const outputCost = outputTokens / 1e6 * model.outputCost;
-    return inputCost + outputCost;
-  }
-  updateConfig(updates) {
-    this.config = { ...this.config, ...updates };
-    log8.info("Custom server config updated", { updates: Object.keys(updates) });
-  }
-  addCustomModel(model) {
-    this.config.models.push(model);
-    log8.info("Custom model added", { modelId: model.id, name: model.name });
-  }
-  removeModel(modelId) {
-    const index = this.config.models.findIndex((model) => model.id === modelId);
-    if (index !== -1) {
-      this.config.models.splice(index, 1);
-      log8.info("Model removed", { modelId });
-      return true;
-    }
-    return false;
-  }
-  getConfig() {
-    return { ...this.config };
-  }
-  // Rate limiting
-  rateLimitTracker = {
-    requests: [],
-    tokens: []
-  };
-  async checkRateLimit() {
-    const now = Date.now();
-    const oneMinuteAgo = now - 6e4;
-    this.rateLimitTracker.requests = this.rateLimitTracker.requests.filter((time) => time > oneMinuteAgo);
-    this.rateLimitTracker.tokens = this.rateLimitTracker.tokens.filter((time) => time > oneMinuteAgo);
-    if (this.rateLimitTracker.requests.length >= this.config.rateLimit.requestsPerMinute) {
-      log8.warn("Rate limit exceeded for requests");
-      return false;
-    }
-    return true;
-  }
-  recordRequest(tokenCount = 0) {
-    this.rateLimitTracker.requests.push(Date.now());
-    this.rateLimitTracker.tokens.push(tokenCount);
-  }
-};
+});
 
 // ../shared/src/auto-agent.ts
-var log9 = createLogger("auto-agent");
+var log9;
+var init_auto_agent = __esm({
+  "../shared/src/auto-agent.ts"() {
+    "use strict";
+    init_logger();
+    log9 = createLogger("auto-agent");
+  }
+});
+
+// ../shared/src/index.ts
+var init_src = __esm({
+  "../shared/src/index.ts"() {
+    "use strict";
+    init_types();
+    init_logger();
+    init_paths();
+    init_version();
+    init_checkpoint();
+    init_profiles();
+    init_collaboration();
+    init_web_mirror();
+    init_rich_io();
+    init_ecosystem();
+    init_ollama_config();
+    init_custom_server();
+    init_auto_agent();
+  }
+});
+
+// src/utils/config.ts
+import { readFileSync as readFileSync7, writeFileSync as writeFileSync7, existsSync as existsSync8, mkdirSync as mkdirSync7 } from "fs";
+import { homedir as homedir2 } from "os";
+import { join as join8 } from "path";
+function ensureConfigDir() {
+  if (!existsSync8(CONFIG_DIR)) {
+    mkdirSync7(CONFIG_DIR, { recursive: true });
+  }
+}
+function loadConfig() {
+  ensureConfigDir();
+  try {
+    if (existsSync8(CONFIG_FILE)) {
+      const raw = readFileSync7(CONFIG_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_CONFIG, ...parsed };
+    }
+  } catch {
+  }
+  return { ...DEFAULT_CONFIG };
+}
+function saveConfig(config) {
+  ensureConfigDir();
+  writeFileSync7(CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
+}
+function updateConfig(partial) {
+  const current = loadConfig();
+  const merged = { ...current, ...partial };
+  saveConfig(merged);
+  return merged;
+}
+function isOnboardingComplete() {
+  return loadConfig().onboardingComplete === true;
+}
+function markOnboardingComplete(method) {
+  updateConfig({
+    onboardingComplete: true,
+    loginMethod: method
+  });
+}
+function clearLogin() {
+  updateConfig({
+    onboardingComplete: false,
+    loginMethod: null,
+    user: {},
+    apiKeys: {},
+    authToken: void 0,
+    sessionId: void 0
+  });
+}
+function setApiKey(provider, key) {
+  const config = loadConfig();
+  const apiKeys = { ...config.apiKeys ?? {} };
+  apiKeys[provider] = key;
+  updateConfig({ apiKeys });
+}
+function setAuthToken(token) {
+  updateConfig({ authToken: token });
+}
+function getAuthToken() {
+  return loadConfig().authToken;
+}
+function setSessionId(sessionId) {
+  updateConfig({ sessionId });
+}
+function getSessionId() {
+  return loadConfig().sessionId;
+}
+function isAuthenticated() {
+  const config = loadConfig();
+  if (config.loginMethod === "cybercli") {
+    return !!config.authToken;
+  }
+  if (config.loginMethod === "apikey") {
+    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.anthropic));
+  }
+  if (config.loginMethod === "thirdparty") {
+    return true;
+  }
+  return false;
+}
+function setUserProfile(profile) {
+  updateConfig({ user: profile });
+}
+function getUserProfile() {
+  return loadConfig().user ?? {};
+}
+function setTheme(mode, syntaxTheme) {
+  updateConfig({ theme: { mode, syntaxTheme } });
+}
+function getTheme() {
+  return loadConfig().theme ?? DEFAULT_CONFIG.theme;
+}
+var CONFIG_DIR, CONFIG_FILE, DEFAULT_CONFIG;
+var init_config = __esm({
+  "src/utils/config.ts"() {
+    "use strict";
+    CONFIG_DIR = join8(homedir2(), ".cybercoder");
+    CONFIG_FILE = join8(CONFIG_DIR, "config.json");
+    DEFAULT_CONFIG = {
+      onboardingComplete: false,
+      loginMethod: null,
+      theme: {
+        mode: "dark",
+        syntaxTheme: "Monokai Extended"
+      },
+      apiKeys: {},
+      lastProvider: "auto",
+      lastModel: "auto",
+      user: {},
+      authToken: void 0,
+      sessionId: void 0,
+      autoUpdateCheck: true,
+      showWelcome: true,
+      telemetry: true,
+      version: "0.1.16"
+    };
+  }
+});
+
+// ../core/src/context.ts
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+function estimateMessagesTokens(messages) {
+  let total = 0;
+  for (const m of messages) {
+    total += estimateTokens(m.content);
+    if (m.toolCalls) {
+      for (const tc of m.toolCalls) {
+        total += estimateTokens(tc.name) + estimateTokens(JSON.stringify(tc.input));
+      }
+    }
+  }
+  return total;
+}
+function trimToolOutput(output, opts = {}) {
+  const maxChars = opts.maxChars ?? 12e3;
+  if (output.length <= maxChars) return output;
+  const headTail = opts.headTail ?? Math.floor(maxChars / 2) - 40;
+  const head = output.slice(0, headTail);
+  const tail = output.slice(output.length - headTail);
+  const elided = output.length - head.length - tail.length;
+  return `${head}
+
+\u2026 [${elided} chars elided to save context \u2014 re-read with offset/limit if you need the middle] \u2026
+
+${tail}`;
+}
+function manageContext(messages, budget) {
+  const highWater = budget.highWater ?? 0.75;
+  const keepRecent = budget.keepRecent ?? 6;
+  const limit = Math.floor(budget.windowTokens * highWater);
+  const tokens = estimateMessagesTokens(messages);
+  if (tokens <= limit || messages.length <= keepRecent + 1) {
+    return { messages, compacted: false, tokens };
+  }
+  const splitAt = messages.length - keepRecent;
+  const old = messages.slice(0, splitAt);
+  let recent = messages.slice(splitAt);
+  while (recent.length && recent[0].role === "tool") {
+    recent = recent.slice(1);
+  }
+  const synopsis = condense(old);
+  const synopsisMsg = {
+    role: "system",
+    content: synopsis
+  };
+  const next = [synopsisMsg, ...recent];
+  return {
+    messages: next,
+    compacted: true,
+    tokens: estimateMessagesTokens(next),
+    note: `context auto-compacted: ${old.length} older turns \u2192 synopsis (${tokens} \u2192 ~${estimateMessagesTokens(next)} tok)`
+  };
+}
+function condense(old) {
+  const userAsks = [];
+  const toolActions = [];
+  let lastAssistant = "";
+  for (const m of old) {
+    if (m.role === "user") {
+      const oneLine = m.content.replace(/\s+/g, " ").trim().slice(0, 160);
+      if (oneLine) userAsks.push(oneLine);
+    } else if (m.role === "assistant") {
+      if (m.content.trim()) lastAssistant = m.content.replace(/\s+/g, " ").trim().slice(0, 240);
+      for (const tc of m.toolCalls ?? []) {
+        const target = tc.input.path || tc.input.command || tc.input.pattern || "";
+        toolActions.push(`${tc.name}(${String(target).slice(0, 60)})`);
+      }
+    }
+  }
+  const parts = ["[Earlier conversation compacted to save context]"];
+  if (userAsks.length) parts.push(`Goals: ${userAsks.slice(-4).join(" | ")}`);
+  if (toolActions.length) {
+    const uniq = Array.from(new Set(toolActions)).slice(-12);
+    parts.push(`Actions taken: ${uniq.join(", ")}`);
+  }
+  if (lastAssistant) parts.push(`Last note: ${lastAssistant}`);
+  return parts.join("\n");
+}
+function windowForModel(model) {
+  const m = model.toLowerCase();
+  if (m.includes("gpt-4o") || m.includes("claude") || m.includes("gemini-1.5") || m.includes("gemini-2")) return 128e3;
+  if (m.includes("llama-3.1") || m.includes("llama-3.3")) return 128e3;
+  if (m.includes("mixtral") || m.includes("mistral")) return 32e3;
+  if (m.includes("gemma")) return 8192;
+  return 16e3;
+}
+var init_context = __esm({
+  "../core/src/context.ts"() {
+    "use strict";
+  }
+});
+
+// ../core/src/agent-loop.ts
+async function* runAgentLoop(messages, opts) {
+  const tools = opts.tools ?? [];
+  const toolMap = new Map(tools.map((t) => [t.schema.name, t]));
+  const toolSchemas = tools.map((t) => t.schema);
+  const max = opts.maxIterations ?? 10;
+  const ctx = { cwd: process.cwd() };
+  const maxToolChars = opts.maxToolOutputChars ?? 12e3;
+  const budget = {
+    windowTokens: opts.contextBudget?.windowTokens ?? windowForModel(opts.model ?? "auto"),
+    highWater: opts.contextBudget?.highWater ?? 0.75,
+    keepRecent: opts.contextBudget?.keepRecent ?? 6
+  };
+  let buffer = [...messages];
+  for (let iter = 0; iter < max; iter++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted" };
+      return;
+    }
+    yield { type: "iteration", index: iter, max };
+    const managed = manageContext(buffer, budget);
+    if (managed.compacted) {
+      buffer = managed.messages;
+      yield { type: "context", note: managed.note ?? "context compacted", tokens: managed.tokens };
+    }
+    const req = {
+      model: opts.model ?? "auto",
+      messages: buffer,
+      systemPrompt: opts.systemPrompt,
+      tools: toolSchemas.length > 0 ? toolSchemas : void 0,
+      signal: opts.signal
+    };
+    let assistantText = "";
+    let assistantToolCalls = [];
+    let stopReason = { type: "done", reason: "end_turn" };
+    let attempt = 0;
+    while (true) {
+      assistantText = "";
+      assistantToolCalls = [];
+      stopReason = { type: "done", reason: "end_turn" };
+      let sawError;
+      for await (const chunk of opts.provider.chat(req)) {
+        if (chunk.type === "text") {
+          assistantText += chunk.text;
+          yield { type: "text", text: chunk.text };
+        } else if (chunk.type === "tool_call") {
+          assistantToolCalls.push(chunk.toolCall);
+          yield {
+            type: "tool_call",
+            name: chunk.toolCall.name,
+            input: chunk.toolCall.input,
+            id: chunk.toolCall.id
+          };
+        } else if (chunk.type === "usage") {
+          yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+        } else if (chunk.type === "done") {
+          stopReason = chunk;
+          if (chunk.reason === "error") sawError = chunk.error;
+        }
+      }
+      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
+        attempt++;
+        log10.warn("provider transient error; retrying once", { error: sawError });
+        yield { type: "context", note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
+        await delay(400);
+        continue;
+      }
+      break;
+    }
+    buffer.push({
+      role: "assistant",
+      content: assistantText,
+      toolCalls: assistantToolCalls.length ? assistantToolCalls : void 0
+    });
+    if (stopReason.reason === "error") {
+      yield { type: "done", reason: "error", error: stopReason.error };
+      return;
+    }
+    if (assistantToolCalls.length === 0) {
+      yield { type: "done", reason: "end_turn" };
+      return;
+    }
+    const results = await executeToolCalls(assistantToolCalls, toolMap, ctx, maxToolChars);
+    for (const r of results) {
+      yield { type: "tool_result", name: r.name, id: r.id, output: r.output, ok: r.ok };
+      buffer.push({ role: "tool", content: r.output, toolCallId: r.id });
+    }
+  }
+  yield { type: "done", reason: "max_iterations" };
+}
+async function executeToolCalls(calls, toolMap, ctx, maxToolChars) {
+  const results = new Array(calls.length);
+  const runOne = async (tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (!tool) {
+      results[index] = { name: tc.name, id: tc.id, output: `Tool '${tc.name}' is not registered.`, ok: false };
+      return;
+    }
+    try {
+      if (ctx.approve) {
+        const ok = await ctx.approve(tc.name, tc.input);
+        if (!ok) {
+          results[index] = { name: tc.name, id: tc.id, output: `[user denied tool '${tc.name}']`, ok: false };
+          return;
+        }
+      }
+      let output = await tool.execute(tc.input, ctx);
+      if (tool.verify) {
+        const problem = await tool.verify(tc.input, output, ctx);
+        if (problem) {
+          results[index] = {
+            name: tc.name,
+            id: tc.id,
+            output: `${output}
+
+[verify] ${problem}`,
+            ok: false
+          };
+          return;
+        }
+      }
+      output = trimToolOutput(output, { maxChars: maxToolChars });
+      results[index] = { name: tc.name, id: tc.id, output, ok: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log10.error("tool execution failed", { tool: tc.name, err: msg });
+      results[index] = { name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
+    }
+  };
+  const parallel = [];
+  const sequential = [];
+  calls.forEach((tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (tool && tool.destructive) {
+      sequential.push({ tc, index });
+    } else {
+      parallel.push(runOne(tc, index));
+    }
+  });
+  await Promise.all(parallel);
+  for (const { tc, index } of sequential) {
+    await runOne(tc, index);
+  }
+  return results;
+}
+function isTransient(error) {
+  const e = error.toLowerCase();
+  return e.includes("429") || e.includes("rate limit") || e.includes("timeout") || e.includes("econnreset") || e.includes("etimedout") || e.includes("503") || e.includes("502") || e.includes("overloaded") || e.includes("fetch failed");
+}
+function delay(ms) {
+  return new Promise((resolve13) => setTimeout(resolve13, ms));
+}
+var log10;
+var init_agent_loop = __esm({
+  "../core/src/agent-loop.ts"() {
+    "use strict";
+    init_src();
+    init_context();
+    log10 = createLogger("core:agent");
+  }
+});
+
+// ../core/src/consensus.ts
+async function runConsensus(messages, opts) {
+  const timeout = opts.timeoutMs ?? 6e4;
+  const tasks = opts.providers.map(async (p2, i) => {
+    const req = {
+      model: opts.models?.[i] ?? "auto",
+      messages,
+      systemPrompt: opts.systemPrompt
+    };
+    const out = { text: "" };
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeout);
+    try {
+      for await (const chunk of p2.chat({ ...req, signal: ac.signal })) {
+        if (chunk.type === "text") out.text += chunk.text;
+        else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
+      }
+    } catch (err) {
+      out.error = err instanceof Error ? err.message : String(err);
+    } finally {
+      clearTimeout(timer);
+    }
+    return { provider: p2.info.id, model: req.model, text: out.text, error: out.error };
+  });
+  const perProvider = await Promise.all(tasks);
+  const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
+  return { perProvider, merged };
+}
+function mergeAnswers(answers) {
+  if (answers.length === 0) return "";
+  if (answers.length === 1) return answers[0] ?? "";
+  const sorted = [...answers].sort((a, b) => b.length - a.length);
+  const spine = sorted[0] ?? "";
+  const seen = new Set(spine.split("\n").map((l) => l.trim()));
+  const extras = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const lines = (sorted[i] ?? "").split("\n");
+    for (const line of lines) {
+      const t = line.trim();
+      if (t.length > 0 && !seen.has(t)) {
+        seen.add(t);
+        extras.push(line);
+      }
+    }
+  }
+  return extras.length > 0 ? `${spine}
+
+--- additional perspectives ---
+${extras.join("\n")}` : spine;
+}
+var init_consensus = __esm({
+  "../core/src/consensus.ts"() {
+    "use strict";
+  }
+});
+
+// ../core/src/plan-act.ts
+async function* runGoal(initialMessages, opts) {
+  const maxRounds = opts.maxRounds ?? 8;
+  const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
+  const buffer = [...initialMessages];
+  for (let round = 0; round < maxRounds; round++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted", round };
+      return;
+    }
+    let roundText = "";
+    let endedTurn = false;
+    for await (const evt of runAgentLoop(buffer, {
+      provider: opts.provider,
+      systemPrompt: system,
+      model: opts.model ?? "auto",
+      tools: opts.tools,
+      signal: opts.signal
+    })) {
+      if (evt.type === "text") roundText += evt.text;
+      if (evt.type === "done") endedTurn = true;
+      yield { ...evt, round };
+    }
+    buffer.push({ role: "assistant", content: roundText });
+    if (roundText.includes(GOAL_SENTINEL)) {
+      yield { type: "done", reason: "end_turn", round };
+      return;
+    }
+    if (!endedTurn) {
+      return;
+    }
+    buffer.push({
+      role: "user",
+      content: `Continue working toward the goal. If it is fully done and verified, reply with ${GOAL_SENTINEL}.`
+    });
+  }
+  yield { type: "done", reason: "max_iterations" };
+}
+var GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
+var init_plan_act = __esm({
+  "../core/src/plan-act.ts"() {
+    "use strict";
+    init_agent_loop();
+    GOAL_SENTINEL = "GOAL_COMPLETE";
+    GOAL_SYSTEM_SUFFIX = `
+
+You are working toward a GOAL until it is fully achieved.
+After each round, assess whether the goal is met. When \u2014 and only when \u2014 the goal
+is fully complete and verified, end your message with the exact token ${GOAL_SENTINEL}
+on its own line. If not complete, keep going: take the next concrete action.`;
+  }
+});
+
+// ../core/src/index.ts
+var init_src2 = __esm({
+  "../core/src/index.ts"() {
+    "use strict";
+    init_agent_loop();
+    init_consensus();
+    init_context();
+    init_plan_act();
+  }
+});
+
+// ../providers/src/types.ts
+import { z as z8 } from "zod";
+var ProviderRoleSchema;
+var init_types2 = __esm({
+  "../providers/src/types.ts"() {
+    "use strict";
+    ProviderRoleSchema = z8.enum(["system", "user", "assistant", "tool"]);
+  }
+});
+
+// ../providers/src/anthropic.ts
+import Anthropic from "@anthropic-ai/sdk";
+function splitSystem(messages, systemPrompt) {
+  const sysFromMessages = messages.filter((m) => m.role === "system").map((m) => m.content);
+  const rest = messages.filter((m) => m.role !== "system");
+  const system = [systemPrompt ?? "", ...sysFromMessages].filter(Boolean).join("\n\n");
+  return { system, messages: rest };
+}
+function toAnthropicMessage(m) {
+  if (m.role === "tool") {
+    return {
+      role: "user",
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: m.toolCallId ?? "",
+          content: m.content
+        }
+      ]
+    };
+  }
+  if (m.role === "assistant" && m.toolCalls?.length) {
+    const blocks = [];
+    if (m.content) blocks.push({ type: "text", text: m.content });
+    for (const tc of m.toolCalls) {
+      blocks.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.input });
+    }
+    return { role: "assistant", content: blocks };
+  }
+  return {
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: m.content
+  };
+}
+function toAnthropicTool(t) {
+  return {
+    name: t.name,
+    description: t.description,
+    input_schema: t.inputSchema
+  };
+}
+function withToolCaching(tools) {
+  if (!tools || tools.length === 0) return tools;
+  const out = tools.slice();
+  const last = out[out.length - 1];
+  out[out.length - 1] = { ...last, cache_control: { type: "ephemeral" } };
+  return out;
+}
+var log11, AnthropicProvider;
+var init_anthropic = __esm({
+  "../providers/src/anthropic.ts"() {
+    "use strict";
+    init_src();
+    log11 = createLogger("providers:anthropic");
+    AnthropicProvider = class {
+      info;
+      client;
+      defaultModel;
+      constructor(opts = {}) {
+        const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+        this.client = new Anthropic({
+          apiKey: apiKey ?? "",
+          baseURL: opts.baseURL
+        });
+        this.defaultModel = opts.defaultModel ?? "claude-3-5-sonnet-latest";
+        this.info = {
+          id: "anthropic",
+          displayName: "Anthropic",
+          requiresNetwork: true,
+          ready: Boolean(apiKey)
+        };
+      }
+      async listModels() {
+        return [
+          "claude-3-5-sonnet-latest",
+          "claude-3-5-haiku-latest",
+          "claude-3-opus-latest",
+          "claude-sonnet-4-5",
+          "claude-opus-4"
+        ];
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        const { system, messages } = splitSystem(req.messages, req.systemPrompt);
+        log11.debug("anthropic chat", { model, messages: messages.length, tools: req.tools?.length ?? 0 });
+        try {
+          const stream = this.client.messages.stream({
+            model,
+            max_tokens: req.maxTokens ?? 4096,
+            temperature: req.temperature,
+            // Cache the (constant) system prompt across loop iterations so re-sends
+            // are billed at the cheap cache-read rate instead of full input rate.
+            // (cache_control is runtime-supported; the pinned SDK types predate it.)
+            system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : void 0,
+            messages: messages.map(toAnthropicMessage),
+            tools: withToolCaching(req.tools?.map(toAnthropicTool))
+          });
+          const inflightToolCalls = /* @__PURE__ */ new Map();
+          for await (const event2 of stream) {
+            if (event2.type === "content_block_start") {
+              if (event2.content_block.type === "tool_use") {
+                inflightToolCalls.set(event2.index, {
+                  id: event2.content_block.id,
+                  name: event2.content_block.name,
+                  input: {}
+                });
+              }
+            } else if (event2.type === "content_block_delta") {
+              if (event2.delta.type === "text_delta") {
+                yield { type: "text", text: event2.delta.text };
+              } else if (event2.delta.type === "input_json_delta") {
+                const tc = inflightToolCalls.get(event2.index);
+                if (tc) {
+                  tc._raw = (tc._raw ?? "") + event2.delta.partial_json;
+                }
+              }
+            } else if (event2.type === "content_block_stop") {
+              const tc = inflightToolCalls.get(event2.index);
+              if (tc) {
+                const raw = tc._raw ?? "{}";
+                try {
+                  tc.input = raw.length > 0 ? JSON.parse(raw) : {};
+                } catch (err) {
+                  log11.warn("failed to parse tool input json", { raw, err: String(err) });
+                  tc.input = {};
+                }
+                yield { type: "tool_call", toolCall: { id: tc.id, name: tc.name, input: tc.input } };
+                inflightToolCalls.delete(event2.index);
+              }
+            } else if (event2.type === "message_delta") {
+              if (event2.usage) {
+                yield { type: "usage", inputTokens: 0, outputTokens: event2.usage.output_tokens ?? 0 };
+              }
+            } else if (event2.type === "message_stop") {
+            }
+          }
+          const final = await stream.finalMessage();
+          yield {
+            type: "done",
+            reason: final.stop_reason === "tool_use" ? "tool_use" : final.stop_reason === "max_tokens" ? "max_tokens" : final.stop_reason === "end_turn" ? "end_turn" : "stop"
+          };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log11.error("anthropic chat failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/cybermind-cloud.ts
+var DEFAULT_BASE_URL, CybermindCloudProvider;
+var init_cybermind_cloud = __esm({
+  "../providers/src/cybermind-cloud.ts"() {
+    "use strict";
+    init_anthropic();
+    DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com";
+    CybermindCloudProvider = class extends AnthropicProvider {
+      info;
+      constructor(opts = {}) {
+        const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY;
+        super({
+          apiKey,
+          baseURL: opts.baseURL ?? DEFAULT_BASE_URL,
+          defaultModel: opts.defaultModel ?? "cybermind-default"
+        });
+        this.info = {
+          id: "cybermind-cloud",
+          displayName: "Codeva Cloud",
+          requiresNetwork: true,
+          ready: Boolean(apiKey)
+        };
+      }
+    };
+  }
+});
+
+// ../providers/src/ollama.ts
+function toOllamaMessage(m) {
+  if (m.role === "tool") {
+    return { role: "tool", content: m.content, tool_call_id: m.toolCallId };
+  }
+  return { role: m.role, content: m.content };
+}
+var log12, OllamaProvider;
+var init_ollama = __esm({
+  "../providers/src/ollama.ts"() {
+    "use strict";
+    init_src();
+    log12 = createLogger("providers:ollama");
+    OllamaProvider = class {
+      info;
+      baseURL;
+      defaultModel;
+      constructor(opts = {}) {
+        this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
+        this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? "llama3.1";
+        this.info = {
+          id: "ollama",
+          displayName: "Ollama (local)",
+          requiresNetwork: false,
+          ready: true
+          // Optimistic; reachability is checked lazily on first call.
+        };
+      }
+      async listModels() {
+        try {
+          const res = await fetch(`${this.baseURL}/api/tags`, { method: "GET" });
+          if (!res.ok) return [];
+          const json = await res.json();
+          return json.models?.map((m) => m.name) ?? [];
+        } catch (err) {
+          log12.warn("ollama listModels failed", String(err));
+          return [];
+        }
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        log12.debug("ollama chat", { model, messages: req.messages.length });
+        const body = {
+          model,
+          messages: [
+            ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
+            ...req.messages.map(toOllamaMessage)
+          ],
+          stream: true,
+          options: {
+            temperature: req.temperature,
+            num_predict: req.maxTokens
+          },
+          tools: req.tools?.map((t) => ({
+            type: "function",
+            function: { name: t.name, description: t.description, parameters: t.inputSchema }
+          }))
+        };
+        try {
+          const res = await fetch(`${this.baseURL}/api/chat`, {
+            method: "POST",
+            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json" },
+            signal: req.signal
+          });
+          if (!res.ok || !res.body) {
+            yield {
+              type: "done",
+              reason: "error",
+              error: `ollama HTTP ${res.status}: ${await res.text().catch(() => res.statusText)}`
+            };
+            return;
+          }
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let done = false;
+          let stopReason = { type: "done", reason: "stop" };
+          while (!done) {
+            const { value, done: chunkDone } = await reader.read();
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                  const evt = JSON.parse(trimmed);
+                  if (evt.message?.content) {
+                    yield { type: "text", text: evt.message.content };
+                  }
+                  if (evt.message?.tool_calls?.length) {
+                    for (const raw of evt.message.tool_calls) {
+                      const tc = {
+                        id: raw.id ?? `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        name: raw.function.name,
+                        input: raw.function.arguments ?? {}
+                      };
+                      yield { type: "tool_call", toolCall: tc };
+                    }
+                  }
+                  if (evt.done) {
+                    if (evt.eval_count != null && evt.prompt_eval_count != null) {
+                      yield {
+                        type: "usage",
+                        inputTokens: evt.prompt_eval_count,
+                        outputTokens: evt.eval_count
+                      };
+                    }
+                    stopReason = {
+                      type: "done",
+                      reason: evt.done_reason === "length" ? "max_tokens" : evt.message?.tool_calls?.length ? "tool_use" : "end_turn"
+                    };
+                    done = true;
+                    break;
+                  }
+                } catch (err) {
+                  log12.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
+                }
+              }
+            }
+            if (chunkDone) done = true;
+          }
+          yield stopReason;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log12.error("ollama chat failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/openai.ts
+function toOpenAIMessage(m) {
+  if (m.role === "tool") {
+    return {
+      role: "tool",
+      content: m.content,
+      tool_call_id: m.toolCallId
+    };
+  }
+  if (m.role === "assistant" && m.toolCalls?.length) {
+    return {
+      role: "assistant",
+      content: m.content || null,
+      tool_calls: m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: "function",
+        function: {
+          name: tc.name,
+          arguments: JSON.stringify(tc.input)
+        }
+      }))
+    };
+  }
+  return {
+    role: m.role,
+    content: m.content
+  };
+}
+function toOpenAITool(t) {
+  return {
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema
+    }
+  };
+}
+var log13, OpenAIProvider;
+var init_openai = __esm({
+  "../providers/src/openai.ts"() {
+    "use strict";
+    init_src();
+    log13 = createLogger("providers:openai");
+    OpenAIProvider = class {
+      info;
+      apiKey;
+      baseURL;
+      defaultModel;
+      constructor(opts = {}, providerId = "openai", displayName = "OpenAI") {
+        this.apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY ?? "";
+        this.baseURL = opts.baseURL ?? "https://api.openai.com/v1";
+        this.defaultModel = opts.defaultModel ?? "gpt-4o-mini";
+        this.info = {
+          id: providerId,
+          displayName,
+          requiresNetwork: true,
+          ready: Boolean(this.apiKey)
+        };
+      }
+      async listModels() {
+        return ["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview"];
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        log13.debug("openai chat", { model, messages: req.messages.length });
+        const messages = [
+          ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
+          ...req.messages.map(toOpenAIMessage)
+        ];
+        const body = {
+          model,
+          messages,
+          stream: true,
+          temperature: req.temperature ?? 0.7,
+          max_tokens: req.maxTokens ?? 4096,
+          stream_options: { include_usage: true }
+        };
+        if (req.tools?.length) {
+          body.tools = req.tools.map(toOpenAITool);
+        }
+        try {
+          const res = await fetch(`${this.baseURL}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify(body),
+            signal: req.signal
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => res.statusText);
+            yield {
+              type: "done",
+              reason: "error",
+              error: `OpenAI HTTP ${res.status}: ${errText}`
+            };
+            return;
+          }
+          if (!res.body) {
+            yield { type: "done", reason: "error", error: "Response body is null" };
+            return;
+          }
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let done = false;
+          const toolCallsMap = /* @__PURE__ */ new Map();
+          let usageInfo = null;
+          while (!done) {
+            const { value, done: chunkDone } = await reader.read();
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                if (trimmed === "data: [DONE]") {
+                  done = true;
+                  break;
+                }
+                if (trimmed.startsWith("data: ")) {
+                  try {
+                    const json = JSON.parse(trimmed.slice(6));
+                    if (json.usage) {
+                      usageInfo = json.usage;
+                    }
+                    const choice = json.choices?.[0];
+                    if (!choice) continue;
+                    if (choice.delta?.content) {
+                      yield { type: "text", text: choice.delta.content };
+                    }
+                    if (choice.delta?.tool_calls) {
+                      for (const tcDelta of choice.delta.tool_calls) {
+                        const idx = tcDelta.index ?? 0;
+                        let tc = toolCallsMap.get(idx);
+                        if (!tc) {
+                          tc = { id: tcDelta.id, name: tcDelta.function?.name, arguments: "" };
+                          toolCallsMap.set(idx, tc);
+                        }
+                        if (tcDelta.id) tc.id = tcDelta.id;
+                        if (tcDelta.function?.name) tc.name = tcDelta.function.name;
+                        if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
+                      }
+                    }
+                  } catch (err) {
+                  }
+                }
+              }
+            }
+            if (chunkDone) done = true;
+          }
+          for (const [, tc] of toolCallsMap) {
+            if (tc.id && tc.name) {
+              let parsedArgs = {};
+              try {
+                parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
+              } catch (e) {
+                log13.warn("Failed to parse tool arguments JSON", tc.arguments);
+              }
+              yield {
+                type: "tool_call",
+                toolCall: {
+                  id: tc.id,
+                  name: tc.name,
+                  input: parsedArgs
+                }
+              };
+            }
+          }
+          if (usageInfo) {
+            yield {
+              type: "usage",
+              inputTokens: usageInfo.prompt_tokens,
+              outputTokens: usageInfo.completion_tokens
+            };
+          }
+          yield { type: "done", reason: toolCallsMap.size > 0 ? "tool_use" : "end_turn" };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log13.error("openai stream failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/groq.ts
+var GroqProvider;
+var init_groq = __esm({
+  "../providers/src/groq.ts"() {
+    "use strict";
+    init_openai();
+    GroqProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.GROQ_API_KEY,
+            baseURL: opts.baseURL ?? "https://api.groq.com/openai/v1",
+            defaultModel: opts.defaultModel ?? "llama-3.3-70b-versatile"
+          },
+          "groq",
+          "Groq"
+        );
+      }
+      async listModels() {
+        return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+      }
+    };
+  }
+});
+
+// ../providers/src/google.ts
+var GoogleProvider;
+var init_google = __esm({
+  "../providers/src/google.ts"() {
+    "use strict";
+    init_openai();
+    GoogleProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY,
+            baseURL: opts.baseURL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
+            defaultModel: opts.defaultModel ?? "gemini-2.5-flash"
+          },
+          "gemini",
+          "Google Gemini"
+        );
+      }
+      async listModels() {
+        return ["gemini-2.5-flash", "gemini-2.5-pro"];
+      }
+    };
+  }
+});
+
+// ../providers/src/openrouter.ts
+var OpenRouterProvider;
+var init_openrouter = __esm({
+  "../providers/src/openrouter.ts"() {
+    "use strict";
+    init_openai();
+    OpenRouterProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.OPENROUTER_API_KEY,
+            baseURL: opts.baseURL ?? "https://openrouter.ai/api/v1",
+            defaultModel: opts.defaultModel ?? "google/gemini-2.5-flash"
+          },
+          "openrouter",
+          "OpenRouter"
+        );
+      }
+      async listModels() {
+        return [
+          "google/gemini-2.5-flash",
+          "google/gemini-2.5-pro",
+          "meta-llama/llama-3.3-70b-instruct",
+          "deepseek/deepseek-r1-distill-llama-70b",
+          "anthropic/claude-3.5-sonnet"
+        ];
+      }
+    };
+  }
+});
+
+// ../providers/src/router.ts
+var log14, ProviderRouter;
+var init_router = __esm({
+  "../providers/src/router.ts"() {
+    "use strict";
+    init_src();
+    init_anthropic();
+    init_cybermind_cloud();
+    init_ollama();
+    init_openai();
+    init_groq();
+    init_google();
+    init_openrouter();
+    log14 = createLogger("providers:router");
+    ProviderRouter = class {
+      info;
+      providers = /* @__PURE__ */ new Map();
+      preferred;
+      fallback;
+      constructor(opts = {}) {
+        this.providers.set("anthropic", new AnthropicProvider(opts.anthropic));
+        this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
+        this.providers.set("openai", new OpenAIProvider(opts.openai));
+        this.providers.set("groq", new GroqProvider(opts.groq));
+        this.providers.set("gemini", new GoogleProvider(opts.google));
+        this.providers.set("openrouter", new OpenRouterProvider(opts.openrouter));
+        const ollama = new OllamaProvider(opts.ollama);
+        this.providers.set("ollama", ollama);
+        this.fallback = opts.fallback ?? ollama;
+        this.preferred = opts.preferred ?? ["cybermind-cloud", "anthropic", "ollama"];
+        const active = this.activeProvider();
+        this.info = {
+          id: active.info.id,
+          displayName: `Router (${active.info.displayName})`,
+          requiresNetwork: active.info.requiresNetwork,
+          ready: active.info.ready
+        };
+      }
+      /** First preferred-and-ready provider, or the fallback. */
+      activeProvider() {
+        for (const id of this.preferred) {
+          const p2 = this.providers.get(id);
+          if (p2?.info.ready) return p2;
+        }
+        return this.fallback;
+      }
+      get(id) {
+        return this.providers.get(id);
+      }
+      async listModels() {
+        return this.activeProvider().listModels();
+      }
+      async *chat(req) {
+        const primary = this.activeProvider();
+        log14.debug("routing chat", { primary: primary.info.id });
+        let primaryYieldedSomething = false;
+        let primaryError;
+        for await (const chunk of primary.chat(req)) {
+          if (chunk.type === "done" && chunk.reason === "error" && !primaryYieldedSomething) {
+            primaryError = chunk.error;
+            break;
+          }
+          primaryYieldedSomething = true;
+          yield chunk;
+        }
+        if (primaryError !== void 0 && primary !== this.fallback) {
+          log14.warn("primary provider failed; falling back", {
+            primary: primary.info.id,
+            fallback: this.fallback.info.id,
+            error: primaryError
+          });
+          yield {
+            type: "text",
+            text: `
+[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.
+`
+          };
+          yield* this.fallback.chat(req);
+        } else if (primaryError !== void 0) {
+          yield { type: "done", reason: "error", error: primaryError };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/index.ts
+var init_src3 = __esm({
+  "../providers/src/index.ts"() {
+    "use strict";
+    init_types2();
+    init_router();
+    init_anthropic();
+    init_ollama();
+    init_cybermind_cloud();
+    init_openai();
+    init_groq();
+    init_google();
+    init_openrouter();
+  }
+});
+
+// ../tools/src/approval.ts
+import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8 } from "fs";
+import { dirname } from "path";
+function loadTrustStore() {
+  const path2 = getTrustPath();
+  if (!existsSync9(path2)) return { tools: [] };
+  try {
+    const raw = readFileSync8(path2, "utf8");
+    const parsed = JSON.parse(raw);
+    return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
+  } catch (err) {
+    log15.warn("failed to load trust store", String(err));
+    return { tools: [] };
+  }
+}
+function saveTrustStore(store) {
+  const path2 = getTrustPath();
+  if (!existsSync9(dirname(path2))) mkdirSync8(dirname(path2), { recursive: true });
+  writeFileSync8(path2, JSON.stringify(store, null, 2), "utf8");
+}
+var log15, ApprovalGate, HeadlessApprovalUI;
+var init_approval = __esm({
+  "../tools/src/approval.ts"() {
+    "use strict";
+    init_src();
+    log15 = createLogger("tools:approval");
+    ApprovalGate = class {
+      constructor(ui) {
+        this.ui = ui;
+        this.persistent = new Set(loadTrustStore().tools);
+      }
+      ui;
+      persistent;
+      sessionAllow = /* @__PURE__ */ new Set();
+      mode = "always-ask";
+      setMode(mode) {
+        this.mode = mode;
+      }
+      /** True if the tool is already trusted (either persistently or for the session). */
+      isTrusted(toolName) {
+        return this.persistent.has(toolName) || this.sessionAllow.has(toolName);
+      }
+      /** Trust a tool persistently — written to ~/.cybermind/trust.json. */
+      trustPersistent(toolName) {
+        this.persistent.add(toolName);
+        saveTrustStore({ tools: [...this.persistent] });
+        log15.info("tool persistently trusted", { toolName });
+      }
+      /** Revoke persistent trust. */
+      revoke(toolName) {
+        this.persistent.delete(toolName);
+        this.sessionAllow.delete(toolName);
+        saveTrustStore({ tools: [...this.persistent] });
+      }
+      listTrusted() {
+        return { persistent: [...this.persistent], session: [...this.sessionAllow] };
+      }
+      /**
+       * Main entry point used by the agent loop. Returns true when the tool call
+       * may proceed; false when the user denied.
+       */
+      async request(prompt) {
+        if (this.mode === "persistent-bypass") return true;
+        if (this.isTrusted(prompt.toolName)) return true;
+        if (this.mode === "session-bypass" && !prompt.destructive) return true;
+        const decision = await this.ui.ask(prompt);
+        switch (decision) {
+          case "allow":
+            return true;
+          case "allow-session":
+            this.sessionAllow.add(prompt.toolName);
+            return true;
+          case "allow-persistent":
+            this.trustPersistent(prompt.toolName);
+            return true;
+          case "deny":
+          default:
+            return false;
+        }
+      }
+    };
+    HeadlessApprovalUI = class {
+      async ask(prompt) {
+        return prompt.destructive ? "deny" : "allow";
+      }
+    };
+  }
+});
+
+// ../tools/src/secrets.ts
+import { existsSync as existsSync10, mkdirSync as mkdirSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync9 } from "fs";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
+var log16, ALGO, IV_LEN, SALT_LEN, KEY_LEN, SecretsVault;
+var init_secrets = __esm({
+  "../tools/src/secrets.ts"() {
+    "use strict";
+    init_src();
+    log16 = createLogger("tools:secrets");
+    ALGO = "aes-256-gcm";
+    IV_LEN = 12;
+    SALT_LEN = 16;
+    KEY_LEN = 32;
+    SecretsVault = class {
+      cache = null;
+      list() {
+        return Object.keys(this.load());
+      }
+      get(name) {
+        return this.load()[name];
+      }
+      set(name, value) {
+        const all = this.load();
+        all[name] = value;
+        this.save(all);
+      }
+      remove(name) {
+        const all = this.load();
+        if (!(name in all)) return false;
+        delete all[name];
+        this.save(all);
+        return true;
+      }
+      /** Merge the vault into a process env-like object for tool execution. */
+      injectInto(env) {
+        return { ...env, ...this.load() };
+      }
+      load() {
+        if (this.cache) return this.cache;
+        const path2 = getSecretsPath();
+        if (!existsSync10(path2)) {
+          this.cache = {};
+          return this.cache;
+        }
+        try {
+          const buf = readFileSync9(path2);
+          const salt = buf.subarray(0, SALT_LEN);
+          const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
+          const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
+          const ciphertext = buf.subarray(SALT_LEN + IV_LEN + 16);
+          const key = scryptSync(this.pepper(), salt, KEY_LEN);
+          const decipher = createDecipheriv(ALGO, key, iv);
+          decipher.setAuthTag(tag);
+          const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+          this.cache = JSON.parse(plain.toString("utf8"));
+          return this.cache;
+        } catch (err) {
+          log16.error("failed to decrypt secrets vault; treating as empty", String(err));
+          this.cache = {};
+          return this.cache;
+        }
+      }
+      save(all) {
+        const path2 = getSecretsPath();
+        if (!existsSync10(getHomeDir())) mkdirSync9(getHomeDir(), { recursive: true });
+        const salt = randomBytes(SALT_LEN);
+        const iv = randomBytes(IV_LEN);
+        const key = scryptSync(this.pepper(), salt, KEY_LEN);
+        const cipher = createCipheriv(ALGO, key, iv);
+        const ciphertext = Buffer.concat([cipher.update(JSON.stringify(all), "utf8"), cipher.final()]);
+        const tag = cipher.getAuthTag();
+        writeFileSync9(path2, Buffer.concat([salt, iv, tag, ciphertext]));
+        this.cache = { ...all };
+      }
+      /**
+       * Stable per-machine pepper. Not a secret — just makes the encrypted file
+       * non-portable between machines. M6 will swap this for an OS-keychain entry.
+       */
+      pepper() {
+        const host = (process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "cybermind") + ":cybermind-v1";
+        return createHash("sha256").update(host).digest();
+      }
+    };
+  }
+});
+
+// ../tools/src/workspace-checkpoint.ts
+import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync } from "fs";
+import { homedir as homedir3 } from "os";
+import { join as join9, resolve as resolve2, relative, dirname as dirname2 } from "path";
+import { createHash as createHash2 } from "crypto";
+function checkpointRoot() {
+  const dir = join9(homedir3(), ".codeva", "checkpoints");
+  if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
+  return dir;
+}
+var WorkspaceCheckpoints;
+var init_workspace_checkpoint = __esm({
+  "../tools/src/workspace-checkpoint.ts"() {
+    "use strict";
+    WorkspaceCheckpoints = class {
+      constructor(sessionId, cwd2 = process.cwd()) {
+        this.cwd = cwd2;
+        this.dir = join9(checkpointRoot(), sessionId);
+        if (!existsSync11(this.dir)) mkdirSync10(this.dir, { recursive: true });
+        this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);
+      }
+      cwd;
+      dir;
+      seq = 0;
+      /**
+       * Snapshot the given files (by absolute or cwd-relative path) before they are
+       * modified. Files that don't exist yet are recorded as "existed:false" so a
+       * rewind deletes them. Returns the checkpoint sequence number.
+       */
+      snapshot(paths, label) {
+        const seq = ++this.seq;
+        const cpDir = join9(this.dir, String(seq));
+        mkdirSync10(cpDir, { recursive: true });
+        const files = [];
+        for (const p2 of paths) {
+          const abs = resolve2(this.cwd, p2);
+          const existed = existsSync11(abs);
+          const safeName = createHash2("sha1").update(abs).digest("hex");
+          if (existed) {
+            try {
+              const content = readFileSync10(abs);
+              writeFileSync10(join9(cpDir, safeName), content);
+            } catch {
+              continue;
+            }
+          }
+          files.push({ path: abs, existed });
+        }
+        const entry = { seq, label, createdAt: Date.now(), files };
+        writeFileSync10(join9(cpDir, "manifest.json"), JSON.stringify(entry, null, 2), "utf8");
+        return seq;
+      }
+      /** List checkpoints, newest first. */
+      list() {
+        if (!existsSync11(this.dir)) return [];
+        const out = [];
+        for (const name of readdirSync4(this.dir)) {
+          const manifest = join9(this.dir, name, "manifest.json");
+          if (existsSync11(manifest)) {
+            try {
+              out.push(JSON.parse(readFileSync10(manifest, "utf8")));
+            } catch {
+            }
+          }
+        }
+        return out.sort((a, b) => b.seq - a.seq);
+      }
+      /**
+       * Restore the workspace to the state captured at `seq` (and undo everything
+       * after it). Files that didn't exist at snapshot time are deleted; existing
+       * files are rewritten with their captured bytes.
+       */
+      restore(seq) {
+        let restored = 0;
+        let deleted = 0;
+        const entries = this.list().filter((e) => e.seq >= seq).sort((a, b) => b.seq - a.seq);
+        for (const entry of entries) {
+          const cpDir = join9(this.dir, String(entry.seq));
+          for (const f of entry.files) {
+            const safeName = createHash2("sha1").update(f.path).digest("hex");
+            const snapPath = join9(cpDir, safeName);
+            if (f.existed && existsSync11(snapPath)) {
+              try {
+                const d = dirname2(f.path);
+                if (!existsSync11(d)) mkdirSync10(d, { recursive: true });
+                writeFileSync10(f.path, readFileSync10(snapPath));
+                restored++;
+              } catch {
+              }
+            } else if (!f.existed && existsSync11(f.path)) {
+              try {
+                rmSync(f.path, { force: true });
+                deleted++;
+              } catch {
+              }
+            }
+          }
+        }
+        return { restored, deleted };
+      }
+      /** Human-readable relative path for display. */
+      rel(abs) {
+        return relative(this.cwd, abs) || abs;
+      }
+    };
+  }
+});
+
+// ../tools/src/mcp-client.ts
+import { spawn } from "child_process";
+import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
+import { homedir as homedir4 } from "os";
+import { join as join10 } from "path";
+function readMcpConfig(cwd2) {
+  for (const path2 of [join10(cwd2, ".codeva", "mcp.json"), join10(homedir4(), ".codeva", "mcp.json")]) {
+    try {
+      if (existsSync12(path2)) return JSON.parse(readFileSync11(path2, "utf8"));
+    } catch {
+    }
+  }
+  return {};
+}
+async function loadMcpTools(cwd2 = process.cwd()) {
+  const cfg = readMcpConfig(cwd2);
+  const servers = [];
+  const tools = [];
+  const entries = Object.entries(cfg.mcpServers ?? {});
+  await Promise.all(
+    entries.map(async ([name, sc]) => {
+      const server = new McpServer(name, sc);
+      try {
+        await server.start();
+        servers.push(server);
+        for (const t of server.tools) {
+          tools.push({
+            schema: {
+              name: `mcp__${name}__${t.name}`,
+              description: `[MCP:${name}] ${t.description}`,
+              inputSchema: t.inputSchema ?? { type: "object", properties: {} }
+            },
+            destructive: true,
+            // MCP tools can do anything; gate them by default
+            async execute(input) {
+              return server.callTool(t.name, input);
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })
+  );
+  return { tools, servers };
+}
+var McpServer;
+var init_mcp_client = __esm({
+  "../tools/src/mcp-client.ts"() {
+    "use strict";
+    McpServer = class {
+      constructor(name, cfg) {
+        this.name = name;
+        this.cfg = cfg;
+      }
+      name;
+      cfg;
+      proc = null;
+      nextId = 1;
+      pending = /* @__PURE__ */ new Map();
+      buffer = "";
+      tools = [];
+      async start(timeoutMs = 15e3) {
+        const isWin = process.platform === "win32";
+        const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
+        this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
+          env: { ...process.env, ...this.cfg.env ?? {} },
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+          shell: needsShell
+        });
+        this.proc.stdout.setEncoding("utf8");
+        this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+        this.proc.on("error", () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
+        this.proc.on("exit", () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
+        await this.rpc("initialize", {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "cybercoder", version: "0.1.0" }
+        }, timeoutMs);
+        this.notify("notifications/initialized", {});
+        const listed = await this.rpc("tools/list", {}, timeoutMs);
+        this.tools = listed?.tools ?? [];
+      }
+      async callTool(toolName, args, timeoutMs = 6e4) {
+        const res = await this.rpc("tools/call", { name: toolName, arguments: args }, timeoutMs);
+        const text = (res?.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : `[${c.type}]`).join("\n");
+        return res?.isError ? `[MCP error] ${text}` : text || "[no content]";
+      }
+      stop() {
+        try {
+          this.proc?.kill();
+        } catch {
+        }
+      }
+      onData(chunk) {
+        this.buffer += chunk;
+        let idx;
+        while ((idx = this.buffer.indexOf("\n")) !== -1) {
+          const line = this.buffer.slice(0, idx).trim();
+          this.buffer = this.buffer.slice(idx + 1);
+          if (!line) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (typeof msg.id === "number" && this.pending.has(msg.id)) {
+              const p2 = this.pending.get(msg.id);
+              this.pending.delete(msg.id);
+              if (msg.error) p2.reject(new Error(msg.error.message ?? "MCP error"));
+              else p2.resolve(msg.result);
+            }
+          } catch {
+          }
+        }
+      }
+      rpc(method, params, timeoutMs) {
+        if (!this.proc) return Promise.reject(new Error("MCP server not started"));
+        const id = this.nextId++;
+        const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
+        return new Promise((resolve13, reject) => {
+          const timer = setTimeout(() => {
+            this.pending.delete(id);
+            reject(new Error(`MCP '${this.name}' ${method} timed out`));
+          }, timeoutMs);
+          this.pending.set(id, {
+            resolve: (v) => {
+              clearTimeout(timer);
+              resolve13(v);
+            },
+            reject: (e) => {
+              clearTimeout(timer);
+              reject(e);
+            }
+          });
+          this.proc.stdin.write(payload);
+        });
+      }
+      notify(method, params) {
+        if (!this.proc) return;
+        this.proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
+      }
+      failAll(err) {
+        for (const p2 of this.pending.values()) p2.reject(err);
+        this.pending.clear();
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/read-file.ts
+import { readFileSync as readFileSync12 } from "fs";
+import { resolve as resolve3 } from "path";
+function numberLines(text, offset, limit) {
+  const lines = text.split("\n");
+  const start = Math.max(1, offset ?? 1);
+  const end = limit ? Math.min(lines.length, start + limit - 1) : lines.length;
+  const slice = lines.slice(start - 1, end);
+  const width = String(end).length;
+  return slice.map((l, i) => `${String(start + i).padStart(width, " ")}	${l}`).join("\n");
+}
+var MAX_BYTES, readFileTool;
+var init_read_file = __esm({
+  "../tools/src/builtin/read-file.ts"() {
+    "use strict";
+    MAX_BYTES = 1e6;
+    readFileTool = {
+      schema: {
+        name: "read_file",
+        description: "Read the contents of a file at the given path. Returns up to ~1MB of UTF-8 text with 1-indexed line numbers. Use an absolute path or one relative to the current working directory.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Absolute or relative file path." },
+            offset: { type: "integer", minimum: 1, description: "Optional 1-indexed line to start at." },
+            limit: { type: "integer", minimum: 1, description: "Optional number of lines to read." }
+          },
+          required: ["path"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? "");
+        if (!path2) throw new Error("read_file requires a non-empty path");
+        const abs = resolve3(ctx.cwd, path2);
+        const raw = readFileSync12(abs);
+        if (raw.byteLength > MAX_BYTES) {
+          const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
+          return numberLines(truncated, input.offset, input.limit) + `
+
+[truncated: file is ${raw.byteLength} bytes, only first ${MAX_BYTES} shown]`;
+        }
+        return numberLines(raw.toString("utf8"), input.offset, input.limit);
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/read-many.ts
+import { readFileSync as readFileSync13, statSync } from "fs";
+import { resolve as resolve4 } from "path";
+function numberLines2(text) {
+  const lines = text.split("\n");
+  const width = String(lines.length).length;
+  return lines.map((l, i) => `${String(i + 1).padStart(width, " ")}	${l}`).join("\n");
+}
+var MAX_BYTES_PER_FILE, MAX_FILES, readManyTool;
+var init_read_many = __esm({
+  "../tools/src/builtin/read-many.ts"() {
+    "use strict";
+    MAX_BYTES_PER_FILE = 2e5;
+    MAX_FILES = 20;
+    readManyTool = {
+      schema: {
+        name: "read_many",
+        description: "Read multiple files at once and return their numbered contents, separated by headers. Use this instead of many read_file calls when you need several files to understand a feature. Max 20 files.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            paths: {
+              type: "array",
+              items: { type: "string" },
+              description: "Absolute or relative file paths to read."
+            }
+          },
+          required: ["paths"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const paths = Array.isArray(input.paths) ? input.paths.map(String) : [];
+        if (paths.length === 0) throw new Error('read_many requires a non-empty "paths" array');
+        const limited = paths.slice(0, MAX_FILES);
+        const blocks = limited.map((p2) => {
+          const abs = resolve4(ctx.cwd, p2);
+          try {
+            const st = statSync(abs);
+            if (!st.isFile()) return `### ${p2}
+[not a file]`;
+            const raw = readFileSync13(abs);
+            const text = raw.byteLength > MAX_BYTES_PER_FILE ? raw.subarray(0, MAX_BYTES_PER_FILE).toString("utf8") + "\n[truncated]" : raw.toString("utf8");
+            return `### ${p2}
+${numberLines2(text)}`;
+          } catch (err) {
+            return `### ${p2}
+[error: ${err instanceof Error ? err.message : String(err)}]`;
+          }
+        });
+        const extra = paths.length > MAX_FILES ? `
+
+[${paths.length - MAX_FILES} more files omitted; request them separately]` : "";
+        return blocks.join("\n\n") + extra;
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/write-file.ts
+import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync11 } from "fs";
+import { dirname as dirname3, resolve as resolve5 } from "path";
+var writeFileTool;
+var init_write_file = __esm({
+  "../tools/src/builtin/write-file.ts"() {
+    "use strict";
+    writeFileTool = {
+      schema: {
+        name: "write_file",
+        description: "Create a new file at the given path with the given UTF-8 content. Fails if the file already exists \u2014 use edit for modifications. Parent directories are created.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Absolute or relative file path." },
+            content: { type: "string", description: "Full UTF-8 file content." }
+          },
+          required: ["path", "content"]
+        }
+      },
+      destructive: true,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? "");
+        const content = String(input.content ?? "");
+        if (!path2) throw new Error("write_file requires a path");
+        const abs = resolve5(ctx.cwd, path2);
+        if (existsSync13(abs)) {
+          throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
+        }
+        const dir = dirname3(abs);
+        if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
+        writeFileSync11(abs, content, "utf8");
+        return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
+      },
+      // Self-correction: confirm the file now exists with the expected size.
+      async verify(input, _output, ctx) {
+        try {
+          const abs = resolve5(ctx.cwd, String(input.path ?? ""));
+          const content = String(input.content ?? "");
+          if (!existsSync13(abs)) return "write_file verification failed: file does not exist after writing.";
+          const written = readFileSync14(abs, "utf8");
+          if (written.length !== content.length) {
+            return `write_file verification warning: written size (${written.length}) differs from intended (${content.length}).`;
+          }
+          return null;
+        } catch (err) {
+          return `write_file verification error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/edit.ts
+import { readFileSync as readFileSync15, writeFileSync as writeFileSync12 } from "fs";
+import { resolve as resolve6 } from "path";
+function occurrenceCount(haystack, needle) {
+  if (!needle) return 0;
+  let n = 0;
+  let i = 0;
+  while ((i = haystack.indexOf(needle, i)) !== -1) {
+    n++;
+    i += needle.length;
+  }
+  return n;
+}
+var editTool;
+var init_edit = __esm({
+  "../tools/src/builtin/edit.ts"() {
+    "use strict";
+    editTool = {
+      schema: {
+        name: "edit",
+        description: "Replace an exact string in a file with a new string. The old_string must appear exactly once unless replace_all is true. Use for surgical code edits; create new files with write_file instead.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string" },
+            old_string: { type: "string", description: "Exact text to replace, including indentation." },
+            new_string: { type: "string", description: "Replacement text." },
+            replace_all: { type: "boolean", default: false }
+          },
+          required: ["path", "old_string", "new_string"]
+        }
+      },
+      destructive: true,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? "");
+        const oldStr = String(input.old_string ?? "");
+        const newStr = String(input.new_string ?? "");
+        const replaceAll = Boolean(input.replace_all);
+        if (!path2) throw new Error("edit requires a path");
+        if (!oldStr) throw new Error("edit requires a non-empty old_string");
+        if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
+        const abs = resolve6(ctx.cwd, path2);
+        const original = readFileSync15(abs, "utf8");
+        if (replaceAll) {
+          const count = occurrenceCount(original, oldStr);
+          if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
+          const next2 = original.split(oldStr).join(newStr);
+          writeFileSync12(abs, next2, "utf8");
+          return `Replaced ${count} occurrence(s) in ${abs}.`;
+        }
+        const idx = original.indexOf(oldStr);
+        if (idx === -1) throw new Error(`old_string not found in ${abs}`);
+        if (original.indexOf(oldStr, idx + 1) !== -1) {
+          throw new Error(
+            `old_string is not unique in ${abs}; provide a longer surrounding snippet or set replace_all=true.`
+          );
+        }
+        const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
+        writeFileSync12(abs, next, "utf8");
+        return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
+      },
+      // Self-correction: re-read the file and confirm the edit actually landed.
+      async verify(input, _output, ctx) {
+        try {
+          const abs = resolve6(ctx.cwd, String(input.path ?? ""));
+          const newStr = String(input.new_string ?? "");
+          const current = readFileSync15(abs, "utf8");
+          if (newStr && !current.includes(newStr)) {
+            return "Edit verification failed: new_string is not present in the file after writing. The change may not have applied as intended.";
+          }
+          return null;
+        } catch (err) {
+          return `Edit verification could not read the file back: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/list-dir.ts
+import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
+import { join as join11, resolve as resolve7 } from "path";
+var MAX_ENTRIES, listDirTool;
+var init_list_dir = __esm({
+  "../tools/src/builtin/list-dir.ts"() {
+    "use strict";
+    MAX_ENTRIES = 200;
+    listDirTool = {
+      schema: {
+        name: "list_dir",
+        description: "List files and directories at the given absolute or relative path. Returns up to 200 entries with type and size.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Directory to list." }
+          },
+          required: ["path"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? ".");
+        const abs = resolve7(ctx.cwd, path2);
+        const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
+        const lines = [];
+        for (const e of entries) {
+          const full = join11(abs, e.name);
+          let size = "";
+          try {
+            if (e.isFile()) size = `${statSync2(full).size}b`;
+            else if (e.isDirectory()) size = "dir";
+            else if (e.isSymbolicLink()) size = "symlink";
+          } catch {
+            size = "?";
+          }
+          lines.push(`${size.padEnd(10)} ${e.name}`);
+        }
+        return lines.length === 0 ? "(empty directory)" : lines.join("\n");
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/grep.ts
+import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
+import { join as join12, resolve as resolve8 } from "path";
+function extToRegex(glob) {
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  return new RegExp(`${escaped}$`, "i");
+}
+function walk(root, visit) {
+  const stack = [root];
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    let stat;
+    try {
+      stat = statSync3(cur);
+    } catch {
+      continue;
+    }
+    if (stat.isFile()) {
+      if (!visit(cur)) return;
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    let entries;
+    try {
+      entries = readdirSync6(cur, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
+      stack.push(join12(cur, e.name));
+    }
+  }
+}
+var MAX_MATCHES, MAX_FILE_BYTES, SKIP_DIRS, grepTool;
+var init_grep = __esm({
+  "../tools/src/builtin/grep.ts"() {
+    "use strict";
+    MAX_MATCHES = 200;
+    MAX_FILE_BYTES = 2e6;
+    SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".turbo", ".next", ".cache"]);
+    grepTool = {
+      schema: {
+        name: "grep",
+        description: "Search files for a regex pattern (case-insensitive by default). Returns up to 200 matching lines with file:line prefix. Skips node_modules and other build dirs.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            pattern: { type: "string", description: "Regular expression to search for." },
+            path: { type: "string", description: "Directory or file to search. Defaults to cwd." },
+            case_sensitive: { type: "boolean", default: false },
+            include: { type: "string", description: 'Optional glob-like extension filter, e.g. "*.ts".' }
+          },
+          required: ["pattern"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const pattern = String(input.pattern ?? "");
+        if (!pattern) throw new Error("grep requires a pattern");
+        const flags = input.case_sensitive ? "g" : "gi";
+        const re = new RegExp(pattern, flags);
+        const root = resolve8(ctx.cwd, String(input.path ?? "."));
+        const include = typeof input.include === "string" ? extToRegex(input.include) : null;
+        const matches = [];
+        walk(root, (file) => {
+          if (matches.length >= MAX_MATCHES) return false;
+          if (include && !include.test(file)) return true;
+          try {
+            const stat = statSync3(file);
+            if (stat.size > MAX_FILE_BYTES) return true;
+            const text = readFileSync16(file, "utf8");
+            const lines = text.split("\n");
+            for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
+              const line = lines[i] ?? "";
+              if (re.test(line)) {
+                matches.push(`${file}:${i + 1}: ${line}`);
+              }
+            }
+          } catch {
+          }
+          return true;
+        });
+        if (matches.length === 0) return `(no matches for /${pattern}/${flags})`;
+        return matches.join("\n");
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/repo-map.ts
+import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
+import { join as join13, resolve as resolve9, relative as relative2, extname } from "path";
+function extractSymbols(file) {
+  let text;
+  try {
+    const st = statSync4(file);
+    if (st.size > 4e5) return [];
+    text = readFileSync17(file, "utf8");
+  } catch {
+    return [];
+  }
+  const symbols = /* @__PURE__ */ new Set();
+  const patterns = [
+    /export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g,
+    /export\s+(?:abstract\s+)?class\s+([A-Za-z0-9_]+)/g,
+    /export\s+(?:const|let|var)\s+([A-Za-z0-9_]+)/g,
+    /export\s+interface\s+([A-Za-z0-9_]+)/g,
+    /export\s+type\s+([A-Za-z0-9_]+)/g,
+    /(?:^|\n)\s*(?:public|private|protected\s+)?(?:async\s+)?def\s+([A-Za-z0-9_]+)/g,
+    // python
+    /(?:^|\n)func\s+(?:\([^)]*\)\s+)?([A-Za-z0-9_]+)/g,
+    // go
+    /(?:^|\n)(?:pub\s+)?fn\s+([A-Za-z0-9_]+)/g
+    // rust
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(text)) !== null && symbols.size < MAX_SYMBOLS_PER_FILE) {
+      if (m[1] && m[1].length > 1) symbols.add(m[1]);
+    }
+  }
+  return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+}
+var IGNORE_DIRS, CODE_EXT, MAX_FILES2, MAX_SYMBOLS_PER_FILE, repoMapTool;
+var init_repo_map = __esm({
+  "../tools/src/builtin/repo-map.ts"() {
+    "use strict";
+    IGNORE_DIRS = /* @__PURE__ */ new Set([
+      "node_modules",
+      ".git",
+      "dist",
+      "build",
+      ".next",
+      "out",
+      "coverage",
+      ".turbo",
+      ".cache",
+      "vendor",
+      "__pycache__",
+      ".venv",
+      "venv",
+      ".idea",
+      ".vscode"
+    ]);
+    CODE_EXT = /* @__PURE__ */ new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".rb", ".php", ".c", ".cpp", ".h", ".cs"]);
+    MAX_FILES2 = 400;
+    MAX_SYMBOLS_PER_FILE = 12;
+    repoMapTool = {
+      schema: {
+        name: "repo_map",
+        description: "Build a compact map of the project: directory structure plus the key exported symbols (functions/classes/components) in each code file. Call this FIRST on an unfamiliar repo to understand its layout efficiently.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Root to map (default: cwd)." },
+            max_depth: { type: "integer", description: "Max directory depth (default 4)." }
+          }
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const root = resolve9(ctx.cwd, String(input.path ?? "."));
+        const maxDepth = Number(input.max_depth ?? 4);
+        const files = [];
+        const walk2 = (dir, depth) => {
+          if (depth > maxDepth || files.length >= MAX_FILES2) return;
+          let entries;
+          try {
+            entries = readdirSync7(dir, { withFileTypes: true });
+          } catch {
+            return;
+          }
+          for (const e of entries) {
+            if (files.length >= MAX_FILES2) break;
+            if (e.name.startsWith(".") && e.name !== ".codeva") continue;
+            if (IGNORE_DIRS.has(e.name)) continue;
+            const full = join13(dir, e.name);
+            if (e.isDirectory()) walk2(full, depth + 1);
+            else if (e.isFile() && CODE_EXT.has(extname(e.name))) files.push(full);
+          }
+        };
+        walk2(root, 0);
+        if (files.length === 0) return "No code files found to map.";
+        const byDir = /* @__PURE__ */ new Map();
+        for (const f of files) {
+          const rel = relative2(root, f);
+          const dir = rel.includes("/") || rel.includes("\\") ? rel.replace(/[\\/][^\\/]+$/, "") : ".";
+          if (!byDir.has(dir)) byDir.set(dir, []);
+          byDir.get(dir).push(f);
+        }
+        const lines = [`# Repo map: ${relative2(ctx.cwd, root) || "."} (${files.length} code files)`];
+        const dirs = [...byDir.keys()].sort();
+        for (const dir of dirs) {
+          lines.push(`
+## ${dir}/`);
+          for (const f of byDir.get(dir).sort()) {
+            const name = f.replace(/^.*[\\/]/, "");
+            const symbols = extractSymbols(f);
+            if (symbols.length) {
+              lines.push(`- ${name}: ${symbols.join(", ")}`);
+            } else {
+              lines.push(`- ${name}`);
+            }
+          }
+        }
+        const out = lines.join("\n");
+        return out.length > 16e3 ? out.slice(0, 16e3) + "\n\u2026[map truncated]" : out;
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/project-memory-tool.ts
+import { existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync18, writeFileSync as writeFileSync13, statSync as statSync5 } from "fs";
+import { join as join14 } from "path";
+function p(cwd2, ...parts) {
+  return join14(cwd2, CYBER_DIR, ...parts);
+}
+function ensureDir(cwd2) {
+  const d = join14(cwd2, CYBER_DIR);
+  if (!existsSync14(d)) mkdirSync12(d, { recursive: true });
+}
+function read(cwd2) {
+  const f = p(cwd2, "project.json");
+  if (!existsSync14(f)) return null;
+  try {
+    return { ...DEFAULTS, ...JSON.parse(readFileSync18(f, "utf8")) };
+  } catch {
+    return null;
+  }
+}
+function readNotes(cwd2) {
+  const f = p(cwd2, "memory.md");
+  if (!existsSync14(f)) return "";
+  try {
+    return readFileSync18(f, "utf8");
+  } catch {
+    return "";
+  }
+}
+function mergeArr(a, b) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const item of [...a ?? [], ...b ?? []]) {
+    const k = typeof item === "string" ? item : JSON.stringify(item);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(item);
+    }
+  }
+  return out;
+}
+var CYBER_DIR, DEFAULTS, projectMemoryTool;
+var init_project_memory_tool = __esm({
+  "../tools/src/builtin/project-memory-tool.ts"() {
+    "use strict";
+    CYBER_DIR = ".cyber";
+    DEFAULTS = {
+      version: 1,
+      stack: [],
+      entryPoints: [],
+      commands: {},
+      conventions: [],
+      importantPaths: [],
+      glossary: [],
+      decisions: []
+    };
+    projectMemoryTool = {
+      schema: {
+        name: "project_memory",
+        description: "Persist or read self-learning project memory in the .cyber/ folder so future sessions understand this project from .cyber/ alone. Use action='read' to recall, 'update' to save structured facts (stack, entryPoints, commands, conventions, importantPaths, glossary, decisions, name, summary), and 'note' to append a free-form learning. Call 'update'/'note' whenever you discover something durable about the project.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["read", "update", "note"], description: "read | update | note" },
+            name: { type: "string" },
+            summary: { type: "string" },
+            stack: { type: "array", items: { type: "string" } },
+            entryPoints: { type: "array", items: { type: "string" } },
+            commands: { type: "object", description: 'map of label -> shell command, e.g. {"build":"npm run build"}' },
+            conventions: { type: "array", items: { type: "string" } },
+            importantPaths: { type: "array", items: { type: "object", properties: { path: { type: "string" }, note: { type: "string" } } } },
+            glossary: { type: "array", items: { type: "object", properties: { term: { type: "string" }, meaning: { type: "string" } } } },
+            decisions: { type: "array", items: { type: "string" } },
+            note: { type: "string", description: "For action='note': the learning to append." }
+          },
+          required: ["action"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const cwd2 = ctx.cwd;
+        const action = String(input.action ?? "read");
+        if (action === "read") {
+          const mem = read(cwd2);
+          const notes = readNotes(cwd2);
+          if (!mem && !notes) return 'No .cyber/ project memory yet. Use action="update"/"note" to start one.';
+          return JSON.stringify({ project: mem, notes }, null, 2);
+        }
+        if (action === "note") {
+          const note = String(input.note ?? "").trim();
+          if (!note) return "Provide a non-empty `note`.";
+          ensureDir(cwd2);
+          const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ");
+          const prev = readNotes(cwd2) || "# Project Memory Log\n";
+          writeFileSync13(p(cwd2, "memory.md"), `${prev}
+- [${stamp}] ${note}
+`, "utf8");
+          return `Recorded learning to .cyber/memory.md`;
+        }
+        ensureDir(cwd2);
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        const current = read(cwd2) ?? { ...DEFAULTS, createdAt: now };
+        const patch = input;
+        const next = {
+          ...current,
+          ...patch.name !== void 0 ? { name: patch.name } : {},
+          ...patch.summary !== void 0 ? { summary: patch.summary } : {},
+          version: 1,
+          stack: mergeArr(current.stack, patch.stack),
+          entryPoints: mergeArr(current.entryPoints, patch.entryPoints),
+          conventions: mergeArr(current.conventions, patch.conventions),
+          decisions: mergeArr(current.decisions, patch.decisions),
+          importantPaths: mergeArr(current.importantPaths, patch.importantPaths),
+          glossary: mergeArr(current.glossary, patch.glossary),
+          commands: { ...current.commands ?? {}, ...patch.commands ?? {} },
+          createdAt: current.createdAt ?? now,
+          updatedAt: now
+        };
+        writeFileSync13(p(cwd2, "project.json"), JSON.stringify(next, null, 2), "utf8");
+        const readme = p(cwd2, "README.md");
+        if (!existsSync14(readme)) {
+          writeFileSync13(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
+        }
+        return `Updated .cyber/project.json (${Object.keys(patch).filter((k) => k !== "action").join(", ") || "no fields"}).`;
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/run-command.ts
+import { spawn as spawn2 } from "child_process";
+var DEFAULT_TIMEOUT_MS, MAX_OUTPUT_BYTES, SHELL, SHELL_ARG, runCommandTool;
+var init_run_command = __esm({
+  "../tools/src/builtin/run-command.ts"() {
+    "use strict";
+    DEFAULT_TIMEOUT_MS = 6e4;
+    MAX_OUTPUT_BYTES = 2e5;
+    SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
+    SHELL_ARG = process.platform === "win32" ? "-NoProfile" : "-lc";
+    runCommandTool = {
+      schema: {
+        name: "run_command",
+        description: "Execute a shell command in the user's default shell (PowerShell on Windows, bash on Unix). Returns combined stdout/stderr (up to ~200KB) and the exit code. Always destructive \u2014 requires approval.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            command: { type: "string", description: "Command line to run." },
+            cwd: { type: "string", description: "Optional working directory." },
+            timeout_ms: { type: "integer", description: "Optional timeout (defaults 60s)." }
+          },
+          required: ["command"]
+        }
+      },
+      destructive: true,
+      async execute(input, ctx) {
+        const command = String(input.command ?? "");
+        if (!command) throw new Error("run_command requires a command");
+        const cwd2 = input.cwd ?? ctx.cwd;
+        const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
+        return await new Promise((resolveResult) => {
+          const child = spawn2(SHELL, [SHELL_ARG, command], {
+            cwd: cwd2,
+            env: process.env,
+            windowsHide: true
+          });
+          const chunks = [];
+          let totalBytes = 0;
+          let truncated = false;
+          const onData = (buf) => {
+            if (totalBytes >= MAX_OUTPUT_BYTES) {
+              truncated = true;
+              return;
+            }
+            const room = MAX_OUTPUT_BYTES - totalBytes;
+            const slice = buf.byteLength > room ? buf.subarray(0, room) : buf;
+            chunks.push(slice);
+            totalBytes += slice.byteLength;
+            if (totalBytes >= MAX_OUTPUT_BYTES) {
+              truncated = true;
+              child.kill();
+            }
+          };
+          child.stdout.on("data", onData);
+          child.stderr.on("data", onData);
+          const killer = setTimeout(() => {
+            truncated = true;
+            chunks.push(Buffer.from(`
+[timeout: killed after ${timeoutMs}ms]
+`));
+            child.kill();
+          }, timeoutMs);
+          child.on("close", (code) => {
+            clearTimeout(killer);
+            const out = Buffer.concat(chunks).toString("utf8");
+            const tail = truncated ? `
+[truncated at ${MAX_OUTPUT_BYTES} bytes]` : "";
+            resolveResult(`exit ${code ?? 0}
+${out}${tail}`);
+          });
+          child.on("error", (err) => {
+            clearTimeout(killer);
+            resolveResult(`exit -1
+[spawn error] ${err.message}`);
+          });
+        });
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/web-search.ts
+function parseDuckResults(html, max) {
+  const out = [];
+  const linkRe = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippetRe = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippets = [];
+  let sm;
+  while ((sm = snippetRe.exec(html)) !== null) {
+    snippets.push(stripTags(sm[1] ?? ""));
+  }
+  let lm;
+  let i = 0;
+  while ((lm = linkRe.exec(html)) !== null && out.length < max) {
+    const rawHref = lm[1] ?? "";
+    const title = stripTags(lm[2] ?? "");
+    const url = decodeDuckUrl(rawHref);
+    out.push({ title, url, snippet: snippets[i] ?? "" });
+    i++;
+  }
+  return out;
+}
+function stripTags(s) {
+  return s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/\s+/g, " ").trim();
+}
+function decodeDuckUrl(href) {
+  const m = href.match(/[?&]uddg=([^&]+)/);
+  if (m && m[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return href;
+    }
+  }
+  return href.startsWith("//") ? `https:${href}` : href;
+}
+var MAX_RESULTS, TIMEOUT_MS, webSearchTool;
+var init_web_search = __esm({
+  "../tools/src/builtin/web-search.ts"() {
+    "use strict";
+    MAX_RESULTS = 8;
+    TIMEOUT_MS = 15e3;
+    webSearchTool = {
+      schema: {
+        name: "web_search",
+        description: "Search the web and return the top results (title, url, snippet). Use for current docs, library versions, error messages, and anything outside the local repo. Keyless.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search query." },
+            max_results: { type: "integer", description: `Max results (default ${MAX_RESULTS}).` }
+          },
+          required: ["query"]
+        }
+      },
+      destructive: false,
+      async execute(input) {
+        const query = String(input.query ?? "").trim();
+        if (!query) throw new Error("web_search requires a non-empty query");
+        const max = Math.min(Number(input.max_results ?? MAX_RESULTS) || MAX_RESULTS, 15);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)",
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `q=${encodeURIComponent(query)}`,
+            signal: controller.signal
+          });
+          if (!res.ok) return `web_search failed: HTTP ${res.status}`;
+          const html = await res.text();
+          const results = parseDuckResults(html, max);
+          if (results.length === 0) return `No results for "${query}".`;
+          return results.map((r, i) => `${i + 1}. ${r.title}
+   ${r.url}
+   ${r.snippet}`).join("\n\n");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return `web_search error: ${msg}`;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/web-fetch.ts
+function htmlToText(html) {
+  return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<svg[\s\S]*?<\/svg>/gi, " ").replace(/<head[\s\S]*?<\/head>/gi, " ").replace(/<\/(p|div|section|article|li|h[1-6]|tr|br)>/gi, "\n").replace(/<li[^>]*>/gi, "\u2022 ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&#39;/g, "'").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+var TIMEOUT_MS2, MAX_CHARS, webFetchTool;
+var init_web_fetch = __esm({
+  "../tools/src/builtin/web-fetch.ts"() {
+    "use strict";
+    TIMEOUT_MS2 = 2e4;
+    MAX_CHARS = 2e4;
+    webFetchTool = {
+      schema: {
+        name: "web_fetch",
+        description: "Fetch a URL and return its readable text content (HTML stripped to text, or raw for JSON/markdown). Use after web_search to read a specific page or to pull docs/specs.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            url: { type: "string", description: "Absolute http(s) URL to fetch." },
+            max_chars: { type: "integer", description: `Max characters returned (default ${MAX_CHARS}).` }
+          },
+          required: ["url"]
+        }
+      },
+      destructive: false,
+      async execute(input) {
+        const url = String(input.url ?? "").trim();
+        if (!/^https?:\/\//i.test(url)) throw new Error("web_fetch requires an absolute http(s) URL");
+        const maxChars = Math.min(Number(input.max_chars ?? MAX_CHARS) || MAX_CHARS, 6e4);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS2);
+        try {
+          const res = await fetch(url, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)" },
+            signal: controller.signal,
+            redirect: "follow"
+          });
+          if (!res.ok) return `web_fetch failed: HTTP ${res.status} ${res.statusText}`;
+          const contentType = res.headers.get("content-type") || "";
+          const raw = await res.text();
+          let text;
+          if (contentType.includes("html")) {
+            text = htmlToText(raw);
+          } else {
+            text = raw;
+          }
+          if (text.length > maxChars) {
+            return `${text.slice(0, maxChars)}
+
+[truncated at ${maxChars} chars]`;
+          }
+          return text || "[empty response]";
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return `web_fetch error: ${msg}`;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/registry.ts
+function builtinTools() {
+  return [
+    readFileTool,
+    readManyTool,
+    writeFileTool,
+    editTool,
+    listDirTool,
+    grepTool,
+    repoMapTool,
+    runCommandTool,
+    webSearchTool,
+    webFetchTool,
+    projectMemoryTool
+  ];
+}
+var init_registry = __esm({
+  "../tools/src/registry.ts"() {
+    "use strict";
+    init_read_file();
+    init_read_many();
+    init_write_file();
+    init_edit();
+    init_list_dir();
+    init_grep();
+    init_repo_map();
+    init_run_command();
+    init_web_search();
+    init_web_fetch();
+    init_project_memory_tool();
+  }
+});
+
+// ../tools/src/index.ts
+var init_src4 = __esm({
+  "../tools/src/index.ts"() {
+    "use strict";
+    init_approval();
+    init_secrets();
+    init_workspace_checkpoint();
+    init_mcp_client();
+    init_read_file();
+    init_read_many();
+    init_write_file();
+    init_edit();
+    init_list_dir();
+    init_grep();
+    init_repo_map();
+    init_project_memory_tool();
+    init_run_command();
+    init_web_search();
+    init_web_fetch();
+    init_registry();
+  }
+});
+
+// ../skills/src/types.ts
+import { z as z9 } from "zod";
+var SkillIOSchema, SkillFrontmatterSchema;
+var init_types3 = __esm({
+  "../skills/src/types.ts"() {
+    "use strict";
+    SkillIOSchema = z9.object({
+      name: z9.string(),
+      type: z9.string(),
+      required: z9.boolean().optional(),
+      description: z9.string().optional()
+    });
+    SkillFrontmatterSchema = z9.object({
+      name: z9.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9-]*$/, "name must be kebab-case"),
+      description: z9.string().min(1),
+      version: z9.string().default("0.1.0"),
+      inputs: z9.array(SkillIOSchema).default([]),
+      outputs: z9.array(SkillIOSchema).default([]),
+      /** Capabilities the skill needs to run. */
+      requires: z9.object({
+        tools: z9.array(z9.string()).default([]),
+        /** Reserved for M13 — MCP servers the skill expects. */
+        mcp: z9.array(z9.string()).default([])
+      }).default({ tools: [], mcp: [] }),
+      /** Free-form trigger phrases shown in /help and used by skill discovery. */
+      triggers: z9.array(z9.string()).default([]),
+      license: z9.string().optional(),
+      author: z9.string().optional(),
+      category: z9.string().optional(),
+      /** Used by the marketplace to flag curated/official skills. */
+      official: z9.boolean().default(false)
+    });
+  }
+});
+
+// ../skills/src/parser.ts
+import { parse as parseYaml } from "yaml";
+function parseSkillSource(source) {
+  const match = source.match(FRONTMATTER_RE);
+  if (!match) {
+    throw new Error('SKILL.md must begin with a YAML frontmatter block delimited by "---" lines');
+  }
+  const [, yamlBlock, body] = match;
+  let raw;
+  try {
+    raw = parseYaml(yamlBlock ?? "");
+  } catch (err) {
+    throw new Error(`SKILL.md frontmatter is not valid YAML: ${err.message}`);
+  }
+  const parsed = SkillFrontmatterSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
+    throw new Error(`SKILL.md frontmatter failed validation:
+${issues}`);
+  }
+  return { frontmatter: parsed.data, body: (body ?? "").trim() };
+}
+var FRONTMATTER_RE;
+var init_parser = __esm({
+  "../skills/src/parser.ts"() {
+    "use strict";
+    init_types3();
+    FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+  }
+});
+
+// ../skills/src/loader.ts
+import { existsSync as existsSync15, readFileSync as readFileSync19, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
+import { dirname as dirname4, join as join15, resolve as resolve10 } from "path";
+import { fileURLToPath } from "url";
+function getBundledDir() {
+  const here = dirname4(fileURLToPath(import.meta.url));
+  let dir = here;
+  for (let i = 0; i < 8; i++) {
+    const candidate = resolve10(dir, "skills-bundled");
+    if (existsSync15(candidate)) return candidate;
+    const parent = resolve10(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return resolve10(here, "..", "..", "..", "skills-bundled");
+}
+function scanDir(root, source) {
+  if (!existsSync15(root)) return [];
+  const out = [];
+  let entries;
+  try {
+    entries = readdirSync8(root);
+  } catch (err) {
+    log17.warn("failed to read skills dir", { root, err: String(err) });
+    return [];
+  }
+  for (const name of entries) {
+    const folder = join15(root, name);
+    let stat;
+    try {
+      stat = statSync6(folder);
+    } catch {
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    const skillFile = join15(folder, "SKILL.md");
+    if (!existsSync15(skillFile)) continue;
+    try {
+      const raw = readFileSync19(skillFile, "utf8");
+      const { frontmatter, body } = parseSkillSource(raw);
+      const id = `${source}/${frontmatter.name}`;
+      out.push({ id, source, path: skillFile, frontmatter, body });
+    } catch (err) {
+      log17.warn("skipping malformed skill", { skillFile, err: String(err) });
+    }
+  }
+  return out;
+}
+function loadAllSkills(opts = {}) {
+  const cwd2 = opts.cwd ?? process.cwd();
+  const skip = new Set(opts.skip ?? []);
+  const sources = [];
+  if (!skip.has("project")) sources.push({ source: "project", dir: getProjectSkillsDir(cwd2) });
+  if (!skip.has("user")) sources.push({ source: "user", dir: getSkillsDir() });
+  if (!skip.has("bundled")) sources.push({ source: "bundled", dir: opts.bundledDir ?? getBundledDir() });
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const { source, dir } of sources) {
+    for (const skill of scanDir(dir, source)) {
+      if (seen.has(skill.frontmatter.name)) continue;
+      seen.add(skill.frontmatter.name);
+      out.push(skill);
+    }
+  }
+  return out;
+}
+var log17;
+var init_loader = __esm({
+  "../skills/src/loader.ts"() {
+    "use strict";
+    init_src();
+    init_parser();
+    log17 = createLogger("skills:loader");
+  }
+});
+
+// ../skills/src/registry.ts
+var SkillRegistry;
+var init_registry2 = __esm({
+  "../skills/src/registry.ts"() {
+    "use strict";
+    init_loader();
+    SkillRegistry = class {
+      constructor(opts = {}) {
+        this.opts = opts;
+        this.reload();
+      }
+      opts;
+      skills = [];
+      byName = /* @__PURE__ */ new Map();
+      reload() {
+        this.skills = loadAllSkills(this.opts);
+        this.byName.clear();
+        for (const s of this.skills) this.byName.set(s.frontmatter.name, s);
+      }
+      list() {
+        return [...this.skills];
+      }
+      get(name) {
+        return this.byName.get(name);
+      }
+      has(name) {
+        return this.byName.has(name);
+      }
+      /** Group skills by source for /skills UI output. */
+      bySource() {
+        const out = {
+          bundled: [],
+          user: [],
+          project: [],
+          marketplace: []
+        };
+        for (const s of this.skills) out[s.source].push(s);
+        return out;
+      }
+    };
+  }
+});
+
+// ../skills/src/runner.ts
+function buildSubagentSystemPrompt(skill) {
+  return [
+    `You are the "${skill.frontmatter.name}" sub-agent inside CyberMind CLI.`,
+    skill.frontmatter.description,
+    "",
+    skill.body,
+    "",
+    "Rules:",
+    "- You run in an isolated context; the user only sees your final summary.",
+    "- Be concise. Prefer code/path references over prose.",
+    "- When you have completed the task, stop calling tools and emit one final",
+    "  message summarising what you found / did."
+  ].join("\n");
+}
+function selectTools(skill, pool) {
+  const allowed = new Set(skill.frontmatter.requires.tools);
+  if (allowed.size === 0) return [];
+  return pool.filter((t) => allowed.has(t.schema.name));
+}
+async function spawnSubagent(opts) {
+  const { skill, prompt, provider, toolPool } = opts;
+  const tools = selectTools(skill, toolPool);
+  const systemPrompt = buildSubagentSystemPrompt(skill);
+  const messages = [{ role: "user", content: prompt }];
+  let summary = "";
+  let toolCalls = 0;
+  let usage = { inputTokens: 0, outputTokens: 0 };
+  let reason = "end_turn";
+  let error;
+  log18.debug("spawning subagent", {
+    skill: skill.frontmatter.name,
+    tools: tools.map((t) => t.schema.name)
+  });
+  for await (const evt of runAgentLoop(messages, {
+    provider,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    tools,
+    maxIterations: opts.maxIterations ?? 6,
+    signal: opts.signal
+  })) {
+    opts.onEvent?.(evt);
+    if (evt.type === "text") summary += evt.text;
+    else if (evt.type === "tool_call") toolCalls++;
+    else if (evt.type === "usage") {
+      usage.inputTokens += evt.inputTokens;
+      usage.outputTokens += evt.outputTokens;
+    } else if (evt.type === "done") {
+      reason = evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
+      error = evt.error;
+    }
+  }
+  return { summary: summary.trim(), toolCalls, usage, reason, error };
+}
+var log18;
+var init_runner = __esm({
+  "../skills/src/runner.ts"() {
+    "use strict";
+    init_src2();
+    init_src();
+    log18 = createLogger("skills:runner");
+  }
+});
+
+// ../skills/src/spawn-tool.ts
+function buildSpawnSubagentTool(deps) {
+  return {
+    schema: {
+      name: "spawn_subagent",
+      description: "Spawn an isolated sub-agent that runs the named skill against the given prompt. Use this for read-only exploration (research), planning (plan), code review (code-review), or any other installed skill. Returns the sub-agent's final summary as the tool result.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          skill: {
+            type: "string",
+            description: "Name of the skill to invoke. Must match an installed SKILL.md name."
+          },
+          prompt: {
+            type: "string",
+            description: "The task description / user prompt to give the sub-agent."
+          }
+        },
+        required: ["skill", "prompt"]
+      }
+    },
+    async execute(input, _ctx) {
+      const name = String(input.skill ?? "").trim();
+      const prompt = String(input.prompt ?? "").trim();
+      if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
+      if (!prompt) return 'Error: spawn_subagent requires a non-empty "prompt".';
+      const skill = deps.registry.get(name);
+      if (!skill) {
+        const available = deps.registry.list().map((s) => s.frontmatter.name).join(", ");
+        return `Error: skill "${name}" is not installed. Available skills: ${available || "(none)"}`;
+      }
+      const result = await spawnSubagent({
+        skill,
+        prompt,
+        provider: deps.provider,
+        toolPool: deps.toolPool
+      });
+      if (result.reason === "error") {
+        return `[sub-agent ${name} failed: ${result.error ?? "unknown"}]`;
+      }
+      if (result.reason === "max_iterations") {
+        return `[sub-agent ${name} hit iteration cap]
+
+${result.summary}`;
+      }
+      return result.summary || `[sub-agent ${name} completed with no output]`;
+    }
+  };
+}
+var init_spawn_tool = __esm({
+  "../skills/src/spawn-tool.ts"() {
+    "use strict";
+    init_runner();
+  }
+});
+
+// ../skills/src/orchestrator.ts
+async function orchestrate(tasks, opts) {
+  const concurrency = Math.max(1, opts.concurrency ?? 3);
+  const results = new Array(tasks.length);
+  let cursor = 0;
+  log19.debug("orchestrating tasks", { count: tasks.length, concurrency });
+  async function worker() {
+    while (true) {
+      if (opts.signal?.aborted) return;
+      const index = cursor++;
+      if (index >= tasks.length) return;
+      const task = tasks[index];
+      const skill = opts.registry.get(task.skill);
+      const start = Date.now();
+      opts.onTaskStart?.(task, index);
+      if (!skill) {
+        const available = opts.registry.list().map((s) => s.frontmatter.name).join(", ");
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: `skill "${task.skill}" not installed. Available: ${available || "(none)"}`,
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      let sub;
+      try {
+        sub = await spawnSubagent({
+          skill,
+          prompt: task.prompt,
+          provider: opts.provider,
+          toolPool: opts.toolPool,
+          model: opts.model,
+          signal: opts.signal
+        });
+      } catch (err) {
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      results[index] = {
+        task,
+        summary: sub.summary,
+        ok: sub.reason !== "error",
+        error: sub.error,
+        toolCalls: sub.toolCalls,
+        durationMs: Date.now() - start
+      };
+      opts.onTaskDone?.(task, index, results[index]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+function routeTaskToSkill(task, registry) {
+  const t = task.toLowerCase();
+  const has = (name) => registry.has(name);
+  const rules = [
+    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"],
+    [/\b(plan|design|architect|break down|roadmap)\b/, "plan"],
+    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
+    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
+    [/\b(test|spec|coverage|unit test|jest|vitest)\b/, "test-writer"],
+    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
+    [/\b(security|vulnerab|exploit|recon|pentest)\b/, "cyber-recon"],
+    [/\b(database|schema|migration|sql|index)\b/, "db-architect"],
+    [/\b(document|docs|readme|comment|explain)\b/, "doc-writer"],
+    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
+    [/\b(dependency|deps|package|upgrade|npm|version)\b/, "dep-doctor"],
+    [/\b(frontend|ui|css|component|design)\b/, "frontend-design"],
+    [/\b(api|endpoint|rest|graphql|openapi)\b/, "api-designer"],
+    [/\b(infra|terraform|kubernetes|docker|cloud)\b/, "infra-as-code"],
+    [/\b(git|commit|branch|merge|rebase)\b/, "git-master"],
+    [/\b(migrate|migration|port|convert)\b/, "migrate"]
+  ];
+  for (const [re, skill] of rules) {
+    if (re.test(t) && has(skill)) return skill;
+  }
+  for (const fallback of ["research", "plan"]) {
+    if (has(fallback)) return fallback;
+  }
+  return registry.list()[0]?.frontmatter.name;
+}
+var log19;
+var init_orchestrator = __esm({
+  "../skills/src/orchestrator.ts"() {
+    "use strict";
+    init_src();
+    init_runner();
+    log19 = createLogger("skills:orchestrator");
+  }
+});
+
+// ../skills/src/team-tool.ts
+function buildSpawnTeamTool(deps) {
+  return {
+    schema: {
+      name: "spawn_team",
+      description: "Run multiple sub-agent tasks IN PARALLEL and get a combined summary. Use when a goal splits into independent pieces (e.g. research + review + plan). Each task names a skill (or omit it to auto-route) and a prompt. Returns every sub-agent's result, labelled.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            description: "Independent tasks to run concurrently.",
+            items: {
+              type: "object",
+              properties: {
+                skill: { type: "string", description: "Skill to run. Omit to auto-route from the prompt." },
+                prompt: { type: "string", description: "Task description for the sub-agent." },
+                label: { type: "string", description: "Short label for this task." }
+              },
+              required: ["prompt"]
+            }
+          }
+        },
+        required: ["tasks"]
+      }
+    },
+    async execute(input, _ctx) {
+      const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
+      if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
+      const tasks = [];
+      for (const rt of rawTasks) {
+        const obj = rt;
+        const prompt = String(obj.prompt ?? "").trim();
+        if (!prompt) continue;
+        const skill = obj.skill ? String(obj.skill).trim() : routeTaskToSkill(prompt, deps.registry) ?? "";
+        if (!skill) return "Error: no skills installed to run the team.";
+        tasks.push({ skill, prompt, label: obj.label ? String(obj.label) : void 0 });
+      }
+      if (tasks.length === 0) return "Error: spawn_team received no valid tasks.";
+      const results = await orchestrate(tasks, {
+        registry: deps.registry,
+        provider: deps.provider,
+        toolPool: deps.toolPool,
+        concurrency: deps.concurrency ?? 3
+      });
+      const lines = [`# Team results (${results.length} agents)`];
+      results.forEach((r, i) => {
+        const label = r.task.label || r.task.skill;
+        lines.push(`
+## ${i + 1}. ${label} (${r.task.skill}) \u2014 ${r.ok ? "ok" : "failed"} \xB7 ${r.durationMs}ms`);
+        if (r.ok) lines.push(r.summary || "(no output)");
+        else lines.push(`Error: ${r.error ?? "unknown"}`);
+      });
+      return lines.join("\n");
+    }
+  };
+}
+var init_team_tool = __esm({
+  "../skills/src/team-tool.ts"() {
+    "use strict";
+    init_orchestrator();
+  }
+});
+
+// ../skills/src/index.ts
+var init_src5 = __esm({
+  "../skills/src/index.ts"() {
+    "use strict";
+    init_types3();
+    init_parser();
+    init_loader();
+    init_registry2();
+    init_runner();
+    init_spawn_tool();
+    init_orchestrator();
+    init_team_tool();
+  }
+});
+
+// src/utils/git-context.ts
+import { execSync } from "child_process";
+function git(args, cwd2) {
+  return execSync(`git ${args}`, {
+    cwd: cwd2,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    windowsHide: true,
+    timeout: 4e3
+  }).trim();
+}
+function getGitContext(cwd2 = process.cwd()) {
+  const empty = {
+    isRepo: false,
+    staged: 0,
+    unstaged: 0,
+    untracked: 0,
+    lastCommits: []
+  };
+  try {
+    const inside = git("rev-parse --is-inside-work-tree", cwd2);
+    if (inside !== "true") return empty;
+  } catch {
+    return empty;
+  }
+  const ctx = { ...empty, isRepo: true };
+  try {
+    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd2);
+  } catch {
+  }
+  try {
+    const status = git("status --porcelain", cwd2);
+    if (status) {
+      for (const line of status.split("\n")) {
+        const x = line[0];
+        const y = line[1];
+        if (x === "?" && y === "?") ctx.untracked++;
+        else {
+          if (x && x !== " ") ctx.staged++;
+          if (y && y !== " ") ctx.unstaged++;
+        }
+      }
+    }
+  } catch {
+  }
+  try {
+    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd2);
+    const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
+    ctx.behind = behind;
+    ctx.ahead = ahead;
+  } catch {
+  }
+  try {
+    const log22 = git("log --oneline -5", cwd2);
+    ctx.lastCommits = log22 ? log22.split("\n") : [];
+  } catch {
+  }
+  try {
+    ctx.remoteUrl = git("remote get-url origin", cwd2) || void 0;
+  } catch {
+  }
+  return ctx;
+}
+function gitContextPrompt(ctx) {
+  if (!ctx.isRepo) return "";
+  const parts = ["[Git context]"];
+  parts.push(`branch: ${ctx.branch ?? "(detached)"}`);
+  const dirty = [];
+  if (ctx.staged) dirty.push(`${ctx.staged} staged`);
+  if (ctx.unstaged) dirty.push(`${ctx.unstaged} modified`);
+  if (ctx.untracked) dirty.push(`${ctx.untracked} untracked`);
+  parts.push(`working tree: ${dirty.length ? dirty.join(", ") : "clean"}`);
+  if (ctx.ahead || ctx.behind) parts.push(`vs upstream: ${ctx.ahead ?? 0} ahead, ${ctx.behind ?? 0} behind`);
+  if (ctx.lastCommits.length) parts.push(`recent: ${ctx.lastCommits.slice(0, 3).join(" / ")}`);
+  return parts.join("\n");
+}
+var init_git_context = __esm({
+  "src/utils/git-context.ts"() {
+    "use strict";
+  }
+});
+
+// src/utils/project-memory.ts
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync7 } from "fs";
+import { join as join16 } from "path";
+function cyberPath(cwd2, ...parts) {
+  return join16(cwd2, CYBER_DIR2, ...parts);
+}
+function cyberDirExists(cwd2 = process.cwd()) {
+  try {
+    return statSync7(join16(cwd2, CYBER_DIR2)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function readProjectMemory(cwd2 = process.cwd()) {
+  const file = cyberPath(cwd2, "project.json");
+  if (!existsSync16(file)) return null;
+  try {
+    const raw = readFileSync20(file, "utf8");
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_MEMORY, ...parsed };
+  } catch {
+    return null;
+  }
+}
+function readProjectMemoryNotes(cwd2 = process.cwd()) {
+  const file = cyberPath(cwd2, "memory.md");
+  if (!existsSync16(file)) return "";
+  try {
+    return readFileSync20(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+function ensureCyberDir(cwd2) {
+  const dir = join16(cwd2, CYBER_DIR2);
+  if (!existsSync16(dir)) mkdirSync13(dir, { recursive: true });
+}
+function initProjectMemory(cwd2 = process.cwd(), seed) {
+  ensureCyberDir(cwd2);
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const existing = readProjectMemory(cwd2);
+  const memory = {
+    ...DEFAULT_MEMORY,
+    ...existing,
+    ...seed,
+    version: 1,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now
+  };
+  writeFileSync14(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
+  if (!existsSync16(cyberPath(cwd2, "README.md"))) {
+    writeFileSync14(cyberPath(cwd2, "README.md"), README, "utf8");
+  }
+  if (!existsSync16(cyberPath(cwd2, "memory.md"))) {
+    writeFileSync14(cyberPath(cwd2, "memory.md"), `# Project Memory Log
+
+_CyberCoder records learnings and decisions here as it works._
+`, "utf8");
+  }
+  return memory;
+}
+function projectMemoryPrompt(cwd2 = process.cwd()) {
+  const mem = readProjectMemory(cwd2);
+  const notes = readProjectMemoryNotes(cwd2);
+  if (!mem && !notes) return "";
+  const parts = ["[Project memory \u2014 .cyber/ (read this to understand the project)]"];
+  if (mem?.name) parts.push(`name: ${mem.name}`);
+  if (mem?.summary) parts.push(`summary: ${mem.summary}`);
+  if (mem?.stack?.length) parts.push(`stack: ${mem.stack.join(", ")}`);
+  if (mem?.entryPoints?.length) parts.push(`entry points: ${mem.entryPoints.join(", ")}`);
+  if (mem?.commands && Object.keys(mem.commands).length) {
+    parts.push(`commands: ${Object.entries(mem.commands).map(([k, v]) => `${k}=\`${v}\``).join(", ")}`);
+  }
+  if (mem?.conventions?.length) parts.push(`conventions: ${mem.conventions.slice(0, 8).join("; ")}`);
+  if (mem?.importantPaths?.length) {
+    parts.push(`key paths: ${mem.importantPaths.slice(0, 8).map((p2) => `${p2.path} (${p2.note})`).join("; ")}`);
+  }
+  if (mem?.glossary?.length) {
+    parts.push(`glossary: ${mem.glossary.slice(0, 8).map((g) => `${g.term}=${g.meaning}`).join("; ")}`);
+  }
+  if (mem?.decisions?.length) parts.push(`decisions: ${mem.decisions.slice(0, 6).join("; ")}`);
+  let block = parts.join("\n");
+  if (notes) {
+    const trimmedNotes = notes.length > 2e3 ? notes.slice(notes.length - 2e3) : notes;
+    block += `
+
+[Recent learnings \u2014 .cyber/memory.md]
+${trimmedNotes.trim()}`;
+  }
+  return block.length > 6e3 ? block.slice(0, 6e3) + "\n\u2026[memory truncated]" : block;
+}
+var CYBER_DIR2, DEFAULT_MEMORY, README;
+var init_project_memory = __esm({
+  "src/utils/project-memory.ts"() {
+    "use strict";
+    CYBER_DIR2 = ".cyber";
+    DEFAULT_MEMORY = {
+      version: 1,
+      stack: [],
+      entryPoints: [],
+      commands: {},
+      conventions: [],
+      importantPaths: [],
+      glossary: [],
+      decisions: []
+    };
+    README = `# .cyber \u2014 Project Memory
+
+This folder is CyberCoder's self-learning memory for **this** project.
+
+**Contract:** To understand this project, an AI agent should read THIS folder
+first. \`project.json\` holds structured facts (stack, entry points, commands,
+conventions). \`memory.md\` is a running log of learnings and decisions.
+
+CyberCoder maintains these files automatically as it works. You can edit them
+by hand too \u2014 they're plain JSON/Markdown. Safe to commit to version control so
+the whole team (and future sessions) share the same understanding.
+`;
+  }
+});
+
+// src/runtime/hooks.ts
+import { execSync as execSync2 } from "child_process";
+import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
+import { join as join17 } from "path";
+import { homedir as homedir5 } from "os";
+function readHooksFile(path2) {
+  try {
+    if (existsSync17(path2)) return JSON.parse(readFileSync21(path2, "utf8"));
+  } catch {
+  }
+  return {};
+}
+function loadHooks(cwd2 = process.cwd()) {
+  if (cached) return cached;
+  const global = readHooksFile(join17(homedir5(), ".codeva", "hooks.json"));
+  const project = readHooksFile(join17(cwd2, ".codeva", "hooks.json"));
+  const merged = { ...global };
+  for (const key of Object.keys(project)) {
+    merged[key] = project[key];
+  }
+  cached = merged;
+  return merged;
+}
+function reloadHooks() {
+  cached = null;
+}
+function runHooks(event2, subject = "", cwd2 = process.cwd()) {
+  const rules = loadHooks(cwd2)[event2] ?? [];
+  if (rules.length === 0) return { ran: false, blocked: false, output: "" };
+  const outputs = [];
+  let blocked = false;
+  for (const rule of rules) {
+    if (rule.match) {
+      let re;
+      try {
+        re = new RegExp(rule.match);
+      } catch {
+        continue;
+      }
+      if (!re.test(subject)) continue;
+    }
+    if (rule.block) {
+      blocked = true;
+      outputs.push(`[hook] blocked by rule (match: ${rule.match ?? "*"})`);
+      continue;
+    }
+    const command = rule.command.replace(/\{file\}/g, subject);
+    try {
+      const out = execSync2(command, {
+        cwd: cwd2,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        timeout: rule.timeoutMs ?? 3e4
+      });
+      outputs.push(`[hook ${event2}] ${command}
+${out.trim().slice(0, 2e3)}`);
+    } catch (err) {
+      const e = err;
+      outputs.push(`[hook ${event2}] ${command} (failed)
+${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
+    }
+  }
+  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
+}
+var cached;
+var init_hooks = __esm({
+  "src/runtime/hooks.ts"() {
+    "use strict";
+    cached = null;
+  }
+});
+
+// src/runtime/chat.ts
+function getCheckpoints() {
+  if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
+  return singletonCheckpoints;
+}
+function getRouter() {
+  const config = loadConfig();
+  const configKeys = config.apiKeys ?? {};
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
+  if (!singletonRouter) {
+    singletonRouter = new ProviderRouter({
+      preferred: defaultProviderOrder(config, configKeys),
+      anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
+      cloud: {
+        apiKey: cloudApiKey,
+        baseURL: process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com"
+      },
+      openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
+      groq: { apiKey: process.env.GROQ_API_KEY ?? configKeys.groq },
+      google: { apiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? configKeys.google ?? configKeys.gemini },
+      openrouter: { apiKey: process.env.OPENROUTER_API_KEY ?? configKeys.openrouter },
+      ollama: {
+        defaultModel: config.lastModel || "auto"
+      }
+    });
+  }
+  return singletonRouter;
+}
+function getSkillRegistry() {
+  if (!singletonRegistry) singletonRegistry = new SkillRegistry();
+  return singletonRegistry;
+}
+function defaultProviderOrder(config, configKeys) {
+  const order = [];
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
+  if (cloudApiKey) {
+    order.push("cybermind-cloud");
+  }
+  if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
+    order.push("anthropic");
+  }
+  if (process.env.OPENAI_API_KEY || configKeys.openai) {
+    order.push("openai");
+  }
+  if (process.env.GROQ_API_KEY || configKeys.groq) {
+    order.push("groq");
+  }
+  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || configKeys.google || configKeys.gemini) {
+    order.push("gemini");
+  }
+  if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
+    order.push("openrouter");
+  }
+  order.push("ollama");
+  return order;
+}
+function toProviderMessages(messages) {
+  return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
+}
+async function getMcpTools() {
+  if (mcpToolsCache) return mcpToolsCache;
+  try {
+    const { tools } = await loadMcpTools();
+    mcpToolsCache = tools;
+  } catch {
+    mcpToolsCache = [];
+  }
+  return mcpToolsCache;
+}
+async function buildAgentTools(approvalUI) {
+  const router = getRouter();
+  const registry = getSkillRegistry();
+  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
+  const builtins = builtinTools();
+  const wrappedBuiltins = builtins.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    verify: t.verify,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: summarizeCall(t.schema.name, input)
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      if (t.schema.name === "run_command") {
+        const cmd = typeof input.command === "string" ? input.command : "";
+        const pre = runHooks("preCommand", cmd);
+        if (pre.blocked) return `[blocked by preCommand hook]
+${pre.output}`;
+      }
+      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
+        const target = input.path;
+        if (typeof target === "string" && target) {
+          try {
+            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
+          } catch {
+          }
+        }
+      }
+      const result = await t.execute(input, { cwd: ctx.cwd });
+      try {
+        if (t.schema.name === "edit") {
+          const h = runHooks("postEdit", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "write_file") {
+          const h = runHooks("postWrite", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "run_command") {
+          const h = runHooks("postCommand", String(input.command ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        }
+      } catch {
+      }
+      return result;
+    }
+  }));
+  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
+  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
+  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
+  const mcpRaw = await getMcpTools();
+  const mcpWrapped = mcpRaw.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: `MCP: ${t.schema.name}`
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      return t.execute(input, ctx);
+    }
+  }));
+  const gitBlock = gitContextPrompt(getGitContext());
+  const memoryBlock = projectMemoryPrompt();
+  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
+  return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
+}
+async function runChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runAgentLoop(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools
+  })) {
+    opts.onEvent(evt);
+  }
+}
+async function runGoalChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runGoal(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools,
+    maxRounds: opts.maxRounds ?? 8,
+    onEvent: opts.onEvent
+  })) {
+    opts.onEvent(evt);
+  }
+}
+function summarizeCall(name, input) {
+  if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
+  if (name === "write_file") return `Create file: ${String(input.path ?? "")}`;
+  if (name === "edit") return `Edit file: ${String(input.path ?? "")}`;
+  if (name === "read_file") return `Read: ${String(input.path ?? "")}`;
+  if (name === "list_dir") return `List: ${String(input.path ?? "")}`;
+  if (name === "grep") return `Grep: /${String(input.pattern ?? "")}/`;
+  return `${name}(${Object.keys(input).join(", ")})`;
+}
+var singletonRouter, singletonRegistry, singletonCheckpoints, SESSION_ID, SYSTEM_PROMPT, mcpToolsCache;
+var init_chat = __esm({
+  "src/runtime/chat.ts"() {
+    "use strict";
+    init_src2();
+    init_src2();
+    init_src3();
+    init_src4();
+    init_src5();
+    init_config();
+    init_git_context();
+    init_project_memory();
+    init_hooks();
+    singletonRouter = null;
+    singletonRegistry = null;
+    singletonCheckpoints = null;
+    SESSION_ID = `sess-${Date.now().toString(36)}`;
+    SYSTEM_PROMPT = `You are CyberMind, a fullstack agentic coding assistant running inside a terminal.
+You help with reading, editing, and running code across the user's project. Be concise,
+prefer code over prose, and never invent file paths. You have access to these tools:
+- read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
+- read_many(paths[]) \u2014 read SEVERAL files in one call (use to grok a feature fast)
+- list_dir(path) \u2014 lists a directory
+- grep(pattern, path?, include?) \u2014 ripgrep-style search
+- repo_map(path?) \u2014 compact map of the project (dirs + key symbols per file);
+  call this FIRST on an unfamiliar repo to navigate efficiently
+- write_file(path, content) \u2014 create a NEW file (fails on overwrite)
+- edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
+- run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
+- web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
+- web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
+- project_memory(action, \u2026) \u2014 self-learning project memory in .cyber/: action='read'
+  to recall what's known, 'update' to save durable facts (stack, entry points,
+  commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
+  Update it whenever you discover something durable so future sessions (or any AI)
+  understand this project from .cyber/ alone.
+- spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
+  code-review, \u2026) which runs in an isolated context and returns a summary
+- spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
+  pieces of work (e.g. research + review + plan at once), returns all results
+Destructive tools (write_file, edit, run_command) require user approval each turn
+unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
+broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
+\u2014 it produces tighter summaries and keeps your main context clean. When a goal has
+several independent parts, prefer spawn_team to do them concurrently.`;
+    mcpToolsCache = null;
+  }
+});
+
+// src/rpc-server.ts
+var rpc_server_exports = {};
+__export(rpc_server_exports, {
+  startRpcServer: () => startRpcServer
+});
+import { createInterface } from "readline";
+import { readFileSync as readFileSync24, writeFileSync as writeFileSync17, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync15 } from "fs";
+import { join as join22, resolve as resolve12 } from "path";
+import { execSync as execSync3 } from "child_process";
+function send(msg) {
+  process.stdout.write(JSON.stringify(msg) + "\n");
+}
+function event(name, data) {
+  send({ event: name, data });
+}
+function respond(id, result) {
+  send({ id, result });
+}
+function respondError(id, message) {
+  send({ id, error: { message } });
+}
+async function handleMethod(id, method, params = {}) {
+  try {
+    switch (method) {
+      case "ping":
+        respond(id, { pong: true, version: "0.1.22", cwd });
+        break;
+      case "read_file": {
+        const path2 = resolve12(cwd, String(params.path || ""));
+        const text = readFileSync24(path2, "utf8");
+        const lines = text.split("\n").slice(0, Number(params.limit || 2e3));
+        respond(id, { content: lines.map((l, i) => `${i + 1}	${l}`).join("\n") });
+        break;
+      }
+      case "write_file": {
+        const path2 = resolve12(cwd, String(params.path || ""));
+        const dir = join22(path2, "..");
+        if (!existsSync21(dir)) mkdirSync15(dir, { recursive: true });
+        writeFileSync17(path2, String(params.content || ""), "utf8");
+        respond(id, { written: path2 });
+        break;
+      }
+      case "list_dir": {
+        const path2 = resolve12(cwd, String(params.path || "."));
+        const entries = readdirSync10(path2, { withFileTypes: true });
+        respond(id, { entries: entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "dir" : "file" })) });
+        break;
+      }
+      case "grep": {
+        const pattern = String(params.pattern || "");
+        const include = String(params.include || ".");
+        try {
+          const out = execSync3(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
+          respond(id, { matches: out });
+        } catch (e) {
+          respond(id, { matches: e.stdout?.slice(0, 16e3) || "" });
+        }
+        break;
+      }
+      case "run_command": {
+        const command = String(params.command || "");
+        event("tool_start", { name: "run_command", summary: `Run: ${command}` });
+        try {
+          const out = execSync3(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
+          event("tool_end", { name: "run_command", ok: true });
+          respond(id, { output: out.slice(0, 2e4), exitCode: 0 });
+        } catch (e) {
+          event("tool_end", { name: "run_command", ok: false });
+          respond(id, { output: (e.stdout || "") + (e.stderr || ""), exitCode: e.status || 1 });
+        }
+        break;
+      }
+      case "git": {
+        const op = String(params.operation || "status");
+        try {
+          const out = execSync3(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
+          respond(id, { output: out.slice(0, 12e3) });
+        } catch (e) {
+          respond(id, { output: (e.stdout || "") + (e.stderr || ""), error: e.message });
+        }
+        break;
+      }
+      case "git_context": {
+        const ctx = getGitContext(cwd);
+        respond(id, ctx);
+        break;
+      }
+      case "project_memory": {
+        const mem = projectMemoryPrompt(cwd);
+        respond(id, { memory: mem });
+        break;
+      }
+      case "complete": {
+        const messages = params.messages || [];
+        const model = String(params.model || "auto");
+        const system = String(params.system || "");
+        let fullText = "";
+        await runChat(
+          messages.map((m) => ({ id: `rpc-${Date.now()}`, role: m.role, content: m.content, createdAt: Date.now() })),
+          {
+            model,
+            onEvent: (evt) => {
+              if (evt.type === "text") {
+                fullText += evt.text;
+                event("token", { content: evt.text });
+              } else if (evt.type === "tool_start") {
+                event("tool_start", { name: evt.name, input: evt.input });
+              } else if (evt.type === "tool_end") {
+                event("tool_end", { name: evt.name, output: evt.output?.slice(0, 4e3) });
+              } else if (evt.type === "error") {
+                event("error", { message: evt.message });
+              }
+            }
+          }
+        );
+        event("done", {});
+        respond(id, { content: fullText });
+        break;
+      }
+      case "shutdown":
+        respond(id, { ok: true });
+        setTimeout(() => process.exit(0), 100);
+        break;
+      default:
+        respondError(id, `Unknown method: ${method}`);
+    }
+  } catch (err) {
+    respondError(id, err.message || "Internal error");
+  }
+}
+function startRpcServer() {
+  event("ready", { version: "0.1.22", cwd, tools: builtinTools().map((t) => t.schema.name) });
+  const rl = createInterface({ input: process.stdin, terminal: false });
+  rl.on("line", (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    try {
+      const msg = JSON.parse(trimmed);
+      if (typeof msg.id === "number" && typeof msg.method === "string") {
+        handleMethod(msg.id, msg.method, msg.params || {});
+      }
+    } catch {
+    }
+  });
+  rl.on("close", () => process.exit(0));
+}
+var cwd;
+var init_rpc_server = __esm({
+  "src/rpc-server.ts"() {
+    "use strict";
+    init_chat();
+    init_src4();
+    init_git_context();
+    init_project_memory();
+    cwd = process.cwd();
+  }
+});
+
+// src/index.tsx
+init_src();
+import { Command } from "commander";
+import { render } from "ink";
 
 // src/app.tsx
 import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
 import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState9 } from "react";
 
 // src/components/Welcome.tsx
+init_src();
 import { Box as Box2, Text as Text2, useStdout } from "ink";
 
 // src/components/Mascot.tsx
@@ -1802,119 +5611,8 @@ var SkyScene = () => {
   ] });
 };
 
-// src/utils/config.ts
-import { readFileSync as readFileSync7, writeFileSync as writeFileSync7, existsSync as existsSync8, mkdirSync as mkdirSync7 } from "fs";
-import { homedir as homedir2 } from "os";
-import { join as join8 } from "path";
-var CONFIG_DIR = join8(homedir2(), ".cybercoder");
-var CONFIG_FILE = join8(CONFIG_DIR, "config.json");
-var DEFAULT_CONFIG = {
-  onboardingComplete: false,
-  loginMethod: null,
-  theme: {
-    mode: "dark",
-    syntaxTheme: "Monokai Extended"
-  },
-  apiKeys: {},
-  lastProvider: "auto",
-  lastModel: "auto",
-  user: {},
-  authToken: void 0,
-  sessionId: void 0,
-  autoUpdateCheck: true,
-  showWelcome: true,
-  telemetry: true,
-  version: "0.1.16"
-};
-function ensureConfigDir() {
-  if (!existsSync8(CONFIG_DIR)) {
-    mkdirSync7(CONFIG_DIR, { recursive: true });
-  }
-}
-function loadConfig() {
-  ensureConfigDir();
-  try {
-    if (existsSync8(CONFIG_FILE)) {
-      const raw = readFileSync7(CONFIG_FILE, "utf-8");
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_CONFIG, ...parsed };
-    }
-  } catch {
-  }
-  return { ...DEFAULT_CONFIG };
-}
-function saveConfig(config) {
-  ensureConfigDir();
-  writeFileSync7(CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
-}
-function updateConfig(partial) {
-  const current = loadConfig();
-  const merged = { ...current, ...partial };
-  saveConfig(merged);
-  return merged;
-}
-function isOnboardingComplete() {
-  return loadConfig().onboardingComplete === true;
-}
-function markOnboardingComplete(method) {
-  updateConfig({
-    onboardingComplete: true,
-    loginMethod: method
-  });
-}
-function clearLogin() {
-  updateConfig({
-    onboardingComplete: false,
-    loginMethod: null,
-    user: {},
-    apiKeys: {},
-    authToken: void 0,
-    sessionId: void 0
-  });
-}
-function setApiKey(provider, key) {
-  const config = loadConfig();
-  const apiKeys = { ...config.apiKeys ?? {} };
-  apiKeys[provider] = key;
-  updateConfig({ apiKeys });
-}
-function setAuthToken(token) {
-  updateConfig({ authToken: token });
-}
-function getAuthToken() {
-  return loadConfig().authToken;
-}
-function setSessionId(sessionId) {
-  updateConfig({ sessionId });
-}
-function getSessionId() {
-  return loadConfig().sessionId;
-}
-function isAuthenticated() {
-  const config = loadConfig();
-  if (config.loginMethod === "cybercli") {
-    return !!config.authToken;
-  }
-  if (config.loginMethod === "apikey") {
-    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.anthropic));
-  }
-  if (config.loginMethod === "thirdparty") {
-    return true;
-  }
-  return false;
-}
-function setUserProfile(profile) {
-  updateConfig({ user: profile });
-}
-function getUserProfile() {
-  return loadConfig().user ?? {};
-}
-function setTheme(mode, syntaxTheme) {
-  updateConfig({ theme: { mode, syntaxTheme } });
-}
-function getTheme() {
-  return loadConfig().theme ?? DEFAULT_CONFIG.theme;
-}
+// src/components/Welcome.tsx
+init_config();
 
 // src/theme/useTheme.ts
 import { useSyncExternalStore } from "react";
@@ -1930,7 +5628,7 @@ function useTheme() {
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var Welcome = ({ model = "auto", provider = "auto" }) => {
   const t = useTheme();
-  const cwd = process.cwd();
+  const cwd2 = process.cwd();
   const profile = getUserProfile();
   const userName = profile.name || process.env.USER || process.env.USERNAME || "Coder";
   const userPlan = profile.plan || "Free";
@@ -1966,7 +5664,7 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
                 userPlan,
                 " Plan"
               ] }),
-              /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd })
+              /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd2 })
             ] })
           ] }),
           /* @__PURE__ */ jsx2(Box2, { flexDirection: "column", paddingX: 1, children: /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: "\u2502\n".repeat(8) }) }),
@@ -2010,6 +5708,7 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
 };
 
 // src/components/Onboarding.tsx
+init_src();
 import { useState as useState2, useEffect as useEffect2, useRef } from "react";
 import { Box as Box4, Text as Text4, useInput, useApp, useStdout as useStdout2 } from "ink";
 import TextInput from "ink-text-input";
@@ -2057,7 +5756,11 @@ var LoadingSpinner = ({ text = "Thinking", showTimer = false }) => {
   ] });
 };
 
+// src/components/Onboarding.tsx
+init_config();
+
 // src/utils/api-client.ts
+init_config();
 import { hostname } from "os";
 var BACKEND_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com/api/v1";
 var ApiClient = class {
@@ -2165,14 +5868,14 @@ var ApiClient = class {
     }
     return response.json();
   }
-  async trackCommand(command, args, cwd, exitCode, outputPreview, durationMs) {
+  async trackCommand(command, args, cwd2, exitCode, outputPreview, durationMs) {
     const response = await fetch(`${BACKEND_URL}/cli/track/command`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
         command,
         args,
-        cwd,
+        cwd: cwd2,
         exit_code: exitCode,
         output_preview: outputPreview,
         duration_ms: durationMs
@@ -2619,6 +6322,7 @@ var Onboarding = ({ onComplete }) => {
 // src/components/ThemePicker.tsx
 import { useState as useState3 } from "react";
 import { Box as Box5, Text as Text5, useInput as useInput2 } from "ink";
+init_src();
 import { Fragment, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 var SYNTAX_THEMES = [
   "Monokai Extended",
@@ -2741,6 +6445,7 @@ var ThemePicker = ({ onComplete }) => {
 };
 
 // src/components/Settings.tsx
+init_config();
 import { useState as useState4 } from "react";
 import { Box as Box6, Text as Text6, useInput as useInput3 } from "ink";
 import gradient from "gradient-string";
@@ -3672,3067 +7377,8 @@ function buildStubCommands(ctx) {
   }));
 }
 
-// ../core/src/context.ts
-function estimateTokens(text) {
-  if (!text) return 0;
-  return Math.ceil(text.length / 4);
-}
-function estimateMessagesTokens(messages) {
-  let total = 0;
-  for (const m of messages) {
-    total += estimateTokens(m.content);
-    if (m.toolCalls) {
-      for (const tc of m.toolCalls) {
-        total += estimateTokens(tc.name) + estimateTokens(JSON.stringify(tc.input));
-      }
-    }
-  }
-  return total;
-}
-function trimToolOutput(output, opts = {}) {
-  const maxChars = opts.maxChars ?? 12e3;
-  if (output.length <= maxChars) return output;
-  const headTail = opts.headTail ?? Math.floor(maxChars / 2) - 40;
-  const head = output.slice(0, headTail);
-  const tail = output.slice(output.length - headTail);
-  const elided = output.length - head.length - tail.length;
-  return `${head}
-
-\u2026 [${elided} chars elided to save context \u2014 re-read with offset/limit if you need the middle] \u2026
-
-${tail}`;
-}
-function manageContext(messages, budget) {
-  const highWater = budget.highWater ?? 0.75;
-  const keepRecent = budget.keepRecent ?? 6;
-  const limit = Math.floor(budget.windowTokens * highWater);
-  const tokens = estimateMessagesTokens(messages);
-  if (tokens <= limit || messages.length <= keepRecent + 1) {
-    return { messages, compacted: false, tokens };
-  }
-  const splitAt = messages.length - keepRecent;
-  const old = messages.slice(0, splitAt);
-  let recent = messages.slice(splitAt);
-  while (recent.length && recent[0].role === "tool") {
-    recent = recent.slice(1);
-  }
-  const synopsis = condense(old);
-  const synopsisMsg = {
-    role: "system",
-    content: synopsis
-  };
-  const next = [synopsisMsg, ...recent];
-  return {
-    messages: next,
-    compacted: true,
-    tokens: estimateMessagesTokens(next),
-    note: `context auto-compacted: ${old.length} older turns \u2192 synopsis (${tokens} \u2192 ~${estimateMessagesTokens(next)} tok)`
-  };
-}
-function condense(old) {
-  const userAsks = [];
-  const toolActions = [];
-  let lastAssistant = "";
-  for (const m of old) {
-    if (m.role === "user") {
-      const oneLine = m.content.replace(/\s+/g, " ").trim().slice(0, 160);
-      if (oneLine) userAsks.push(oneLine);
-    } else if (m.role === "assistant") {
-      if (m.content.trim()) lastAssistant = m.content.replace(/\s+/g, " ").trim().slice(0, 240);
-      for (const tc of m.toolCalls ?? []) {
-        const target = tc.input.path || tc.input.command || tc.input.pattern || "";
-        toolActions.push(`${tc.name}(${String(target).slice(0, 60)})`);
-      }
-    }
-  }
-  const parts = ["[Earlier conversation compacted to save context]"];
-  if (userAsks.length) parts.push(`Goals: ${userAsks.slice(-4).join(" | ")}`);
-  if (toolActions.length) {
-    const uniq = Array.from(new Set(toolActions)).slice(-12);
-    parts.push(`Actions taken: ${uniq.join(", ")}`);
-  }
-  if (lastAssistant) parts.push(`Last note: ${lastAssistant}`);
-  return parts.join("\n");
-}
-function windowForModel(model) {
-  const m = model.toLowerCase();
-  if (m.includes("gpt-4o") || m.includes("claude") || m.includes("gemini-1.5") || m.includes("gemini-2")) return 128e3;
-  if (m.includes("llama-3.1") || m.includes("llama-3.3")) return 128e3;
-  if (m.includes("mixtral") || m.includes("mistral")) return 32e3;
-  if (m.includes("gemma")) return 8192;
-  return 16e3;
-}
-
-// ../core/src/agent-loop.ts
-var log10 = createLogger("core:agent");
-async function* runAgentLoop(messages, opts) {
-  const tools = opts.tools ?? [];
-  const toolMap = new Map(tools.map((t) => [t.schema.name, t]));
-  const toolSchemas = tools.map((t) => t.schema);
-  const max = opts.maxIterations ?? 10;
-  const ctx = { cwd: process.cwd() };
-  const maxToolChars = opts.maxToolOutputChars ?? 12e3;
-  const budget = {
-    windowTokens: opts.contextBudget?.windowTokens ?? windowForModel(opts.model ?? "auto"),
-    highWater: opts.contextBudget?.highWater ?? 0.75,
-    keepRecent: opts.contextBudget?.keepRecent ?? 6
-  };
-  let buffer = [...messages];
-  for (let iter = 0; iter < max; iter++) {
-    if (opts.signal?.aborted) {
-      yield { type: "done", reason: "error", error: "aborted" };
-      return;
-    }
-    yield { type: "iteration", index: iter, max };
-    const managed = manageContext(buffer, budget);
-    if (managed.compacted) {
-      buffer = managed.messages;
-      yield { type: "context", note: managed.note ?? "context compacted", tokens: managed.tokens };
-    }
-    const req = {
-      model: opts.model ?? "auto",
-      messages: buffer,
-      systemPrompt: opts.systemPrompt,
-      tools: toolSchemas.length > 0 ? toolSchemas : void 0,
-      signal: opts.signal
-    };
-    let assistantText = "";
-    let assistantToolCalls = [];
-    let stopReason = { type: "done", reason: "end_turn" };
-    let attempt = 0;
-    while (true) {
-      assistantText = "";
-      assistantToolCalls = [];
-      stopReason = { type: "done", reason: "end_turn" };
-      let sawError;
-      for await (const chunk of opts.provider.chat(req)) {
-        if (chunk.type === "text") {
-          assistantText += chunk.text;
-          yield { type: "text", text: chunk.text };
-        } else if (chunk.type === "tool_call") {
-          assistantToolCalls.push(chunk.toolCall);
-          yield {
-            type: "tool_call",
-            name: chunk.toolCall.name,
-            input: chunk.toolCall.input,
-            id: chunk.toolCall.id
-          };
-        } else if (chunk.type === "usage") {
-          yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
-        } else if (chunk.type === "done") {
-          stopReason = chunk;
-          if (chunk.reason === "error") sawError = chunk.error;
-        }
-      }
-      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
-        attempt++;
-        log10.warn("provider transient error; retrying once", { error: sawError });
-        yield { type: "context", note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
-        await delay(400);
-        continue;
-      }
-      break;
-    }
-    buffer.push({
-      role: "assistant",
-      content: assistantText,
-      toolCalls: assistantToolCalls.length ? assistantToolCalls : void 0
-    });
-    if (stopReason.reason === "error") {
-      yield { type: "done", reason: "error", error: stopReason.error };
-      return;
-    }
-    if (assistantToolCalls.length === 0) {
-      yield { type: "done", reason: "end_turn" };
-      return;
-    }
-    const results = await executeToolCalls(assistantToolCalls, toolMap, ctx, maxToolChars);
-    for (const r of results) {
-      yield { type: "tool_result", name: r.name, id: r.id, output: r.output, ok: r.ok };
-      buffer.push({ role: "tool", content: r.output, toolCallId: r.id });
-    }
-  }
-  yield { type: "done", reason: "max_iterations" };
-}
-async function executeToolCalls(calls, toolMap, ctx, maxToolChars) {
-  const results = new Array(calls.length);
-  const runOne = async (tc, index) => {
-    const tool = toolMap.get(tc.name);
-    if (!tool) {
-      results[index] = { name: tc.name, id: tc.id, output: `Tool '${tc.name}' is not registered.`, ok: false };
-      return;
-    }
-    try {
-      if (ctx.approve) {
-        const ok = await ctx.approve(tc.name, tc.input);
-        if (!ok) {
-          results[index] = { name: tc.name, id: tc.id, output: `[user denied tool '${tc.name}']`, ok: false };
-          return;
-        }
-      }
-      let output = await tool.execute(tc.input, ctx);
-      if (tool.verify) {
-        const problem = await tool.verify(tc.input, output, ctx);
-        if (problem) {
-          results[index] = {
-            name: tc.name,
-            id: tc.id,
-            output: `${output}
-
-[verify] ${problem}`,
-            ok: false
-          };
-          return;
-        }
-      }
-      output = trimToolOutput(output, { maxChars: maxToolChars });
-      results[index] = { name: tc.name, id: tc.id, output, ok: true };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log10.error("tool execution failed", { tool: tc.name, err: msg });
-      results[index] = { name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
-    }
-  };
-  const parallel = [];
-  const sequential = [];
-  calls.forEach((tc, index) => {
-    const tool = toolMap.get(tc.name);
-    if (tool && tool.destructive) {
-      sequential.push({ tc, index });
-    } else {
-      parallel.push(runOne(tc, index));
-    }
-  });
-  await Promise.all(parallel);
-  for (const { tc, index } of sequential) {
-    await runOne(tc, index);
-  }
-  return results;
-}
-function isTransient(error) {
-  const e = error.toLowerCase();
-  return e.includes("429") || e.includes("rate limit") || e.includes("timeout") || e.includes("econnreset") || e.includes("etimedout") || e.includes("503") || e.includes("502") || e.includes("overloaded") || e.includes("fetch failed");
-}
-function delay(ms) {
-  return new Promise((resolve12) => setTimeout(resolve12, ms));
-}
-
-// ../core/src/consensus.ts
-async function runConsensus(messages, opts) {
-  const timeout = opts.timeoutMs ?? 6e4;
-  const tasks = opts.providers.map(async (p2, i) => {
-    const req = {
-      model: opts.models?.[i] ?? "auto",
-      messages,
-      systemPrompt: opts.systemPrompt
-    };
-    const out = { text: "" };
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), timeout);
-    try {
-      for await (const chunk of p2.chat({ ...req, signal: ac.signal })) {
-        if (chunk.type === "text") out.text += chunk.text;
-        else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
-      }
-    } catch (err) {
-      out.error = err instanceof Error ? err.message : String(err);
-    } finally {
-      clearTimeout(timer);
-    }
-    return { provider: p2.info.id, model: req.model, text: out.text, error: out.error };
-  });
-  const perProvider = await Promise.all(tasks);
-  const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
-  return { perProvider, merged };
-}
-function mergeAnswers(answers) {
-  if (answers.length === 0) return "";
-  if (answers.length === 1) return answers[0] ?? "";
-  const sorted = [...answers].sort((a, b) => b.length - a.length);
-  const spine = sorted[0] ?? "";
-  const seen = new Set(spine.split("\n").map((l) => l.trim()));
-  const extras = [];
-  for (let i = 1; i < sorted.length; i++) {
-    const lines = (sorted[i] ?? "").split("\n");
-    for (const line of lines) {
-      const t = line.trim();
-      if (t.length > 0 && !seen.has(t)) {
-        seen.add(t);
-        extras.push(line);
-      }
-    }
-  }
-  return extras.length > 0 ? `${spine}
-
---- additional perspectives ---
-${extras.join("\n")}` : spine;
-}
-
-// ../core/src/plan-act.ts
-var GOAL_SENTINEL = "GOAL_COMPLETE";
-var GOAL_SYSTEM_SUFFIX = `
-
-You are working toward a GOAL until it is fully achieved.
-After each round, assess whether the goal is met. When \u2014 and only when \u2014 the goal
-is fully complete and verified, end your message with the exact token ${GOAL_SENTINEL}
-on its own line. If not complete, keep going: take the next concrete action.`;
-async function* runGoal(initialMessages, opts) {
-  const maxRounds = opts.maxRounds ?? 8;
-  const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
-  const buffer = [...initialMessages];
-  for (let round = 0; round < maxRounds; round++) {
-    if (opts.signal?.aborted) {
-      yield { type: "done", reason: "error", error: "aborted", round };
-      return;
-    }
-    let roundText = "";
-    let endedTurn = false;
-    for await (const evt of runAgentLoop(buffer, {
-      provider: opts.provider,
-      systemPrompt: system,
-      model: opts.model ?? "auto",
-      tools: opts.tools,
-      signal: opts.signal
-    })) {
-      if (evt.type === "text") roundText += evt.text;
-      if (evt.type === "done") endedTurn = true;
-      yield { ...evt, round };
-    }
-    buffer.push({ role: "assistant", content: roundText });
-    if (roundText.includes(GOAL_SENTINEL)) {
-      yield { type: "done", reason: "end_turn", round };
-      return;
-    }
-    if (!endedTurn) {
-      return;
-    }
-    buffer.push({
-      role: "user",
-      content: `Continue working toward the goal. If it is fully done and verified, reply with ${GOAL_SENTINEL}.`
-    });
-  }
-  yield { type: "done", reason: "max_iterations" };
-}
-
-// ../providers/src/types.ts
-import { z as z8 } from "zod";
-var ProviderRoleSchema = z8.enum(["system", "user", "assistant", "tool"]);
-
-// ../providers/src/anthropic.ts
-import Anthropic from "@anthropic-ai/sdk";
-var log11 = createLogger("providers:anthropic");
-var AnthropicProvider = class {
-  info;
-  client;
-  defaultModel;
-  constructor(opts = {}) {
-    const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY ?? process.env.ANTHROPIC_API_KEY;
-    this.client = new Anthropic({
-      apiKey: apiKey ?? "",
-      baseURL: opts.baseURL
-    });
-    this.defaultModel = opts.defaultModel ?? "claude-3-5-sonnet-latest";
-    this.info = {
-      id: "anthropic",
-      displayName: "Anthropic",
-      requiresNetwork: true,
-      ready: Boolean(apiKey)
-    };
-  }
-  async listModels() {
-    return [
-      "claude-3-5-sonnet-latest",
-      "claude-3-5-haiku-latest",
-      "claude-3-opus-latest",
-      "claude-sonnet-4-5",
-      "claude-opus-4"
-    ];
-  }
-  async *chat(req) {
-    const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-    const { system, messages } = splitSystem(req.messages, req.systemPrompt);
-    log11.debug("anthropic chat", { model, messages: messages.length, tools: req.tools?.length ?? 0 });
-    try {
-      const stream = this.client.messages.stream({
-        model,
-        max_tokens: req.maxTokens ?? 4096,
-        temperature: req.temperature,
-        // Cache the (constant) system prompt across loop iterations so re-sends
-        // are billed at the cheap cache-read rate instead of full input rate.
-        // (cache_control is runtime-supported; the pinned SDK types predate it.)
-        system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : void 0,
-        messages: messages.map(toAnthropicMessage),
-        tools: withToolCaching(req.tools?.map(toAnthropicTool))
-      });
-      const inflightToolCalls = /* @__PURE__ */ new Map();
-      for await (const event of stream) {
-        if (event.type === "content_block_start") {
-          if (event.content_block.type === "tool_use") {
-            inflightToolCalls.set(event.index, {
-              id: event.content_block.id,
-              name: event.content_block.name,
-              input: {}
-            });
-          }
-        } else if (event.type === "content_block_delta") {
-          if (event.delta.type === "text_delta") {
-            yield { type: "text", text: event.delta.text };
-          } else if (event.delta.type === "input_json_delta") {
-            const tc = inflightToolCalls.get(event.index);
-            if (tc) {
-              tc._raw = (tc._raw ?? "") + event.delta.partial_json;
-            }
-          }
-        } else if (event.type === "content_block_stop") {
-          const tc = inflightToolCalls.get(event.index);
-          if (tc) {
-            const raw = tc._raw ?? "{}";
-            try {
-              tc.input = raw.length > 0 ? JSON.parse(raw) : {};
-            } catch (err) {
-              log11.warn("failed to parse tool input json", { raw, err: String(err) });
-              tc.input = {};
-            }
-            yield { type: "tool_call", toolCall: { id: tc.id, name: tc.name, input: tc.input } };
-            inflightToolCalls.delete(event.index);
-          }
-        } else if (event.type === "message_delta") {
-          if (event.usage) {
-            yield { type: "usage", inputTokens: 0, outputTokens: event.usage.output_tokens ?? 0 };
-          }
-        } else if (event.type === "message_stop") {
-        }
-      }
-      const final = await stream.finalMessage();
-      yield {
-        type: "done",
-        reason: final.stop_reason === "tool_use" ? "tool_use" : final.stop_reason === "max_tokens" ? "max_tokens" : final.stop_reason === "end_turn" ? "end_turn" : "stop"
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log11.error("anthropic chat failed", msg);
-      yield { type: "done", reason: "error", error: msg };
-    }
-  }
-};
-function splitSystem(messages, systemPrompt) {
-  const sysFromMessages = messages.filter((m) => m.role === "system").map((m) => m.content);
-  const rest = messages.filter((m) => m.role !== "system");
-  const system = [systemPrompt ?? "", ...sysFromMessages].filter(Boolean).join("\n\n");
-  return { system, messages: rest };
-}
-function toAnthropicMessage(m) {
-  if (m.role === "tool") {
-    return {
-      role: "user",
-      content: [
-        {
-          type: "tool_result",
-          tool_use_id: m.toolCallId ?? "",
-          content: m.content
-        }
-      ]
-    };
-  }
-  if (m.role === "assistant" && m.toolCalls?.length) {
-    const blocks = [];
-    if (m.content) blocks.push({ type: "text", text: m.content });
-    for (const tc of m.toolCalls) {
-      blocks.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.input });
-    }
-    return { role: "assistant", content: blocks };
-  }
-  return {
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: m.content
-  };
-}
-function toAnthropicTool(t) {
-  return {
-    name: t.name,
-    description: t.description,
-    input_schema: t.inputSchema
-  };
-}
-function withToolCaching(tools) {
-  if (!tools || tools.length === 0) return tools;
-  const out = tools.slice();
-  const last = out[out.length - 1];
-  out[out.length - 1] = { ...last, cache_control: { type: "ephemeral" } };
-  return out;
-}
-
-// ../providers/src/cybermind-cloud.ts
-var DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com";
-var CybermindCloudProvider = class extends AnthropicProvider {
-  info;
-  constructor(opts = {}) {
-    const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY;
-    super({
-      apiKey,
-      baseURL: opts.baseURL ?? DEFAULT_BASE_URL,
-      defaultModel: opts.defaultModel ?? "cybermind-default"
-    });
-    this.info = {
-      id: "cybermind-cloud",
-      displayName: "Codeva Cloud",
-      requiresNetwork: true,
-      ready: Boolean(apiKey)
-    };
-  }
-};
-
-// ../providers/src/ollama.ts
-var log12 = createLogger("providers:ollama");
-var OllamaProvider = class {
-  info;
-  baseURL;
-  defaultModel;
-  constructor(opts = {}) {
-    this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
-    this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? "llama3.1";
-    this.info = {
-      id: "ollama",
-      displayName: "Ollama (local)",
-      requiresNetwork: false,
-      ready: true
-      // Optimistic; reachability is checked lazily on first call.
-    };
-  }
-  async listModels() {
-    try {
-      const res = await fetch(`${this.baseURL}/api/tags`, { method: "GET" });
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json.models?.map((m) => m.name) ?? [];
-    } catch (err) {
-      log12.warn("ollama listModels failed", String(err));
-      return [];
-    }
-  }
-  async *chat(req) {
-    const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-    log12.debug("ollama chat", { model, messages: req.messages.length });
-    const body = {
-      model,
-      messages: [
-        ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
-        ...req.messages.map(toOllamaMessage)
-      ],
-      stream: true,
-      options: {
-        temperature: req.temperature,
-        num_predict: req.maxTokens
-      },
-      tools: req.tools?.map((t) => ({
-        type: "function",
-        function: { name: t.name, description: t.description, parameters: t.inputSchema }
-      }))
-    };
-    try {
-      const res = await fetch(`${this.baseURL}/api/chat`, {
-        method: "POST",
-        body: JSON.stringify(body),
-        headers: { "Content-Type": "application/json" },
-        signal: req.signal
-      });
-      if (!res.ok || !res.body) {
-        yield {
-          type: "done",
-          reason: "error",
-          error: `ollama HTTP ${res.status}: ${await res.text().catch(() => res.statusText)}`
-        };
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let done = false;
-      let stopReason = { type: "done", reason: "stop" };
-      while (!done) {
-        const { value, done: chunkDone } = await reader.read();
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            try {
-              const evt = JSON.parse(trimmed);
-              if (evt.message?.content) {
-                yield { type: "text", text: evt.message.content };
-              }
-              if (evt.message?.tool_calls?.length) {
-                for (const raw of evt.message.tool_calls) {
-                  const tc = {
-                    id: raw.id ?? `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    name: raw.function.name,
-                    input: raw.function.arguments ?? {}
-                  };
-                  yield { type: "tool_call", toolCall: tc };
-                }
-              }
-              if (evt.done) {
-                if (evt.eval_count != null && evt.prompt_eval_count != null) {
-                  yield {
-                    type: "usage",
-                    inputTokens: evt.prompt_eval_count,
-                    outputTokens: evt.eval_count
-                  };
-                }
-                stopReason = {
-                  type: "done",
-                  reason: evt.done_reason === "length" ? "max_tokens" : evt.message?.tool_calls?.length ? "tool_use" : "end_turn"
-                };
-                done = true;
-                break;
-              }
-            } catch (err) {
-              log12.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
-            }
-          }
-        }
-        if (chunkDone) done = true;
-      }
-      yield stopReason;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log12.error("ollama chat failed", msg);
-      yield { type: "done", reason: "error", error: msg };
-    }
-  }
-};
-function toOllamaMessage(m) {
-  if (m.role === "tool") {
-    return { role: "tool", content: m.content, tool_call_id: m.toolCallId };
-  }
-  return { role: m.role, content: m.content };
-}
-
-// ../providers/src/openai.ts
-var log13 = createLogger("providers:openai");
-var OpenAIProvider = class {
-  info;
-  apiKey;
-  baseURL;
-  defaultModel;
-  constructor(opts = {}, providerId = "openai", displayName = "OpenAI") {
-    this.apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY ?? "";
-    this.baseURL = opts.baseURL ?? "https://api.openai.com/v1";
-    this.defaultModel = opts.defaultModel ?? "gpt-4o-mini";
-    this.info = {
-      id: providerId,
-      displayName,
-      requiresNetwork: true,
-      ready: Boolean(this.apiKey)
-    };
-  }
-  async listModels() {
-    return ["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview"];
-  }
-  async *chat(req) {
-    const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-    log13.debug("openai chat", { model, messages: req.messages.length });
-    const messages = [
-      ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
-      ...req.messages.map(toOpenAIMessage)
-    ];
-    const body = {
-      model,
-      messages,
-      stream: true,
-      temperature: req.temperature ?? 0.7,
-      max_tokens: req.maxTokens ?? 4096,
-      stream_options: { include_usage: true }
-    };
-    if (req.tools?.length) {
-      body.tools = req.tools.map(toOpenAITool);
-    }
-    try {
-      const res = await fetch(`${this.baseURL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify(body),
-        signal: req.signal
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => res.statusText);
-        yield {
-          type: "done",
-          reason: "error",
-          error: `OpenAI HTTP ${res.status}: ${errText}`
-        };
-        return;
-      }
-      if (!res.body) {
-        yield { type: "done", reason: "error", error: "Response body is null" };
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let done = false;
-      const toolCallsMap = /* @__PURE__ */ new Map();
-      let usageInfo = null;
-      while (!done) {
-        const { value, done: chunkDone } = await reader.read();
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            if (trimmed === "data: [DONE]") {
-              done = true;
-              break;
-            }
-            if (trimmed.startsWith("data: ")) {
-              try {
-                const json = JSON.parse(trimmed.slice(6));
-                if (json.usage) {
-                  usageInfo = json.usage;
-                }
-                const choice = json.choices?.[0];
-                if (!choice) continue;
-                if (choice.delta?.content) {
-                  yield { type: "text", text: choice.delta.content };
-                }
-                if (choice.delta?.tool_calls) {
-                  for (const tcDelta of choice.delta.tool_calls) {
-                    const idx = tcDelta.index ?? 0;
-                    let tc = toolCallsMap.get(idx);
-                    if (!tc) {
-                      tc = { id: tcDelta.id, name: tcDelta.function?.name, arguments: "" };
-                      toolCallsMap.set(idx, tc);
-                    }
-                    if (tcDelta.id) tc.id = tcDelta.id;
-                    if (tcDelta.function?.name) tc.name = tcDelta.function.name;
-                    if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
-                  }
-                }
-              } catch (err) {
-              }
-            }
-          }
-        }
-        if (chunkDone) done = true;
-      }
-      for (const [, tc] of toolCallsMap) {
-        if (tc.id && tc.name) {
-          let parsedArgs = {};
-          try {
-            parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
-          } catch (e) {
-            log13.warn("Failed to parse tool arguments JSON", tc.arguments);
-          }
-          yield {
-            type: "tool_call",
-            toolCall: {
-              id: tc.id,
-              name: tc.name,
-              input: parsedArgs
-            }
-          };
-        }
-      }
-      if (usageInfo) {
-        yield {
-          type: "usage",
-          inputTokens: usageInfo.prompt_tokens,
-          outputTokens: usageInfo.completion_tokens
-        };
-      }
-      yield { type: "done", reason: toolCallsMap.size > 0 ? "tool_use" : "end_turn" };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log13.error("openai stream failed", msg);
-      yield { type: "done", reason: "error", error: msg };
-    }
-  }
-};
-function toOpenAIMessage(m) {
-  if (m.role === "tool") {
-    return {
-      role: "tool",
-      content: m.content,
-      tool_call_id: m.toolCallId
-    };
-  }
-  if (m.role === "assistant" && m.toolCalls?.length) {
-    return {
-      role: "assistant",
-      content: m.content || null,
-      tool_calls: m.toolCalls.map((tc) => ({
-        id: tc.id,
-        type: "function",
-        function: {
-          name: tc.name,
-          arguments: JSON.stringify(tc.input)
-        }
-      }))
-    };
-  }
-  return {
-    role: m.role,
-    content: m.content
-  };
-}
-function toOpenAITool(t) {
-  return {
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description,
-      parameters: t.inputSchema
-    }
-  };
-}
-
-// ../providers/src/groq.ts
-var GroqProvider = class extends OpenAIProvider {
-  constructor(opts = {}) {
-    super(
-      {
-        apiKey: opts.apiKey ?? process.env.GROQ_API_KEY,
-        baseURL: opts.baseURL ?? "https://api.groq.com/openai/v1",
-        defaultModel: opts.defaultModel ?? "llama-3.3-70b-versatile"
-      },
-      "groq",
-      "Groq"
-    );
-  }
-  async listModels() {
-    return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
-  }
-};
-
-// ../providers/src/google.ts
-var GoogleProvider = class extends OpenAIProvider {
-  constructor(opts = {}) {
-    super(
-      {
-        apiKey: opts.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY,
-        baseURL: opts.baseURL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
-        defaultModel: opts.defaultModel ?? "gemini-2.5-flash"
-      },
-      "gemini",
-      "Google Gemini"
-    );
-  }
-  async listModels() {
-    return ["gemini-2.5-flash", "gemini-2.5-pro"];
-  }
-};
-
-// ../providers/src/openrouter.ts
-var OpenRouterProvider = class extends OpenAIProvider {
-  constructor(opts = {}) {
-    super(
-      {
-        apiKey: opts.apiKey ?? process.env.OPENROUTER_API_KEY,
-        baseURL: opts.baseURL ?? "https://openrouter.ai/api/v1",
-        defaultModel: opts.defaultModel ?? "google/gemini-2.5-flash"
-      },
-      "openrouter",
-      "OpenRouter"
-    );
-  }
-  async listModels() {
-    return [
-      "google/gemini-2.5-flash",
-      "google/gemini-2.5-pro",
-      "meta-llama/llama-3.3-70b-instruct",
-      "deepseek/deepseek-r1-distill-llama-70b",
-      "anthropic/claude-3.5-sonnet"
-    ];
-  }
-};
-
-// ../providers/src/router.ts
-var log14 = createLogger("providers:router");
-var ProviderRouter = class {
-  info;
-  providers = /* @__PURE__ */ new Map();
-  preferred;
-  fallback;
-  constructor(opts = {}) {
-    this.providers.set("anthropic", new AnthropicProvider(opts.anthropic));
-    this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
-    this.providers.set("openai", new OpenAIProvider(opts.openai));
-    this.providers.set("groq", new GroqProvider(opts.groq));
-    this.providers.set("gemini", new GoogleProvider(opts.google));
-    this.providers.set("openrouter", new OpenRouterProvider(opts.openrouter));
-    const ollama = new OllamaProvider(opts.ollama);
-    this.providers.set("ollama", ollama);
-    this.fallback = opts.fallback ?? ollama;
-    this.preferred = opts.preferred ?? ["cybermind-cloud", "anthropic", "ollama"];
-    const active = this.activeProvider();
-    this.info = {
-      id: active.info.id,
-      displayName: `Router (${active.info.displayName})`,
-      requiresNetwork: active.info.requiresNetwork,
-      ready: active.info.ready
-    };
-  }
-  /** First preferred-and-ready provider, or the fallback. */
-  activeProvider() {
-    for (const id of this.preferred) {
-      const p2 = this.providers.get(id);
-      if (p2?.info.ready) return p2;
-    }
-    return this.fallback;
-  }
-  get(id) {
-    return this.providers.get(id);
-  }
-  async listModels() {
-    return this.activeProvider().listModels();
-  }
-  async *chat(req) {
-    const primary = this.activeProvider();
-    log14.debug("routing chat", { primary: primary.info.id });
-    let primaryYieldedSomething = false;
-    let primaryError;
-    for await (const chunk of primary.chat(req)) {
-      if (chunk.type === "done" && chunk.reason === "error" && !primaryYieldedSomething) {
-        primaryError = chunk.error;
-        break;
-      }
-      primaryYieldedSomething = true;
-      yield chunk;
-    }
-    if (primaryError !== void 0 && primary !== this.fallback) {
-      log14.warn("primary provider failed; falling back", {
-        primary: primary.info.id,
-        fallback: this.fallback.info.id,
-        error: primaryError
-      });
-      yield {
-        type: "text",
-        text: `
-[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.
-`
-      };
-      yield* this.fallback.chat(req);
-    } else if (primaryError !== void 0) {
-      yield { type: "done", reason: "error", error: primaryError };
-    }
-  }
-};
-
-// ../tools/src/approval.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8 } from "fs";
-import { dirname } from "path";
-var log15 = createLogger("tools:approval");
-function loadTrustStore() {
-  const path2 = getTrustPath();
-  if (!existsSync9(path2)) return { tools: [] };
-  try {
-    const raw = readFileSync8(path2, "utf8");
-    const parsed = JSON.parse(raw);
-    return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
-  } catch (err) {
-    log15.warn("failed to load trust store", String(err));
-    return { tools: [] };
-  }
-}
-function saveTrustStore(store) {
-  const path2 = getTrustPath();
-  if (!existsSync9(dirname(path2))) mkdirSync8(dirname(path2), { recursive: true });
-  writeFileSync8(path2, JSON.stringify(store, null, 2), "utf8");
-}
-var ApprovalGate = class {
-  constructor(ui) {
-    this.ui = ui;
-    this.persistent = new Set(loadTrustStore().tools);
-  }
-  ui;
-  persistent;
-  sessionAllow = /* @__PURE__ */ new Set();
-  mode = "always-ask";
-  setMode(mode) {
-    this.mode = mode;
-  }
-  /** True if the tool is already trusted (either persistently or for the session). */
-  isTrusted(toolName) {
-    return this.persistent.has(toolName) || this.sessionAllow.has(toolName);
-  }
-  /** Trust a tool persistently — written to ~/.cybermind/trust.json. */
-  trustPersistent(toolName) {
-    this.persistent.add(toolName);
-    saveTrustStore({ tools: [...this.persistent] });
-    log15.info("tool persistently trusted", { toolName });
-  }
-  /** Revoke persistent trust. */
-  revoke(toolName) {
-    this.persistent.delete(toolName);
-    this.sessionAllow.delete(toolName);
-    saveTrustStore({ tools: [...this.persistent] });
-  }
-  listTrusted() {
-    return { persistent: [...this.persistent], session: [...this.sessionAllow] };
-  }
-  /**
-   * Main entry point used by the agent loop. Returns true when the tool call
-   * may proceed; false when the user denied.
-   */
-  async request(prompt) {
-    if (this.mode === "persistent-bypass") return true;
-    if (this.isTrusted(prompt.toolName)) return true;
-    if (this.mode === "session-bypass" && !prompt.destructive) return true;
-    const decision = await this.ui.ask(prompt);
-    switch (decision) {
-      case "allow":
-        return true;
-      case "allow-session":
-        this.sessionAllow.add(prompt.toolName);
-        return true;
-      case "allow-persistent":
-        this.trustPersistent(prompt.toolName);
-        return true;
-      case "deny":
-      default:
-        return false;
-    }
-  }
-};
-var HeadlessApprovalUI = class {
-  async ask(prompt) {
-    return prompt.destructive ? "deny" : "allow";
-  }
-};
-
-// ../tools/src/secrets.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync9 } from "fs";
-import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
-var log16 = createLogger("tools:secrets");
-var ALGO = "aes-256-gcm";
-var IV_LEN = 12;
-var SALT_LEN = 16;
-var KEY_LEN = 32;
-var SecretsVault = class {
-  cache = null;
-  list() {
-    return Object.keys(this.load());
-  }
-  get(name) {
-    return this.load()[name];
-  }
-  set(name, value) {
-    const all = this.load();
-    all[name] = value;
-    this.save(all);
-  }
-  remove(name) {
-    const all = this.load();
-    if (!(name in all)) return false;
-    delete all[name];
-    this.save(all);
-    return true;
-  }
-  /** Merge the vault into a process env-like object for tool execution. */
-  injectInto(env) {
-    return { ...env, ...this.load() };
-  }
-  load() {
-    if (this.cache) return this.cache;
-    const path2 = getSecretsPath();
-    if (!existsSync10(path2)) {
-      this.cache = {};
-      return this.cache;
-    }
-    try {
-      const buf = readFileSync9(path2);
-      const salt = buf.subarray(0, SALT_LEN);
-      const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
-      const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
-      const ciphertext = buf.subarray(SALT_LEN + IV_LEN + 16);
-      const key = scryptSync(this.pepper(), salt, KEY_LEN);
-      const decipher = createDecipheriv(ALGO, key, iv);
-      decipher.setAuthTag(tag);
-      const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      this.cache = JSON.parse(plain.toString("utf8"));
-      return this.cache;
-    } catch (err) {
-      log16.error("failed to decrypt secrets vault; treating as empty", String(err));
-      this.cache = {};
-      return this.cache;
-    }
-  }
-  save(all) {
-    const path2 = getSecretsPath();
-    if (!existsSync10(getHomeDir())) mkdirSync9(getHomeDir(), { recursive: true });
-    const salt = randomBytes(SALT_LEN);
-    const iv = randomBytes(IV_LEN);
-    const key = scryptSync(this.pepper(), salt, KEY_LEN);
-    const cipher = createCipheriv(ALGO, key, iv);
-    const ciphertext = Buffer.concat([cipher.update(JSON.stringify(all), "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    writeFileSync9(path2, Buffer.concat([salt, iv, tag, ciphertext]));
-    this.cache = { ...all };
-  }
-  /**
-   * Stable per-machine pepper. Not a secret — just makes the encrypted file
-   * non-portable between machines. M6 will swap this for an OS-keychain entry.
-   */
-  pepper() {
-    const host = (process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "cybermind") + ":cybermind-v1";
-    return createHash("sha256").update(host).digest();
-  }
-};
-
-// ../tools/src/workspace-checkpoint.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync } from "fs";
-import { homedir as homedir3 } from "os";
-import { join as join9, resolve as resolve2, relative, dirname as dirname2 } from "path";
-import { createHash as createHash2 } from "crypto";
-function checkpointRoot() {
-  const dir = join9(homedir3(), ".codeva", "checkpoints");
-  if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
-  return dir;
-}
-var WorkspaceCheckpoints = class {
-  constructor(sessionId, cwd = process.cwd()) {
-    this.cwd = cwd;
-    this.dir = join9(checkpointRoot(), sessionId);
-    if (!existsSync11(this.dir)) mkdirSync10(this.dir, { recursive: true });
-    this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);
-  }
-  cwd;
-  dir;
-  seq = 0;
-  /**
-   * Snapshot the given files (by absolute or cwd-relative path) before they are
-   * modified. Files that don't exist yet are recorded as "existed:false" so a
-   * rewind deletes them. Returns the checkpoint sequence number.
-   */
-  snapshot(paths, label) {
-    const seq = ++this.seq;
-    const cpDir = join9(this.dir, String(seq));
-    mkdirSync10(cpDir, { recursive: true });
-    const files = [];
-    for (const p2 of paths) {
-      const abs = resolve2(this.cwd, p2);
-      const existed = existsSync11(abs);
-      const safeName = createHash2("sha1").update(abs).digest("hex");
-      if (existed) {
-        try {
-          const content = readFileSync10(abs);
-          writeFileSync10(join9(cpDir, safeName), content);
-        } catch {
-          continue;
-        }
-      }
-      files.push({ path: abs, existed });
-    }
-    const entry = { seq, label, createdAt: Date.now(), files };
-    writeFileSync10(join9(cpDir, "manifest.json"), JSON.stringify(entry, null, 2), "utf8");
-    return seq;
-  }
-  /** List checkpoints, newest first. */
-  list() {
-    if (!existsSync11(this.dir)) return [];
-    const out = [];
-    for (const name of readdirSync4(this.dir)) {
-      const manifest = join9(this.dir, name, "manifest.json");
-      if (existsSync11(manifest)) {
-        try {
-          out.push(JSON.parse(readFileSync10(manifest, "utf8")));
-        } catch {
-        }
-      }
-    }
-    return out.sort((a, b) => b.seq - a.seq);
-  }
-  /**
-   * Restore the workspace to the state captured at `seq` (and undo everything
-   * after it). Files that didn't exist at snapshot time are deleted; existing
-   * files are rewritten with their captured bytes.
-   */
-  restore(seq) {
-    let restored = 0;
-    let deleted = 0;
-    const entries = this.list().filter((e) => e.seq >= seq).sort((a, b) => b.seq - a.seq);
-    for (const entry of entries) {
-      const cpDir = join9(this.dir, String(entry.seq));
-      for (const f of entry.files) {
-        const safeName = createHash2("sha1").update(f.path).digest("hex");
-        const snapPath = join9(cpDir, safeName);
-        if (f.existed && existsSync11(snapPath)) {
-          try {
-            const d = dirname2(f.path);
-            if (!existsSync11(d)) mkdirSync10(d, { recursive: true });
-            writeFileSync10(f.path, readFileSync10(snapPath));
-            restored++;
-          } catch {
-          }
-        } else if (!f.existed && existsSync11(f.path)) {
-          try {
-            rmSync(f.path, { force: true });
-            deleted++;
-          } catch {
-          }
-        }
-      }
-    }
-    return { restored, deleted };
-  }
-  /** Human-readable relative path for display. */
-  rel(abs) {
-    return relative(this.cwd, abs) || abs;
-  }
-};
-
-// ../tools/src/mcp-client.ts
-import { spawn } from "child_process";
-import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
-import { homedir as homedir4 } from "os";
-import { join as join10 } from "path";
-var McpServer = class {
-  constructor(name, cfg) {
-    this.name = name;
-    this.cfg = cfg;
-  }
-  name;
-  cfg;
-  proc = null;
-  nextId = 1;
-  pending = /* @__PURE__ */ new Map();
-  buffer = "";
-  tools = [];
-  async start(timeoutMs = 15e3) {
-    const isWin = process.platform === "win32";
-    const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
-    this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
-      env: { ...process.env, ...this.cfg.env ?? {} },
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-      shell: needsShell
-    });
-    this.proc.stdout.setEncoding("utf8");
-    this.proc.stdout.on("data", (chunk) => this.onData(chunk));
-    this.proc.on("error", () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
-    this.proc.on("exit", () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
-    await this.rpc("initialize", {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "cybercoder", version: "0.1.0" }
-    }, timeoutMs);
-    this.notify("notifications/initialized", {});
-    const listed = await this.rpc("tools/list", {}, timeoutMs);
-    this.tools = listed?.tools ?? [];
-  }
-  async callTool(toolName, args, timeoutMs = 6e4) {
-    const res = await this.rpc("tools/call", { name: toolName, arguments: args }, timeoutMs);
-    const text = (res?.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : `[${c.type}]`).join("\n");
-    return res?.isError ? `[MCP error] ${text}` : text || "[no content]";
-  }
-  stop() {
-    try {
-      this.proc?.kill();
-    } catch {
-    }
-  }
-  onData(chunk) {
-    this.buffer += chunk;
-    let idx;
-    while ((idx = this.buffer.indexOf("\n")) !== -1) {
-      const line = this.buffer.slice(0, idx).trim();
-      this.buffer = this.buffer.slice(idx + 1);
-      if (!line) continue;
-      try {
-        const msg = JSON.parse(line);
-        if (typeof msg.id === "number" && this.pending.has(msg.id)) {
-          const p2 = this.pending.get(msg.id);
-          this.pending.delete(msg.id);
-          if (msg.error) p2.reject(new Error(msg.error.message ?? "MCP error"));
-          else p2.resolve(msg.result);
-        }
-      } catch {
-      }
-    }
-  }
-  rpc(method, params, timeoutMs) {
-    if (!this.proc) return Promise.reject(new Error("MCP server not started"));
-    const id = this.nextId++;
-    const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
-    return new Promise((resolve12, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`MCP '${this.name}' ${method} timed out`));
-      }, timeoutMs);
-      this.pending.set(id, {
-        resolve: (v) => {
-          clearTimeout(timer);
-          resolve12(v);
-        },
-        reject: (e) => {
-          clearTimeout(timer);
-          reject(e);
-        }
-      });
-      this.proc.stdin.write(payload);
-    });
-  }
-  notify(method, params) {
-    if (!this.proc) return;
-    this.proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
-  }
-  failAll(err) {
-    for (const p2 of this.pending.values()) p2.reject(err);
-    this.pending.clear();
-  }
-};
-function readMcpConfig(cwd) {
-  for (const path2 of [join10(cwd, ".codeva", "mcp.json"), join10(homedir4(), ".codeva", "mcp.json")]) {
-    try {
-      if (existsSync12(path2)) return JSON.parse(readFileSync11(path2, "utf8"));
-    } catch {
-    }
-  }
-  return {};
-}
-async function loadMcpTools(cwd = process.cwd()) {
-  const cfg = readMcpConfig(cwd);
-  const servers = [];
-  const tools = [];
-  const entries = Object.entries(cfg.mcpServers ?? {});
-  await Promise.all(
-    entries.map(async ([name, sc]) => {
-      const server = new McpServer(name, sc);
-      try {
-        await server.start();
-        servers.push(server);
-        for (const t of server.tools) {
-          tools.push({
-            schema: {
-              name: `mcp__${name}__${t.name}`,
-              description: `[MCP:${name}] ${t.description}`,
-              inputSchema: t.inputSchema ?? { type: "object", properties: {} }
-            },
-            destructive: true,
-            // MCP tools can do anything; gate them by default
-            async execute(input) {
-              return server.callTool(t.name, input);
-            }
-          });
-        }
-      } catch (err) {
-        console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    })
-  );
-  return { tools, servers };
-}
-
-// ../tools/src/builtin/read-file.ts
-import { readFileSync as readFileSync12 } from "fs";
-import { resolve as resolve3 } from "path";
-var MAX_BYTES = 1e6;
-var readFileTool = {
-  schema: {
-    name: "read_file",
-    description: "Read the contents of a file at the given path. Returns up to ~1MB of UTF-8 text with 1-indexed line numbers. Use an absolute path or one relative to the current working directory.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Absolute or relative file path." },
-        offset: { type: "integer", minimum: 1, description: "Optional 1-indexed line to start at." },
-        limit: { type: "integer", minimum: 1, description: "Optional number of lines to read." }
-      },
-      required: ["path"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const path2 = String(input.path ?? "");
-    if (!path2) throw new Error("read_file requires a non-empty path");
-    const abs = resolve3(ctx.cwd, path2);
-    const raw = readFileSync12(abs);
-    if (raw.byteLength > MAX_BYTES) {
-      const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
-      return numberLines(truncated, input.offset, input.limit) + `
-
-[truncated: file is ${raw.byteLength} bytes, only first ${MAX_BYTES} shown]`;
-    }
-    return numberLines(raw.toString("utf8"), input.offset, input.limit);
-  }
-};
-function numberLines(text, offset, limit) {
-  const lines = text.split("\n");
-  const start = Math.max(1, offset ?? 1);
-  const end = limit ? Math.min(lines.length, start + limit - 1) : lines.length;
-  const slice = lines.slice(start - 1, end);
-  const width = String(end).length;
-  return slice.map((l, i) => `${String(start + i).padStart(width, " ")}	${l}`).join("\n");
-}
-
-// ../tools/src/builtin/read-many.ts
-import { readFileSync as readFileSync13, statSync } from "fs";
-import { resolve as resolve4 } from "path";
-var MAX_BYTES_PER_FILE = 2e5;
-var MAX_FILES = 20;
-var readManyTool = {
-  schema: {
-    name: "read_many",
-    description: "Read multiple files at once and return their numbered contents, separated by headers. Use this instead of many read_file calls when you need several files to understand a feature. Max 20 files.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        paths: {
-          type: "array",
-          items: { type: "string" },
-          description: "Absolute or relative file paths to read."
-        }
-      },
-      required: ["paths"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const paths = Array.isArray(input.paths) ? input.paths.map(String) : [];
-    if (paths.length === 0) throw new Error('read_many requires a non-empty "paths" array');
-    const limited = paths.slice(0, MAX_FILES);
-    const blocks = limited.map((p2) => {
-      const abs = resolve4(ctx.cwd, p2);
-      try {
-        const st = statSync(abs);
-        if (!st.isFile()) return `### ${p2}
-[not a file]`;
-        const raw = readFileSync13(abs);
-        const text = raw.byteLength > MAX_BYTES_PER_FILE ? raw.subarray(0, MAX_BYTES_PER_FILE).toString("utf8") + "\n[truncated]" : raw.toString("utf8");
-        return `### ${p2}
-${numberLines2(text)}`;
-      } catch (err) {
-        return `### ${p2}
-[error: ${err instanceof Error ? err.message : String(err)}]`;
-      }
-    });
-    const extra = paths.length > MAX_FILES ? `
-
-[${paths.length - MAX_FILES} more files omitted; request them separately]` : "";
-    return blocks.join("\n\n") + extra;
-  }
-};
-function numberLines2(text) {
-  const lines = text.split("\n");
-  const width = String(lines.length).length;
-  return lines.map((l, i) => `${String(i + 1).padStart(width, " ")}	${l}`).join("\n");
-}
-
-// ../tools/src/builtin/write-file.ts
-import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync11 } from "fs";
-import { dirname as dirname3, resolve as resolve5 } from "path";
-var writeFileTool = {
-  schema: {
-    name: "write_file",
-    description: "Create a new file at the given path with the given UTF-8 content. Fails if the file already exists \u2014 use edit for modifications. Parent directories are created.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Absolute or relative file path." },
-        content: { type: "string", description: "Full UTF-8 file content." }
-      },
-      required: ["path", "content"]
-    }
-  },
-  destructive: true,
-  async execute(input, ctx) {
-    const path2 = String(input.path ?? "");
-    const content = String(input.content ?? "");
-    if (!path2) throw new Error("write_file requires a path");
-    const abs = resolve5(ctx.cwd, path2);
-    if (existsSync13(abs)) {
-      throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
-    }
-    const dir = dirname3(abs);
-    if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
-    writeFileSync11(abs, content, "utf8");
-    return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
-  },
-  // Self-correction: confirm the file now exists with the expected size.
-  async verify(input, _output, ctx) {
-    try {
-      const abs = resolve5(ctx.cwd, String(input.path ?? ""));
-      const content = String(input.content ?? "");
-      if (!existsSync13(abs)) return "write_file verification failed: file does not exist after writing.";
-      const written = readFileSync14(abs, "utf8");
-      if (written.length !== content.length) {
-        return `write_file verification warning: written size (${written.length}) differs from intended (${content.length}).`;
-      }
-      return null;
-    } catch (err) {
-      return `write_file verification error: ${err instanceof Error ? err.message : String(err)}`;
-    }
-  }
-};
-
-// ../tools/src/builtin/edit.ts
-import { readFileSync as readFileSync15, writeFileSync as writeFileSync12 } from "fs";
-import { resolve as resolve6 } from "path";
-var editTool = {
-  schema: {
-    name: "edit",
-    description: "Replace an exact string in a file with a new string. The old_string must appear exactly once unless replace_all is true. Use for surgical code edits; create new files with write_file instead.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string" },
-        old_string: { type: "string", description: "Exact text to replace, including indentation." },
-        new_string: { type: "string", description: "Replacement text." },
-        replace_all: { type: "boolean", default: false }
-      },
-      required: ["path", "old_string", "new_string"]
-    }
-  },
-  destructive: true,
-  async execute(input, ctx) {
-    const path2 = String(input.path ?? "");
-    const oldStr = String(input.old_string ?? "");
-    const newStr = String(input.new_string ?? "");
-    const replaceAll = Boolean(input.replace_all);
-    if (!path2) throw new Error("edit requires a path");
-    if (!oldStr) throw new Error("edit requires a non-empty old_string");
-    if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
-    const abs = resolve6(ctx.cwd, path2);
-    const original = readFileSync15(abs, "utf8");
-    if (replaceAll) {
-      const count = occurrenceCount(original, oldStr);
-      if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
-      const next2 = original.split(oldStr).join(newStr);
-      writeFileSync12(abs, next2, "utf8");
-      return `Replaced ${count} occurrence(s) in ${abs}.`;
-    }
-    const idx = original.indexOf(oldStr);
-    if (idx === -1) throw new Error(`old_string not found in ${abs}`);
-    if (original.indexOf(oldStr, idx + 1) !== -1) {
-      throw new Error(
-        `old_string is not unique in ${abs}; provide a longer surrounding snippet or set replace_all=true.`
-      );
-    }
-    const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
-    writeFileSync12(abs, next, "utf8");
-    return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
-  },
-  // Self-correction: re-read the file and confirm the edit actually landed.
-  async verify(input, _output, ctx) {
-    try {
-      const abs = resolve6(ctx.cwd, String(input.path ?? ""));
-      const newStr = String(input.new_string ?? "");
-      const current = readFileSync15(abs, "utf8");
-      if (newStr && !current.includes(newStr)) {
-        return "Edit verification failed: new_string is not present in the file after writing. The change may not have applied as intended.";
-      }
-      return null;
-    } catch (err) {
-      return `Edit verification could not read the file back: ${err instanceof Error ? err.message : String(err)}`;
-    }
-  }
-};
-function occurrenceCount(haystack, needle) {
-  if (!needle) return 0;
-  let n = 0;
-  let i = 0;
-  while ((i = haystack.indexOf(needle, i)) !== -1) {
-    n++;
-    i += needle.length;
-  }
-  return n;
-}
-
-// ../tools/src/builtin/list-dir.ts
-import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
-import { join as join11, resolve as resolve7 } from "path";
-var MAX_ENTRIES = 200;
-var listDirTool = {
-  schema: {
-    name: "list_dir",
-    description: "List files and directories at the given absolute or relative path. Returns up to 200 entries with type and size.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Directory to list." }
-      },
-      required: ["path"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const path2 = String(input.path ?? ".");
-    const abs = resolve7(ctx.cwd, path2);
-    const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
-    const lines = [];
-    for (const e of entries) {
-      const full = join11(abs, e.name);
-      let size = "";
-      try {
-        if (e.isFile()) size = `${statSync2(full).size}b`;
-        else if (e.isDirectory()) size = "dir";
-        else if (e.isSymbolicLink()) size = "symlink";
-      } catch {
-        size = "?";
-      }
-      lines.push(`${size.padEnd(10)} ${e.name}`);
-    }
-    return lines.length === 0 ? "(empty directory)" : lines.join("\n");
-  }
-};
-
-// ../tools/src/builtin/grep.ts
-import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
-import { join as join12, resolve as resolve8 } from "path";
-var MAX_MATCHES = 200;
-var MAX_FILE_BYTES = 2e6;
-var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".turbo", ".next", ".cache"]);
-var grepTool = {
-  schema: {
-    name: "grep",
-    description: "Search files for a regex pattern (case-insensitive by default). Returns up to 200 matching lines with file:line prefix. Skips node_modules and other build dirs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        pattern: { type: "string", description: "Regular expression to search for." },
-        path: { type: "string", description: "Directory or file to search. Defaults to cwd." },
-        case_sensitive: { type: "boolean", default: false },
-        include: { type: "string", description: 'Optional glob-like extension filter, e.g. "*.ts".' }
-      },
-      required: ["pattern"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const pattern = String(input.pattern ?? "");
-    if (!pattern) throw new Error("grep requires a pattern");
-    const flags = input.case_sensitive ? "g" : "gi";
-    const re = new RegExp(pattern, flags);
-    const root = resolve8(ctx.cwd, String(input.path ?? "."));
-    const include = typeof input.include === "string" ? extToRegex(input.include) : null;
-    const matches = [];
-    walk(root, (file) => {
-      if (matches.length >= MAX_MATCHES) return false;
-      if (include && !include.test(file)) return true;
-      try {
-        const stat = statSync3(file);
-        if (stat.size > MAX_FILE_BYTES) return true;
-        const text = readFileSync16(file, "utf8");
-        const lines = text.split("\n");
-        for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
-          const line = lines[i] ?? "";
-          if (re.test(line)) {
-            matches.push(`${file}:${i + 1}: ${line}`);
-          }
-        }
-      } catch {
-      }
-      return true;
-    });
-    if (matches.length === 0) return `(no matches for /${pattern}/${flags})`;
-    return matches.join("\n");
-  }
-};
-function extToRegex(glob) {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return new RegExp(`${escaped}$`, "i");
-}
-function walk(root, visit) {
-  const stack = [root];
-  while (stack.length > 0) {
-    const cur = stack.pop();
-    let stat;
-    try {
-      stat = statSync3(cur);
-    } catch {
-      continue;
-    }
-    if (stat.isFile()) {
-      if (!visit(cur)) return;
-      continue;
-    }
-    if (!stat.isDirectory()) continue;
-    let entries;
-    try {
-      entries = readdirSync6(cur, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e of entries) {
-      if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
-      stack.push(join12(cur, e.name));
-    }
-  }
-}
-
-// ../tools/src/builtin/repo-map.ts
-import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
-import { join as join13, resolve as resolve9, relative as relative2, extname } from "path";
-var IGNORE_DIRS = /* @__PURE__ */ new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "build",
-  ".next",
-  "out",
-  "coverage",
-  ".turbo",
-  ".cache",
-  "vendor",
-  "__pycache__",
-  ".venv",
-  "venv",
-  ".idea",
-  ".vscode"
-]);
-var CODE_EXT = /* @__PURE__ */ new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".rb", ".php", ".c", ".cpp", ".h", ".cs"]);
-var MAX_FILES2 = 400;
-var MAX_SYMBOLS_PER_FILE = 12;
-var repoMapTool = {
-  schema: {
-    name: "repo_map",
-    description: "Build a compact map of the project: directory structure plus the key exported symbols (functions/classes/components) in each code file. Call this FIRST on an unfamiliar repo to understand its layout efficiently.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Root to map (default: cwd)." },
-        max_depth: { type: "integer", description: "Max directory depth (default 4)." }
-      }
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const root = resolve9(ctx.cwd, String(input.path ?? "."));
-    const maxDepth = Number(input.max_depth ?? 4);
-    const files = [];
-    const walk2 = (dir, depth) => {
-      if (depth > maxDepth || files.length >= MAX_FILES2) return;
-      let entries;
-      try {
-        entries = readdirSync7(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const e of entries) {
-        if (files.length >= MAX_FILES2) break;
-        if (e.name.startsWith(".") && e.name !== ".codeva") continue;
-        if (IGNORE_DIRS.has(e.name)) continue;
-        const full = join13(dir, e.name);
-        if (e.isDirectory()) walk2(full, depth + 1);
-        else if (e.isFile() && CODE_EXT.has(extname(e.name))) files.push(full);
-      }
-    };
-    walk2(root, 0);
-    if (files.length === 0) return "No code files found to map.";
-    const byDir = /* @__PURE__ */ new Map();
-    for (const f of files) {
-      const rel = relative2(root, f);
-      const dir = rel.includes("/") || rel.includes("\\") ? rel.replace(/[\\/][^\\/]+$/, "") : ".";
-      if (!byDir.has(dir)) byDir.set(dir, []);
-      byDir.get(dir).push(f);
-    }
-    const lines = [`# Repo map: ${relative2(ctx.cwd, root) || "."} (${files.length} code files)`];
-    const dirs = [...byDir.keys()].sort();
-    for (const dir of dirs) {
-      lines.push(`
-## ${dir}/`);
-      for (const f of byDir.get(dir).sort()) {
-        const name = f.replace(/^.*[\\/]/, "");
-        const symbols = extractSymbols(f);
-        if (symbols.length) {
-          lines.push(`- ${name}: ${symbols.join(", ")}`);
-        } else {
-          lines.push(`- ${name}`);
-        }
-      }
-    }
-    const out = lines.join("\n");
-    return out.length > 16e3 ? out.slice(0, 16e3) + "\n\u2026[map truncated]" : out;
-  }
-};
-function extractSymbols(file) {
-  let text;
-  try {
-    const st = statSync4(file);
-    if (st.size > 4e5) return [];
-    text = readFileSync17(file, "utf8");
-  } catch {
-    return [];
-  }
-  const symbols = /* @__PURE__ */ new Set();
-  const patterns = [
-    /export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g,
-    /export\s+(?:abstract\s+)?class\s+([A-Za-z0-9_]+)/g,
-    /export\s+(?:const|let|var)\s+([A-Za-z0-9_]+)/g,
-    /export\s+interface\s+([A-Za-z0-9_]+)/g,
-    /export\s+type\s+([A-Za-z0-9_]+)/g,
-    /(?:^|\n)\s*(?:public|private|protected\s+)?(?:async\s+)?def\s+([A-Za-z0-9_]+)/g,
-    // python
-    /(?:^|\n)func\s+(?:\([^)]*\)\s+)?([A-Za-z0-9_]+)/g,
-    // go
-    /(?:^|\n)(?:pub\s+)?fn\s+([A-Za-z0-9_]+)/g
-    // rust
-  ];
-  for (const re of patterns) {
-    let m;
-    while ((m = re.exec(text)) !== null && symbols.size < MAX_SYMBOLS_PER_FILE) {
-      if (m[1] && m[1].length > 1) symbols.add(m[1]);
-    }
-  }
-  return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
-}
-
-// ../tools/src/builtin/project-memory-tool.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync18, writeFileSync as writeFileSync13, statSync as statSync5 } from "fs";
-import { join as join14 } from "path";
-var CYBER_DIR = ".cyber";
-var DEFAULTS = {
-  version: 1,
-  stack: [],
-  entryPoints: [],
-  commands: {},
-  conventions: [],
-  importantPaths: [],
-  glossary: [],
-  decisions: []
-};
-function p(cwd, ...parts) {
-  return join14(cwd, CYBER_DIR, ...parts);
-}
-function ensureDir(cwd) {
-  const d = join14(cwd, CYBER_DIR);
-  if (!existsSync14(d)) mkdirSync12(d, { recursive: true });
-}
-function read(cwd) {
-  const f = p(cwd, "project.json");
-  if (!existsSync14(f)) return null;
-  try {
-    return { ...DEFAULTS, ...JSON.parse(readFileSync18(f, "utf8")) };
-  } catch {
-    return null;
-  }
-}
-function readNotes(cwd) {
-  const f = p(cwd, "memory.md");
-  if (!existsSync14(f)) return "";
-  try {
-    return readFileSync18(f, "utf8");
-  } catch {
-    return "";
-  }
-}
-function mergeArr(a, b) {
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const item of [...a ?? [], ...b ?? []]) {
-    const k = typeof item === "string" ? item : JSON.stringify(item);
-    if (!seen.has(k)) {
-      seen.add(k);
-      out.push(item);
-    }
-  }
-  return out;
-}
-var projectMemoryTool = {
-  schema: {
-    name: "project_memory",
-    description: "Persist or read self-learning project memory in the .cyber/ folder so future sessions understand this project from .cyber/ alone. Use action='read' to recall, 'update' to save structured facts (stack, entryPoints, commands, conventions, importantPaths, glossary, decisions, name, summary), and 'note' to append a free-form learning. Call 'update'/'note' whenever you discover something durable about the project.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        action: { type: "string", enum: ["read", "update", "note"], description: "read | update | note" },
-        name: { type: "string" },
-        summary: { type: "string" },
-        stack: { type: "array", items: { type: "string" } },
-        entryPoints: { type: "array", items: { type: "string" } },
-        commands: { type: "object", description: 'map of label -> shell command, e.g. {"build":"npm run build"}' },
-        conventions: { type: "array", items: { type: "string" } },
-        importantPaths: { type: "array", items: { type: "object", properties: { path: { type: "string" }, note: { type: "string" } } } },
-        glossary: { type: "array", items: { type: "object", properties: { term: { type: "string" }, meaning: { type: "string" } } } },
-        decisions: { type: "array", items: { type: "string" } },
-        note: { type: "string", description: "For action='note': the learning to append." }
-      },
-      required: ["action"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const cwd = ctx.cwd;
-    const action = String(input.action ?? "read");
-    if (action === "read") {
-      const mem = read(cwd);
-      const notes = readNotes(cwd);
-      if (!mem && !notes) return 'No .cyber/ project memory yet. Use action="update"/"note" to start one.';
-      return JSON.stringify({ project: mem, notes }, null, 2);
-    }
-    if (action === "note") {
-      const note = String(input.note ?? "").trim();
-      if (!note) return "Provide a non-empty `note`.";
-      ensureDir(cwd);
-      const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ");
-      const prev = readNotes(cwd) || "# Project Memory Log\n";
-      writeFileSync13(p(cwd, "memory.md"), `${prev}
-- [${stamp}] ${note}
-`, "utf8");
-      return `Recorded learning to .cyber/memory.md`;
-    }
-    ensureDir(cwd);
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    const current = read(cwd) ?? { ...DEFAULTS, createdAt: now };
-    const patch = input;
-    const next = {
-      ...current,
-      ...patch.name !== void 0 ? { name: patch.name } : {},
-      ...patch.summary !== void 0 ? { summary: patch.summary } : {},
-      version: 1,
-      stack: mergeArr(current.stack, patch.stack),
-      entryPoints: mergeArr(current.entryPoints, patch.entryPoints),
-      conventions: mergeArr(current.conventions, patch.conventions),
-      decisions: mergeArr(current.decisions, patch.decisions),
-      importantPaths: mergeArr(current.importantPaths, patch.importantPaths),
-      glossary: mergeArr(current.glossary, patch.glossary),
-      commands: { ...current.commands ?? {}, ...patch.commands ?? {} },
-      createdAt: current.createdAt ?? now,
-      updatedAt: now
-    };
-    writeFileSync13(p(cwd, "project.json"), JSON.stringify(next, null, 2), "utf8");
-    const readme = p(cwd, "README.md");
-    if (!existsSync14(readme)) {
-      writeFileSync13(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
-    }
-    return `Updated .cyber/project.json (${Object.keys(patch).filter((k) => k !== "action").join(", ") || "no fields"}).`;
-  }
-};
-
-// ../tools/src/builtin/run-command.ts
-import { spawn as spawn2 } from "child_process";
-var DEFAULT_TIMEOUT_MS = 6e4;
-var MAX_OUTPUT_BYTES = 2e5;
-var SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
-var SHELL_ARG = process.platform === "win32" ? "-NoProfile" : "-lc";
-var runCommandTool = {
-  schema: {
-    name: "run_command",
-    description: "Execute a shell command in the user's default shell (PowerShell on Windows, bash on Unix). Returns combined stdout/stderr (up to ~200KB) and the exit code. Always destructive \u2014 requires approval.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        command: { type: "string", description: "Command line to run." },
-        cwd: { type: "string", description: "Optional working directory." },
-        timeout_ms: { type: "integer", description: "Optional timeout (defaults 60s)." }
-      },
-      required: ["command"]
-    }
-  },
-  destructive: true,
-  async execute(input, ctx) {
-    const command = String(input.command ?? "");
-    if (!command) throw new Error("run_command requires a command");
-    const cwd = input.cwd ?? ctx.cwd;
-    const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
-    return await new Promise((resolveResult) => {
-      const child = spawn2(SHELL, [SHELL_ARG, command], {
-        cwd,
-        env: process.env,
-        windowsHide: true
-      });
-      const chunks = [];
-      let totalBytes = 0;
-      let truncated = false;
-      const onData = (buf) => {
-        if (totalBytes >= MAX_OUTPUT_BYTES) {
-          truncated = true;
-          return;
-        }
-        const room = MAX_OUTPUT_BYTES - totalBytes;
-        const slice = buf.byteLength > room ? buf.subarray(0, room) : buf;
-        chunks.push(slice);
-        totalBytes += slice.byteLength;
-        if (totalBytes >= MAX_OUTPUT_BYTES) {
-          truncated = true;
-          child.kill();
-        }
-      };
-      child.stdout.on("data", onData);
-      child.stderr.on("data", onData);
-      const killer = setTimeout(() => {
-        truncated = true;
-        chunks.push(Buffer.from(`
-[timeout: killed after ${timeoutMs}ms]
-`));
-        child.kill();
-      }, timeoutMs);
-      child.on("close", (code) => {
-        clearTimeout(killer);
-        const out = Buffer.concat(chunks).toString("utf8");
-        const tail = truncated ? `
-[truncated at ${MAX_OUTPUT_BYTES} bytes]` : "";
-        resolveResult(`exit ${code ?? 0}
-${out}${tail}`);
-      });
-      child.on("error", (err) => {
-        clearTimeout(killer);
-        resolveResult(`exit -1
-[spawn error] ${err.message}`);
-      });
-    });
-  }
-};
-
-// ../tools/src/builtin/web-search.ts
-var MAX_RESULTS = 8;
-var TIMEOUT_MS = 15e3;
-var webSearchTool = {
-  schema: {
-    name: "web_search",
-    description: "Search the web and return the top results (title, url, snippet). Use for current docs, library versions, error messages, and anything outside the local repo. Keyless.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search query." },
-        max_results: { type: "integer", description: `Max results (default ${MAX_RESULTS}).` }
-      },
-      required: ["query"]
-    }
-  },
-  destructive: false,
-  async execute(input) {
-    const query = String(input.query ?? "").trim();
-    if (!query) throw new Error("web_search requires a non-empty query");
-    const max = Math.min(Number(input.max_results ?? MAX_RESULTS) || MAX_RESULTS, 15);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try {
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)",
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: `q=${encodeURIComponent(query)}`,
-        signal: controller.signal
-      });
-      if (!res.ok) return `web_search failed: HTTP ${res.status}`;
-      const html = await res.text();
-      const results = parseDuckResults(html, max);
-      if (results.length === 0) return `No results for "${query}".`;
-      return results.map((r, i) => `${i + 1}. ${r.title}
-   ${r.url}
-   ${r.snippet}`).join("\n\n");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return `web_search error: ${msg}`;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-};
-function parseDuckResults(html, max) {
-  const out = [];
-  const linkRe = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-  const snippetRe = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
-  const snippets = [];
-  let sm;
-  while ((sm = snippetRe.exec(html)) !== null) {
-    snippets.push(stripTags(sm[1] ?? ""));
-  }
-  let lm;
-  let i = 0;
-  while ((lm = linkRe.exec(html)) !== null && out.length < max) {
-    const rawHref = lm[1] ?? "";
-    const title = stripTags(lm[2] ?? "");
-    const url = decodeDuckUrl(rawHref);
-    out.push({ title, url, snippet: snippets[i] ?? "" });
-    i++;
-  }
-  return out;
-}
-function stripTags(s) {
-  return s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/\s+/g, " ").trim();
-}
-function decodeDuckUrl(href) {
-  const m = href.match(/[?&]uddg=([^&]+)/);
-  if (m && m[1]) {
-    try {
-      return decodeURIComponent(m[1]);
-    } catch {
-      return href;
-    }
-  }
-  return href.startsWith("//") ? `https:${href}` : href;
-}
-
-// ../tools/src/builtin/web-fetch.ts
-var TIMEOUT_MS2 = 2e4;
-var MAX_CHARS = 2e4;
-var webFetchTool = {
-  schema: {
-    name: "web_fetch",
-    description: "Fetch a URL and return its readable text content (HTML stripped to text, or raw for JSON/markdown). Use after web_search to read a specific page or to pull docs/specs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        url: { type: "string", description: "Absolute http(s) URL to fetch." },
-        max_chars: { type: "integer", description: `Max characters returned (default ${MAX_CHARS}).` }
-      },
-      required: ["url"]
-    }
-  },
-  destructive: false,
-  async execute(input) {
-    const url = String(input.url ?? "").trim();
-    if (!/^https?:\/\//i.test(url)) throw new Error("web_fetch requires an absolute http(s) URL");
-    const maxChars = Math.min(Number(input.max_chars ?? MAX_CHARS) || MAX_CHARS, 6e4);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS2);
-    try {
-      const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)" },
-        signal: controller.signal,
-        redirect: "follow"
-      });
-      if (!res.ok) return `web_fetch failed: HTTP ${res.status} ${res.statusText}`;
-      const contentType = res.headers.get("content-type") || "";
-      const raw = await res.text();
-      let text;
-      if (contentType.includes("html")) {
-        text = htmlToText(raw);
-      } else {
-        text = raw;
-      }
-      if (text.length > maxChars) {
-        return `${text.slice(0, maxChars)}
-
-[truncated at ${maxChars} chars]`;
-      }
-      return text || "[empty response]";
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return `web_fetch error: ${msg}`;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-};
-function htmlToText(html) {
-  return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<svg[\s\S]*?<\/svg>/gi, " ").replace(/<head[\s\S]*?<\/head>/gi, " ").replace(/<\/(p|div|section|article|li|h[1-6]|tr|br)>/gi, "\n").replace(/<li[^>]*>/gi, "\u2022 ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&#39;/g, "'").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-// ../tools/src/registry.ts
-function builtinTools() {
-  return [
-    readFileTool,
-    readManyTool,
-    writeFileTool,
-    editTool,
-    listDirTool,
-    grepTool,
-    repoMapTool,
-    runCommandTool,
-    webSearchTool,
-    webFetchTool,
-    projectMemoryTool
-  ];
-}
-
-// ../skills/src/types.ts
-import { z as z9 } from "zod";
-var SkillIOSchema = z9.object({
-  name: z9.string(),
-  type: z9.string(),
-  required: z9.boolean().optional(),
-  description: z9.string().optional()
-});
-var SkillFrontmatterSchema = z9.object({
-  name: z9.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9-]*$/, "name must be kebab-case"),
-  description: z9.string().min(1),
-  version: z9.string().default("0.1.0"),
-  inputs: z9.array(SkillIOSchema).default([]),
-  outputs: z9.array(SkillIOSchema).default([]),
-  /** Capabilities the skill needs to run. */
-  requires: z9.object({
-    tools: z9.array(z9.string()).default([]),
-    /** Reserved for M13 — MCP servers the skill expects. */
-    mcp: z9.array(z9.string()).default([])
-  }).default({ tools: [], mcp: [] }),
-  /** Free-form trigger phrases shown in /help and used by skill discovery. */
-  triggers: z9.array(z9.string()).default([]),
-  license: z9.string().optional(),
-  author: z9.string().optional(),
-  category: z9.string().optional(),
-  /** Used by the marketplace to flag curated/official skills. */
-  official: z9.boolean().default(false)
-});
-
-// ../skills/src/parser.ts
-import { parse as parseYaml } from "yaml";
-var FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
-function parseSkillSource(source) {
-  const match = source.match(FRONTMATTER_RE);
-  if (!match) {
-    throw new Error('SKILL.md must begin with a YAML frontmatter block delimited by "---" lines');
-  }
-  const [, yamlBlock, body] = match;
-  let raw;
-  try {
-    raw = parseYaml(yamlBlock ?? "");
-  } catch (err) {
-    throw new Error(`SKILL.md frontmatter is not valid YAML: ${err.message}`);
-  }
-  const parsed = SkillFrontmatterSchema.safeParse(raw);
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
-    throw new Error(`SKILL.md frontmatter failed validation:
-${issues}`);
-  }
-  return { frontmatter: parsed.data, body: (body ?? "").trim() };
-}
-
-// ../skills/src/loader.ts
-import { existsSync as existsSync15, readFileSync as readFileSync19, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
-import { dirname as dirname4, join as join15, resolve as resolve10 } from "path";
-import { fileURLToPath } from "url";
-var log17 = createLogger("skills:loader");
-function getBundledDir() {
-  const here = dirname4(fileURLToPath(import.meta.url));
-  let dir = here;
-  for (let i = 0; i < 8; i++) {
-    const candidate = resolve10(dir, "skills-bundled");
-    if (existsSync15(candidate)) return candidate;
-    const parent = resolve10(dir, "..");
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return resolve10(here, "..", "..", "..", "skills-bundled");
-}
-function scanDir(root, source) {
-  if (!existsSync15(root)) return [];
-  const out = [];
-  let entries;
-  try {
-    entries = readdirSync8(root);
-  } catch (err) {
-    log17.warn("failed to read skills dir", { root, err: String(err) });
-    return [];
-  }
-  for (const name of entries) {
-    const folder = join15(root, name);
-    let stat;
-    try {
-      stat = statSync6(folder);
-    } catch {
-      continue;
-    }
-    if (!stat.isDirectory()) continue;
-    const skillFile = join15(folder, "SKILL.md");
-    if (!existsSync15(skillFile)) continue;
-    try {
-      const raw = readFileSync19(skillFile, "utf8");
-      const { frontmatter, body } = parseSkillSource(raw);
-      const id = `${source}/${frontmatter.name}`;
-      out.push({ id, source, path: skillFile, frontmatter, body });
-    } catch (err) {
-      log17.warn("skipping malformed skill", { skillFile, err: String(err) });
-    }
-  }
-  return out;
-}
-function loadAllSkills(opts = {}) {
-  const cwd = opts.cwd ?? process.cwd();
-  const skip = new Set(opts.skip ?? []);
-  const sources = [];
-  if (!skip.has("project")) sources.push({ source: "project", dir: getProjectSkillsDir(cwd) });
-  if (!skip.has("user")) sources.push({ source: "user", dir: getSkillsDir() });
-  if (!skip.has("bundled")) sources.push({ source: "bundled", dir: opts.bundledDir ?? getBundledDir() });
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const { source, dir } of sources) {
-    for (const skill of scanDir(dir, source)) {
-      if (seen.has(skill.frontmatter.name)) continue;
-      seen.add(skill.frontmatter.name);
-      out.push(skill);
-    }
-  }
-  return out;
-}
-
-// ../skills/src/registry.ts
-var SkillRegistry = class {
-  constructor(opts = {}) {
-    this.opts = opts;
-    this.reload();
-  }
-  opts;
-  skills = [];
-  byName = /* @__PURE__ */ new Map();
-  reload() {
-    this.skills = loadAllSkills(this.opts);
-    this.byName.clear();
-    for (const s of this.skills) this.byName.set(s.frontmatter.name, s);
-  }
-  list() {
-    return [...this.skills];
-  }
-  get(name) {
-    return this.byName.get(name);
-  }
-  has(name) {
-    return this.byName.has(name);
-  }
-  /** Group skills by source for /skills UI output. */
-  bySource() {
-    const out = {
-      bundled: [],
-      user: [],
-      project: [],
-      marketplace: []
-    };
-    for (const s of this.skills) out[s.source].push(s);
-    return out;
-  }
-};
-
-// ../skills/src/runner.ts
-var log18 = createLogger("skills:runner");
-function buildSubagentSystemPrompt(skill) {
-  return [
-    `You are the "${skill.frontmatter.name}" sub-agent inside CyberMind CLI.`,
-    skill.frontmatter.description,
-    "",
-    skill.body,
-    "",
-    "Rules:",
-    "- You run in an isolated context; the user only sees your final summary.",
-    "- Be concise. Prefer code/path references over prose.",
-    "- When you have completed the task, stop calling tools and emit one final",
-    "  message summarising what you found / did."
-  ].join("\n");
-}
-function selectTools(skill, pool) {
-  const allowed = new Set(skill.frontmatter.requires.tools);
-  if (allowed.size === 0) return [];
-  return pool.filter((t) => allowed.has(t.schema.name));
-}
-async function spawnSubagent(opts) {
-  const { skill, prompt, provider, toolPool } = opts;
-  const tools = selectTools(skill, toolPool);
-  const systemPrompt = buildSubagentSystemPrompt(skill);
-  const messages = [{ role: "user", content: prompt }];
-  let summary = "";
-  let toolCalls = 0;
-  let usage = { inputTokens: 0, outputTokens: 0 };
-  let reason = "end_turn";
-  let error;
-  log18.debug("spawning subagent", {
-    skill: skill.frontmatter.name,
-    tools: tools.map((t) => t.schema.name)
-  });
-  for await (const evt of runAgentLoop(messages, {
-    provider,
-    systemPrompt,
-    model: opts.model ?? "auto",
-    tools,
-    maxIterations: opts.maxIterations ?? 6,
-    signal: opts.signal
-  })) {
-    opts.onEvent?.(evt);
-    if (evt.type === "text") summary += evt.text;
-    else if (evt.type === "tool_call") toolCalls++;
-    else if (evt.type === "usage") {
-      usage.inputTokens += evt.inputTokens;
-      usage.outputTokens += evt.outputTokens;
-    } else if (evt.type === "done") {
-      reason = evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
-      error = evt.error;
-    }
-  }
-  return { summary: summary.trim(), toolCalls, usage, reason, error };
-}
-
-// ../skills/src/spawn-tool.ts
-function buildSpawnSubagentTool(deps) {
-  return {
-    schema: {
-      name: "spawn_subagent",
-      description: "Spawn an isolated sub-agent that runs the named skill against the given prompt. Use this for read-only exploration (research), planning (plan), code review (code-review), or any other installed skill. Returns the sub-agent's final summary as the tool result.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          skill: {
-            type: "string",
-            description: "Name of the skill to invoke. Must match an installed SKILL.md name."
-          },
-          prompt: {
-            type: "string",
-            description: "The task description / user prompt to give the sub-agent."
-          }
-        },
-        required: ["skill", "prompt"]
-      }
-    },
-    async execute(input, _ctx) {
-      const name = String(input.skill ?? "").trim();
-      const prompt = String(input.prompt ?? "").trim();
-      if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
-      if (!prompt) return 'Error: spawn_subagent requires a non-empty "prompt".';
-      const skill = deps.registry.get(name);
-      if (!skill) {
-        const available = deps.registry.list().map((s) => s.frontmatter.name).join(", ");
-        return `Error: skill "${name}" is not installed. Available skills: ${available || "(none)"}`;
-      }
-      const result = await spawnSubagent({
-        skill,
-        prompt,
-        provider: deps.provider,
-        toolPool: deps.toolPool
-      });
-      if (result.reason === "error") {
-        return `[sub-agent ${name} failed: ${result.error ?? "unknown"}]`;
-      }
-      if (result.reason === "max_iterations") {
-        return `[sub-agent ${name} hit iteration cap]
-
-${result.summary}`;
-      }
-      return result.summary || `[sub-agent ${name} completed with no output]`;
-    }
-  };
-}
-
-// ../skills/src/orchestrator.ts
-var log19 = createLogger("skills:orchestrator");
-async function orchestrate(tasks, opts) {
-  const concurrency = Math.max(1, opts.concurrency ?? 3);
-  const results = new Array(tasks.length);
-  let cursor = 0;
-  log19.debug("orchestrating tasks", { count: tasks.length, concurrency });
-  async function worker() {
-    while (true) {
-      if (opts.signal?.aborted) return;
-      const index = cursor++;
-      if (index >= tasks.length) return;
-      const task = tasks[index];
-      const skill = opts.registry.get(task.skill);
-      const start = Date.now();
-      opts.onTaskStart?.(task, index);
-      if (!skill) {
-        const available = opts.registry.list().map((s) => s.frontmatter.name).join(", ");
-        results[index] = {
-          task,
-          summary: "",
-          ok: false,
-          error: `skill "${task.skill}" not installed. Available: ${available || "(none)"}`,
-          toolCalls: 0,
-          durationMs: Date.now() - start
-        };
-        opts.onTaskDone?.(task, index, results[index]);
-        continue;
-      }
-      let sub;
-      try {
-        sub = await spawnSubagent({
-          skill,
-          prompt: task.prompt,
-          provider: opts.provider,
-          toolPool: opts.toolPool,
-          model: opts.model,
-          signal: opts.signal
-        });
-      } catch (err) {
-        results[index] = {
-          task,
-          summary: "",
-          ok: false,
-          error: err instanceof Error ? err.message : String(err),
-          toolCalls: 0,
-          durationMs: Date.now() - start
-        };
-        opts.onTaskDone?.(task, index, results[index]);
-        continue;
-      }
-      results[index] = {
-        task,
-        summary: sub.summary,
-        ok: sub.reason !== "error",
-        error: sub.error,
-        toolCalls: sub.toolCalls,
-        durationMs: Date.now() - start
-      };
-      opts.onTaskDone?.(task, index, results[index]);
-    }
-  }
-  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-function routeTaskToSkill(task, registry) {
-  const t = task.toLowerCase();
-  const has = (name) => registry.has(name);
-  const rules = [
-    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"],
-    [/\b(plan|design|architect|break down|roadmap)\b/, "plan"],
-    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
-    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
-    [/\b(test|spec|coverage|unit test|jest|vitest)\b/, "test-writer"],
-    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
-    [/\b(security|vulnerab|exploit|recon|pentest)\b/, "cyber-recon"],
-    [/\b(database|schema|migration|sql|index)\b/, "db-architect"],
-    [/\b(document|docs|readme|comment|explain)\b/, "doc-writer"],
-    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
-    [/\b(dependency|deps|package|upgrade|npm|version)\b/, "dep-doctor"],
-    [/\b(frontend|ui|css|component|design)\b/, "frontend-design"],
-    [/\b(api|endpoint|rest|graphql|openapi)\b/, "api-designer"],
-    [/\b(infra|terraform|kubernetes|docker|cloud)\b/, "infra-as-code"],
-    [/\b(git|commit|branch|merge|rebase)\b/, "git-master"],
-    [/\b(migrate|migration|port|convert)\b/, "migrate"]
-  ];
-  for (const [re, skill] of rules) {
-    if (re.test(t) && has(skill)) return skill;
-  }
-  for (const fallback of ["research", "plan"]) {
-    if (has(fallback)) return fallback;
-  }
-  return registry.list()[0]?.frontmatter.name;
-}
-
-// ../skills/src/team-tool.ts
-function buildSpawnTeamTool(deps) {
-  return {
-    schema: {
-      name: "spawn_team",
-      description: "Run multiple sub-agent tasks IN PARALLEL and get a combined summary. Use when a goal splits into independent pieces (e.g. research + review + plan). Each task names a skill (or omit it to auto-route) and a prompt. Returns every sub-agent's result, labelled.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          tasks: {
-            type: "array",
-            description: "Independent tasks to run concurrently.",
-            items: {
-              type: "object",
-              properties: {
-                skill: { type: "string", description: "Skill to run. Omit to auto-route from the prompt." },
-                prompt: { type: "string", description: "Task description for the sub-agent." },
-                label: { type: "string", description: "Short label for this task." }
-              },
-              required: ["prompt"]
-            }
-          }
-        },
-        required: ["tasks"]
-      }
-    },
-    async execute(input, _ctx) {
-      const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
-      if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
-      const tasks = [];
-      for (const rt of rawTasks) {
-        const obj = rt;
-        const prompt = String(obj.prompt ?? "").trim();
-        if (!prompt) continue;
-        const skill = obj.skill ? String(obj.skill).trim() : routeTaskToSkill(prompt, deps.registry) ?? "";
-        if (!skill) return "Error: no skills installed to run the team.";
-        tasks.push({ skill, prompt, label: obj.label ? String(obj.label) : void 0 });
-      }
-      if (tasks.length === 0) return "Error: spawn_team received no valid tasks.";
-      const results = await orchestrate(tasks, {
-        registry: deps.registry,
-        provider: deps.provider,
-        toolPool: deps.toolPool,
-        concurrency: deps.concurrency ?? 3
-      });
-      const lines = [`# Team results (${results.length} agents)`];
-      results.forEach((r, i) => {
-        const label = r.task.label || r.task.skill;
-        lines.push(`
-## ${i + 1}. ${label} (${r.task.skill}) \u2014 ${r.ok ? "ok" : "failed"} \xB7 ${r.durationMs}ms`);
-        if (r.ok) lines.push(r.summary || "(no output)");
-        else lines.push(`Error: ${r.error ?? "unknown"}`);
-      });
-      return lines.join("\n");
-    }
-  };
-}
-
-// src/utils/git-context.ts
-import { execSync } from "child_process";
-function git(args, cwd) {
-  return execSync(`git ${args}`, {
-    cwd,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-    windowsHide: true,
-    timeout: 4e3
-  }).trim();
-}
-function getGitContext(cwd = process.cwd()) {
-  const empty = {
-    isRepo: false,
-    staged: 0,
-    unstaged: 0,
-    untracked: 0,
-    lastCommits: []
-  };
-  try {
-    const inside = git("rev-parse --is-inside-work-tree", cwd);
-    if (inside !== "true") return empty;
-  } catch {
-    return empty;
-  }
-  const ctx = { ...empty, isRepo: true };
-  try {
-    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd);
-  } catch {
-  }
-  try {
-    const status = git("status --porcelain", cwd);
-    if (status) {
-      for (const line of status.split("\n")) {
-        const x = line[0];
-        const y = line[1];
-        if (x === "?" && y === "?") ctx.untracked++;
-        else {
-          if (x && x !== " ") ctx.staged++;
-          if (y && y !== " ") ctx.unstaged++;
-        }
-      }
-    }
-  } catch {
-  }
-  try {
-    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd);
-    const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
-    ctx.behind = behind;
-    ctx.ahead = ahead;
-  } catch {
-  }
-  try {
-    const log22 = git("log --oneline -5", cwd);
-    ctx.lastCommits = log22 ? log22.split("\n") : [];
-  } catch {
-  }
-  try {
-    ctx.remoteUrl = git("remote get-url origin", cwd) || void 0;
-  } catch {
-  }
-  return ctx;
-}
-function gitContextPrompt(ctx) {
-  if (!ctx.isRepo) return "";
-  const parts = ["[Git context]"];
-  parts.push(`branch: ${ctx.branch ?? "(detached)"}`);
-  const dirty = [];
-  if (ctx.staged) dirty.push(`${ctx.staged} staged`);
-  if (ctx.unstaged) dirty.push(`${ctx.unstaged} modified`);
-  if (ctx.untracked) dirty.push(`${ctx.untracked} untracked`);
-  parts.push(`working tree: ${dirty.length ? dirty.join(", ") : "clean"}`);
-  if (ctx.ahead || ctx.behind) parts.push(`vs upstream: ${ctx.ahead ?? 0} ahead, ${ctx.behind ?? 0} behind`);
-  if (ctx.lastCommits.length) parts.push(`recent: ${ctx.lastCommits.slice(0, 3).join(" / ")}`);
-  return parts.join("\n");
-}
-
-// src/utils/project-memory.ts
-import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync7 } from "fs";
-import { join as join16 } from "path";
-var CYBER_DIR2 = ".cyber";
-function cyberPath(cwd, ...parts) {
-  return join16(cwd, CYBER_DIR2, ...parts);
-}
-function cyberDirExists(cwd = process.cwd()) {
-  try {
-    return statSync7(join16(cwd, CYBER_DIR2)).isDirectory();
-  } catch {
-    return false;
-  }
-}
-var DEFAULT_MEMORY = {
-  version: 1,
-  stack: [],
-  entryPoints: [],
-  commands: {},
-  conventions: [],
-  importantPaths: [],
-  glossary: [],
-  decisions: []
-};
-function readProjectMemory(cwd = process.cwd()) {
-  const file = cyberPath(cwd, "project.json");
-  if (!existsSync16(file)) return null;
-  try {
-    const raw = readFileSync20(file, "utf8");
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_MEMORY, ...parsed };
-  } catch {
-    return null;
-  }
-}
-function readProjectMemoryNotes(cwd = process.cwd()) {
-  const file = cyberPath(cwd, "memory.md");
-  if (!existsSync16(file)) return "";
-  try {
-    return readFileSync20(file, "utf8");
-  } catch {
-    return "";
-  }
-}
-function ensureCyberDir(cwd) {
-  const dir = join16(cwd, CYBER_DIR2);
-  if (!existsSync16(dir)) mkdirSync13(dir, { recursive: true });
-}
-var README = `# .cyber \u2014 Project Memory
-
-This folder is CyberCoder's self-learning memory for **this** project.
-
-**Contract:** To understand this project, an AI agent should read THIS folder
-first. \`project.json\` holds structured facts (stack, entry points, commands,
-conventions). \`memory.md\` is a running log of learnings and decisions.
-
-CyberCoder maintains these files automatically as it works. You can edit them
-by hand too \u2014 they're plain JSON/Markdown. Safe to commit to version control so
-the whole team (and future sessions) share the same understanding.
-`;
-function initProjectMemory(cwd = process.cwd(), seed) {
-  ensureCyberDir(cwd);
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const existing = readProjectMemory(cwd);
-  const memory = {
-    ...DEFAULT_MEMORY,
-    ...existing,
-    ...seed,
-    version: 1,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now
-  };
-  writeFileSync14(cyberPath(cwd, "project.json"), JSON.stringify(memory, null, 2), "utf8");
-  if (!existsSync16(cyberPath(cwd, "README.md"))) {
-    writeFileSync14(cyberPath(cwd, "README.md"), README, "utf8");
-  }
-  if (!existsSync16(cyberPath(cwd, "memory.md"))) {
-    writeFileSync14(cyberPath(cwd, "memory.md"), `# Project Memory Log
-
-_CyberCoder records learnings and decisions here as it works._
-`, "utf8");
-  }
-  return memory;
-}
-function projectMemoryPrompt(cwd = process.cwd()) {
-  const mem = readProjectMemory(cwd);
-  const notes = readProjectMemoryNotes(cwd);
-  if (!mem && !notes) return "";
-  const parts = ["[Project memory \u2014 .cyber/ (read this to understand the project)]"];
-  if (mem?.name) parts.push(`name: ${mem.name}`);
-  if (mem?.summary) parts.push(`summary: ${mem.summary}`);
-  if (mem?.stack?.length) parts.push(`stack: ${mem.stack.join(", ")}`);
-  if (mem?.entryPoints?.length) parts.push(`entry points: ${mem.entryPoints.join(", ")}`);
-  if (mem?.commands && Object.keys(mem.commands).length) {
-    parts.push(`commands: ${Object.entries(mem.commands).map(([k, v]) => `${k}=\`${v}\``).join(", ")}`);
-  }
-  if (mem?.conventions?.length) parts.push(`conventions: ${mem.conventions.slice(0, 8).join("; ")}`);
-  if (mem?.importantPaths?.length) {
-    parts.push(`key paths: ${mem.importantPaths.slice(0, 8).map((p2) => `${p2.path} (${p2.note})`).join("; ")}`);
-  }
-  if (mem?.glossary?.length) {
-    parts.push(`glossary: ${mem.glossary.slice(0, 8).map((g) => `${g.term}=${g.meaning}`).join("; ")}`);
-  }
-  if (mem?.decisions?.length) parts.push(`decisions: ${mem.decisions.slice(0, 6).join("; ")}`);
-  let block = parts.join("\n");
-  if (notes) {
-    const trimmedNotes = notes.length > 2e3 ? notes.slice(notes.length - 2e3) : notes;
-    block += `
-
-[Recent learnings \u2014 .cyber/memory.md]
-${trimmedNotes.trim()}`;
-  }
-  return block.length > 6e3 ? block.slice(0, 6e3) + "\n\u2026[memory truncated]" : block;
-}
-
-// src/runtime/hooks.ts
-import { execSync as execSync2 } from "child_process";
-import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
-import { join as join17 } from "path";
-import { homedir as homedir5 } from "os";
-function readHooksFile(path2) {
-  try {
-    if (existsSync17(path2)) return JSON.parse(readFileSync21(path2, "utf8"));
-  } catch {
-  }
-  return {};
-}
-var cached = null;
-function loadHooks(cwd = process.cwd()) {
-  if (cached) return cached;
-  const global = readHooksFile(join17(homedir5(), ".codeva", "hooks.json"));
-  const project = readHooksFile(join17(cwd, ".codeva", "hooks.json"));
-  const merged = { ...global };
-  for (const key of Object.keys(project)) {
-    merged[key] = project[key];
-  }
-  cached = merged;
-  return merged;
-}
-function reloadHooks() {
-  cached = null;
-}
-function runHooks(event, subject = "", cwd = process.cwd()) {
-  const rules = loadHooks(cwd)[event] ?? [];
-  if (rules.length === 0) return { ran: false, blocked: false, output: "" };
-  const outputs = [];
-  let blocked = false;
-  for (const rule of rules) {
-    if (rule.match) {
-      let re;
-      try {
-        re = new RegExp(rule.match);
-      } catch {
-        continue;
-      }
-      if (!re.test(subject)) continue;
-    }
-    if (rule.block) {
-      blocked = true;
-      outputs.push(`[hook] blocked by rule (match: ${rule.match ?? "*"})`);
-      continue;
-    }
-    const command = rule.command.replace(/\{file\}/g, subject);
-    try {
-      const out = execSync2(command, {
-        cwd,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        windowsHide: true,
-        timeout: rule.timeoutMs ?? 3e4
-      });
-      outputs.push(`[hook ${event}] ${command}
-${out.trim().slice(0, 2e3)}`);
-    } catch (err) {
-      const e = err;
-      outputs.push(`[hook ${event}] ${command} (failed)
-${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
-    }
-  }
-  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
-}
-
-// src/runtime/chat.ts
-var singletonRouter = null;
-var singletonRegistry = null;
-var singletonCheckpoints = null;
-var SESSION_ID = `sess-${Date.now().toString(36)}`;
-function getCheckpoints() {
-  if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
-  return singletonCheckpoints;
-}
-function getRouter() {
-  const config = loadConfig();
-  const configKeys = config.apiKeys ?? {};
-  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
-  if (!singletonRouter) {
-    singletonRouter = new ProviderRouter({
-      preferred: defaultProviderOrder(config, configKeys),
-      anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
-      cloud: {
-        apiKey: cloudApiKey,
-        baseURL: process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com"
-      },
-      openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
-      groq: { apiKey: process.env.GROQ_API_KEY ?? configKeys.groq },
-      google: { apiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? configKeys.google ?? configKeys.gemini },
-      openrouter: { apiKey: process.env.OPENROUTER_API_KEY ?? configKeys.openrouter },
-      ollama: {
-        defaultModel: config.lastModel || "auto"
-      }
-    });
-  }
-  return singletonRouter;
-}
-function getSkillRegistry() {
-  if (!singletonRegistry) singletonRegistry = new SkillRegistry();
-  return singletonRegistry;
-}
-function defaultProviderOrder(config, configKeys) {
-  const order = [];
-  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
-  if (cloudApiKey) {
-    order.push("cybermind-cloud");
-  }
-  if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
-    order.push("anthropic");
-  }
-  if (process.env.OPENAI_API_KEY || configKeys.openai) {
-    order.push("openai");
-  }
-  if (process.env.GROQ_API_KEY || configKeys.groq) {
-    order.push("groq");
-  }
-  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || configKeys.google || configKeys.gemini) {
-    order.push("gemini");
-  }
-  if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
-    order.push("openrouter");
-  }
-  order.push("ollama");
-  return order;
-}
-var SYSTEM_PROMPT = `You are CyberMind, a fullstack agentic coding assistant running inside a terminal.
-You help with reading, editing, and running code across the user's project. Be concise,
-prefer code over prose, and never invent file paths. You have access to these tools:
-- read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
-- read_many(paths[]) \u2014 read SEVERAL files in one call (use to grok a feature fast)
-- list_dir(path) \u2014 lists a directory
-- grep(pattern, path?, include?) \u2014 ripgrep-style search
-- repo_map(path?) \u2014 compact map of the project (dirs + key symbols per file);
-  call this FIRST on an unfamiliar repo to navigate efficiently
-- write_file(path, content) \u2014 create a NEW file (fails on overwrite)
-- edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
-- run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
-- web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
-- web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
-- project_memory(action, \u2026) \u2014 self-learning project memory in .cyber/: action='read'
-  to recall what's known, 'update' to save durable facts (stack, entry points,
-  commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
-  Update it whenever you discover something durable so future sessions (or any AI)
-  understand this project from .cyber/ alone.
-- spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
-  code-review, \u2026) which runs in an isolated context and returns a summary
-- spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
-  pieces of work (e.g. research + review + plan at once), returns all results
-Destructive tools (write_file, edit, run_command) require user approval each turn
-unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
-broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
-\u2014 it produces tighter summaries and keeps your main context clean. When a goal has
-several independent parts, prefer spawn_team to do them concurrently.`;
-function toProviderMessages(messages) {
-  return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
-}
-var mcpToolsCache = null;
-async function getMcpTools() {
-  if (mcpToolsCache) return mcpToolsCache;
-  try {
-    const { tools } = await loadMcpTools();
-    mcpToolsCache = tools;
-  } catch {
-    mcpToolsCache = [];
-  }
-  return mcpToolsCache;
-}
-async function buildAgentTools(approvalUI) {
-  const router = getRouter();
-  const registry = getSkillRegistry();
-  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
-  const builtins = builtinTools();
-  const wrappedBuiltins = builtins.map((t) => ({
-    schema: t.schema,
-    destructive: t.destructive,
-    verify: t.verify,
-    execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: summarizeCall(t.schema.name, input)
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      if (t.schema.name === "run_command") {
-        const cmd = typeof input.command === "string" ? input.command : "";
-        const pre = runHooks("preCommand", cmd);
-        if (pre.blocked) return `[blocked by preCommand hook]
-${pre.output}`;
-      }
-      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
-        const target = input.path;
-        if (typeof target === "string" && target) {
-          try {
-            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
-          } catch {
-          }
-        }
-      }
-      const result = await t.execute(input, { cwd: ctx.cwd });
-      try {
-        if (t.schema.name === "edit") {
-          const h = runHooks("postEdit", String(input.path ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        } else if (t.schema.name === "write_file") {
-          const h = runHooks("postWrite", String(input.path ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        } else if (t.schema.name === "run_command") {
-          const h = runHooks("postCommand", String(input.command ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        }
-      } catch {
-      }
-      return result;
-    }
-  }));
-  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
-  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
-  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
-  const mcpRaw = await getMcpTools();
-  const mcpWrapped = mcpRaw.map((t) => ({
-    schema: t.schema,
-    destructive: t.destructive,
-    execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: `MCP: ${t.schema.name}`
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      return t.execute(input, ctx);
-    }
-  }));
-  const gitBlock = gitContextPrompt(getGitContext());
-  const memoryBlock = projectMemoryPrompt();
-  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
-  return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
-}
-async function runChat(history, opts) {
-  const router = getRouter();
-  const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
-  for await (const evt of runAgentLoop(providerMessages, {
-    provider: router,
-    systemPrompt,
-    model: opts.model ?? "auto",
-    signal: opts.signal,
-    tools
-  })) {
-    opts.onEvent(evt);
-  }
-}
-async function runGoalChat(history, opts) {
-  const router = getRouter();
-  const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
-  for await (const evt of runGoal(providerMessages, {
-    provider: router,
-    systemPrompt,
-    model: opts.model ?? "auto",
-    signal: opts.signal,
-    tools,
-    maxRounds: opts.maxRounds ?? 8,
-    onEvent: opts.onEvent
-  })) {
-    opts.onEvent(evt);
-  }
-}
-function summarizeCall(name, input) {
-  if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
-  if (name === "write_file") return `Create file: ${String(input.path ?? "")}`;
-  if (name === "edit") return `Edit file: ${String(input.path ?? "")}`;
-  if (name === "read_file") return `Read: ${String(input.path ?? "")}`;
-  if (name === "list_dir") return `List: ${String(input.path ?? "")}`;
-  if (name === "grep") return `Grep: /${String(input.pattern ?? "")}/`;
-  return `${name}(${Object.keys(input).join(", ")})`;
-}
-
 // src/commands/skills.ts
+init_chat();
 function buildSkillsCommand(ctx) {
   return {
     name: "skills",
@@ -6868,6 +7514,7 @@ function buildGoalCommand(ctx) {
 }
 
 // src/commands/trust.ts
+init_src4();
 function buildTrustCommand(ctx) {
   return {
     name: "trust",
@@ -6911,6 +7558,7 @@ function buildTrustCommand(ctx) {
 }
 
 // src/commands/secret.ts
+init_src4();
 function buildSecretCommand(ctx) {
   return {
     name: "secret",
@@ -6972,6 +7620,7 @@ function buildSecretCommand(ctx) {
 }
 
 // src/commands/model-provider.ts
+init_chat();
 function buildModelCommand(ctx) {
   return {
     name: "model",
@@ -7030,6 +7679,8 @@ Use /provider <id> to override.`
 }
 
 // src/commands/consensus.ts
+init_src2();
+init_chat();
 function buildConsensusCommand(ctx) {
   return {
     name: "consensus",
@@ -7186,6 +7837,7 @@ function buildReleaseNotesCommand(ctx) {
 }
 
 // src/commands/hooks.ts
+init_hooks();
 import { homedir as homedir6 } from "os";
 import { join as join18 } from "path";
 function buildHooksCommand(ctx) {
@@ -7318,6 +7970,7 @@ Note: each step is dispatched sequentially as a synthesized user prompt; the age
 }
 
 // src/commands/rewind.ts
+init_chat();
 function buildRewindCommand(ctx) {
   return {
     name: "rewind",
@@ -7366,6 +8019,7 @@ function buildRewindCommand(ctx) {
 }
 
 // src/commands/diff.ts
+init_src();
 function buildDiffCommand(ctx) {
   return {
     name: "diff",
@@ -7503,6 +8157,7 @@ function formatDiff(id1, id2, diff) {
 }
 
 // src/commands/profile.ts
+init_src();
 function buildProfileCommand(ctx) {
   return {
     name: "profile",
@@ -7607,6 +8262,7 @@ Provider: ${profile.provider}`);
 }
 
 // src/commands/collaboration.ts
+init_src();
 function buildCollabCommand(ctx) {
   return {
     name: "collab",
@@ -7863,6 +8519,7 @@ Note: Actual git worktree creation would run \`git worktree add ${worktreePath} 
 }
 
 // src/commands/rich-io.ts
+init_src();
 function buildImageCommand(ctx) {
   return {
     name: "image",
@@ -8144,6 +8801,7 @@ File size: ${html.length} characters`);
 }
 
 // src/commands/ecosystem.ts
+init_src();
 import { existsSync as existsSync19, readFileSync as readFileSync23, writeFileSync as writeFileSync15, mkdirSync as mkdirSync14 } from "fs";
 import { homedir as homedir7 } from "os";
 import { join as join20, dirname as dirname5 } from "path";
@@ -8904,6 +9562,7 @@ Creating:
 }
 
 // src/commands/custom-server.ts
+init_src();
 function buildCustomCommand(ctx) {
   return {
     name: "custom",
@@ -9167,6 +9826,8 @@ function buildCyberMindCommand(ctx) {
 }
 
 // src/commands/auth.ts
+init_src();
+init_config();
 var log20 = createLogger("auth");
 function buildLoginCommand(ctx) {
   return {
@@ -9334,6 +9995,7 @@ function buildKnowledgeCommand(ctx) {
 }
 
 // src/commands/init.ts
+init_project_memory();
 import * as fs from "fs";
 import * as path from "path";
 function buildInitCommand(ctx) {
@@ -9343,8 +10005,8 @@ function buildInitCommand(ctx) {
     category: "config",
     usage: "/init",
     run: () => {
-      const cwd = process.cwd();
-      const targetPath = path.join(cwd, "CYBER.md");
+      const cwd2 = process.cwd();
+      const targetPath = path.join(cwd2, "CYBER.md");
       const reply = (content) => {
         ctx.appendMessage({
           id: `init-${Date.now()}`,
@@ -9361,22 +10023,22 @@ function buildInitCommand(ctx) {
       let buildCommand = "make";
       let testCommand = "make test";
       let guidelines = "Write clean, modern, and self-documenting code.";
-      if (fs.existsSync(path.join(cwd, "package.json"))) {
+      if (fs.existsSync(path.join(cwd2, "package.json"))) {
         projectType = "Node.js / TypeScript";
         buildCommand = "npm run build";
         testCommand = "npm test";
         guidelines = "- Prefer TypeScript over plain JavaScript.\n- Use ES modules (import/export).\n- Keep dependencies minimal and use clean async/await patterns.";
-      } else if (fs.existsSync(path.join(cwd, "Cargo.toml"))) {
+      } else if (fs.existsSync(path.join(cwd2, "Cargo.toml"))) {
         projectType = "Rust";
         buildCommand = "cargo build";
         testCommand = "cargo test";
         guidelines = "- Follow standard rustfmt conventions.\n- Minimize use of `unsafe` blocks.\n- Handle errors explicitly using Result and Option.";
-      } else if (fs.existsSync(path.join(cwd, "go.mod"))) {
+      } else if (fs.existsSync(path.join(cwd2, "go.mod"))) {
         projectType = "Go";
         buildCommand = "go build ./...";
         testCommand = "go test ./...";
         guidelines = "- Handle errors immediately where they occur.\n- Use standard naming style (camelCase).\n- Write table-driven unit tests.";
-      } else if (fs.existsSync(path.join(cwd, "requirements.txt")) || fs.existsSync(path.join(cwd, "pyproject.toml")) || fs.existsSync(path.join(cwd, "setup.py"))) {
+      } else if (fs.existsSync(path.join(cwd2, "requirements.txt")) || fs.existsSync(path.join(cwd2, "pyproject.toml")) || fs.existsSync(path.join(cwd2, "setup.py"))) {
         projectType = "Python";
         buildCommand = "python -m pip install -r requirements.txt";
         testCommand = "pytest";
@@ -9415,9 +10077,9 @@ ${guidelines}
             "Python": ["Python"],
             "Generic": []
           };
-          const alreadyHad = cyberDirExists(cwd);
-          initProjectMemory(cwd, {
-            name: path.basename(cwd),
+          const alreadyHad = cyberDirExists(cwd2);
+          initProjectMemory(cwd2, {
+            name: path.basename(cwd2),
             summary: `${projectType} project.`,
             stack: stackMap[projectType] ?? [],
             commands: { build: buildCommand, test: testCommand },
@@ -9436,6 +10098,7 @@ ${guidelines}
 }
 
 // src/commands/compact.ts
+init_chat();
 function buildCompactCommand(ctx) {
   return {
     name: "compact",
@@ -9625,7 +10288,13 @@ function buildCommandRegistry(ctx) {
   };
 }
 
+// src/app.tsx
+init_chat();
+init_hooks();
+init_config();
+
 // src/utils/update.ts
+init_src();
 var cachedLatest = null;
 var lastCheck = 0;
 var CACHE_TTL = 60 * 60 * 1e3;
@@ -9713,14 +10382,14 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const approvalUI = useMemo(
     () => ({
       ask(prompt) {
-        return new Promise((resolve12) => {
+        return new Promise((resolve13) => {
           setPendingApproval({
             toolName: prompt.toolName,
             summary: prompt.summary,
             destructive: prompt.destructive,
             resolve: (decision) => {
               setPendingApproval(null);
-              resolve12(decision);
+              resolve13(decision);
             }
           });
         });
@@ -9988,11 +10657,18 @@ function stringifyArgs(input) {
 }
 
 // src/index.tsx
+init_chat();
+init_config();
 import { jsx as jsx17 } from "react/jsx-runtime";
 var log21 = createLogger("cli");
 async function main() {
   const program = new Command();
-  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant by Codeva").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").action((opts) => {
+  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant by Codeva").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").option("--rpc", "start as a JSON-RPC server (used by the VS Code extension)").action(async (opts) => {
+    if (opts.rpc) {
+      const { startRpcServer: startRpcServer2 } = await Promise.resolve().then(() => (init_rpc_server(), rpc_server_exports));
+      startRpcServer2();
+      return;
+    }
     if (opts.debug) {
       process.env.CYBERMIND_LOG_LEVEL = "debug";
       process.env.CYBERMIND_LOG_STDERR = "true";

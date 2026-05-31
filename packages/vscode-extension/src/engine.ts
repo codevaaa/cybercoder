@@ -54,7 +54,7 @@ export class Engine {
     if (id.includes('/')) {
       const [p, ...rest] = id.split('/')
       const model = rest.join('/')
-      if (['anthropic', 'openai', 'groq', 'gemini', 'ollama'].includes(p)) return { provider: p, model }
+      if (['anthropic', 'openai', 'groq', 'gemini', 'ollama', 'codeva'].includes(p)) return { provider: p, model }
     }
     // 'auto' or bare id → pick by available key, preferring quality.
     if (keys.anthropic) return { provider: 'anthropic', model: id === 'auto' ? 'claude-3-5-sonnet-20241022' : id }
@@ -78,6 +78,7 @@ export class Engine {
       case 'groq': yield* this.openaiCompat('https://api.groq.com/openai/v1', keys.groq!, model, payload, signal); return
       case 'gemini': yield* this.gemini(model, payload, keys.gemini!, signal); return
       case 'ollama': yield* this.ollama(keys.ollamaHost || 'http://localhost:11434', model, payload, signal); return
+      case 'codeva': yield* this.api.streamComplete({ ...payload, model }, signal); return
       default: yield* this.api.streamComplete(payload, signal); return
     }
   }
