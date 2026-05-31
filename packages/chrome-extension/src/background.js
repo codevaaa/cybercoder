@@ -208,9 +208,10 @@ async function* smartStream(messages, system, signal) {
   if (keys.openrouter) { yield* streamOpenRouter(messages, system, keys.openrouter, signal); return }
   if (keys.groq) { yield* streamGroq(messages, system, keys.groq, signal); return }
   if (keys.gemini) { yield* streamGemini(messages, system, keys.gemini, signal); return }
+  
+  // Fallback to Codeva API base (with apiKey if authenticated, or null for guest fallback)
   const auth = await getAuth()
-  if (auth?.apiKey) { yield* streamCodeva(messages, system, auth.apiKey, signal); return }
-  throw new Error('No provider connected. Open the extension and sign in.')
+  yield* streamCodeva(messages, system, auth?.apiKey || null, signal)
 }
 
 // ── Context menus ──
