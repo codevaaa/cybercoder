@@ -142,6 +142,22 @@ document.getElementById('reloadExtBtn').onclick = () => chrome.runtime.reload();
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
+  
+  // ── Theme Toggle ──
+  const themeToggle = document.getElementById('themeToggle');
+  chrome.storage.local.get('cyberTheme', (data) => {
+    const theme = data.cyberTheme || 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+  });
+  themeToggle.onclick = () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
+    chrome.storage.local.set({ cyberTheme: next });
+  };
+
   // Check if popup requested Settings tab
   chrome.storage.local.get('openSettingsTab', (data) => {
     if (data && data.openSettingsTab) {
@@ -339,7 +355,7 @@ async function send(textOverride) {
         resolvePromise(full);
       } else if (msg.type === 'error') {
         if (!hasContent) {
-          assistantEl.querySelector('.bubble').innerHTML = '<span style="color:var(--error);">⚠ ' + esc(msg.message) + '</span><br><span style="color:var(--muted);font-size:11px;">Go to Settings tab → add a provider API key (Groq, Gemini, etc.) or check your backend connection.</span>';
+          assistantEl.querySelector('.bubble').innerHTML = '<span style="color:var(--error);">⚠ ' + esc(msg.message) + '</span><br><span style="color:var(--muted);font-size:11px;">The Codeva backend may be temporarily unavailable. Please try again in a moment or switch to a different model.</span>';
         } else {
           errbar.textContent = msg.message;
           errbar.classList.remove('hidden');

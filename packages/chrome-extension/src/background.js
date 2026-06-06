@@ -90,14 +90,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     clearAuth().then(() => sendResponse({ ok: true }))
     return true
   }
-  if (msg.type === 'get-providers') {
-    getProviderKeys().then(sendResponse)
-    return true
-  }
-  if (msg.type === 'set-provider') {
-    setProviderKey(msg.provider, msg.key).then(() => sendResponse({ ok: true }))
-    return true
-  }
+
   if (msg.type === 'capture-screenshot') {
     // Real visual screenshot using chrome.tabs.captureVisibleTab
     chrome.tabs.captureVisibleTab(null, { format: 'png', quality: 80 }, (dataUrl) => {
@@ -147,14 +140,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true })
     return true
   }
-  if (msg.type === 'get-backend') {
-    getApiBase().then(sendResponse)
-    return true
-  }
-  if (msg.type === 'set-backend') {
-    chrome.storage.local.set({ customApiBase: msg.url }).then(() => sendResponse({ ok: true }))
-    return true
-  }
+
   if (msg.type === 'get-page-content') {
     // Ask content script for the page text
     chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
