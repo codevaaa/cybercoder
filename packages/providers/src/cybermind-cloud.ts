@@ -1,7 +1,7 @@
 import { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';
 import type { ProviderInfo } from './types.js';
 
-const DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? 'https://cybermindcli.info/v1';
+const DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com';
 
 /**
  * `cybermind-cloud` provider talks to your own backend (`cybermindcli.info`)
@@ -24,7 +24,7 @@ export class CybermindCloudProvider extends AnthropicProvider {
     });
     this.info = {
       id: 'cybermind-cloud',
-      displayName: 'CyberMind Cloud',
+      displayName: 'Codeva Cloud',
       requiresNetwork: true,
       ready: Boolean(apiKey),
     };

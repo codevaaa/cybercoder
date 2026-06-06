@@ -1,33 +1,39 @@
 #!/usr/bin/env node
-
-// src/index.tsx
-import { Command } from "commander";
-import { render } from "ink";
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 
 // ../shared/src/types.ts
 import { z } from "zod";
-var RoleSchema = z.enum(["system", "user", "assistant", "tool"]);
-var MessageSchema = z.object({
-  id: z.string(),
-  role: RoleSchema,
-  content: z.string(),
-  createdAt: z.number().int().positive(),
-  /** Optional tool call payload when role === 'assistant' issued a tool call. */
-  toolCalls: z.array(
-    z.object({
+var RoleSchema, MessageSchema;
+var init_types = __esm({
+  "../shared/src/types.ts"() {
+    "use strict";
+    RoleSchema = z.enum(["system", "user", "assistant", "tool"]);
+    MessageSchema = z.object({
       id: z.string(),
-      name: z.string(),
-      input: z.record(z.unknown())
-    })
-  ).optional(),
-  /** Optional reference back to a tool call when role === 'tool'. */
-  toolCallId: z.string().optional()
+      role: RoleSchema,
+      content: z.string(),
+      createdAt: z.number().int().positive(),
+      /** Optional tool call payload when role === 'assistant' issued a tool call. */
+      toolCalls: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          input: z.record(z.unknown())
+        })
+      ).optional(),
+      /** Optional reference back to a tool call when role === 'tool'. */
+      toolCallId: z.string().optional()
+    });
+  }
 });
-
-// ../shared/src/logger.ts
-import chalk from "chalk";
-import { appendFileSync, existsSync, mkdirSync } from "fs";
-import { join as join2 } from "path";
 
 // ../shared/src/paths.ts
 import { homedir } from "os";
@@ -53,30 +59,22 @@ function getDataDir() {
 function getSecretsPath() {
   return join(getHomeDir(), "secrets.enc");
 }
-function getProjectDir(cwd = process.cwd()) {
-  return join(cwd, ".cybermind");
+function getProjectDir(cwd2 = process.cwd()) {
+  return join(cwd2, ".cybermind");
 }
-function getProjectSkillsDir(cwd = process.cwd()) {
-  return join(getProjectDir(cwd), "skills");
+function getProjectSkillsDir(cwd2 = process.cwd()) {
+  return join(getProjectDir(cwd2), "skills");
 }
+var init_paths = __esm({
+  "../shared/src/paths.ts"() {
+    "use strict";
+  }
+});
 
 // ../shared/src/logger.ts
-var LEVEL_ORDER = {
-  debug: 10,
-  info: 20,
-  warn: 30,
-  error: 40
-};
-var COLOR = {
-  debug: (s) => chalk.gray(s),
-  info: (s) => chalk.cyan(s),
-  warn: (s) => chalk.yellow(s),
-  error: (s) => chalk.red(s)
-};
-var envLevel = (process.env.CYBERMIND_LOG_LEVEL ?? "info").toLowerCase();
-var minLevel = LEVEL_ORDER[envLevel] ?? LEVEL_ORDER.info;
-var writeToFile = process.env.CYBERMIND_LOG_FILE !== "false";
-var logFilePath = null;
+import chalk from "chalk";
+import { appendFileSync, existsSync, mkdirSync } from "fs";
+import { join as join2 } from "path";
 function ensureLogFile() {
   if (logFilePath) return logFilePath;
   const dir = getLogsDir();
@@ -122,585 +120,642 @@ function createLogger(scope) {
     child: (sub) => createLogger(`${scope}:${sub}`)
   };
 }
+var LEVEL_ORDER, COLOR, envLevel, minLevel, writeToFile, logFilePath;
+var init_logger = __esm({
+  "../shared/src/logger.ts"() {
+    "use strict";
+    init_paths();
+    LEVEL_ORDER = {
+      debug: 10,
+      info: 20,
+      warn: 30,
+      error: 40
+    };
+    COLOR = {
+      debug: (s) => chalk.gray(s),
+      info: (s) => chalk.cyan(s),
+      warn: (s) => chalk.yellow(s),
+      error: (s) => chalk.red(s)
+    };
+    envLevel = (process.env.CYBERMIND_LOG_LEVEL ?? "info").toLowerCase();
+    minLevel = LEVEL_ORDER[envLevel] ?? LEVEL_ORDER.info;
+    writeToFile = process.env.CYBERMIND_LOG_FILE !== "false";
+    logFilePath = null;
+  }
+});
 
 // ../shared/src/version.ts
-var CYBERMIND_VERSION = "0.1.21";
-var CYBERMIND_NAME = "CyberMind";
+var CYBERMIND_VERSION, CYBERMIND_NAME, CYBERCODER_VERSION, CYBERCODER_NAME;
+var init_version = __esm({
+  "../shared/src/version.ts"() {
+    "use strict";
+    CYBERMIND_VERSION = "0.1.22";
+    CYBERMIND_NAME = "CyberCoder";
+    CYBERCODER_VERSION = CYBERMIND_VERSION;
+    CYBERCODER_NAME = CYBERMIND_NAME;
+  }
+});
 
 // ../shared/src/checkpoint.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, writeFileSync, readdirSync } from "fs";
 import { join as join3 } from "path";
 import { z as z2 } from "zod";
-var log = createLogger("checkpoint");
 function getCheckpointsDir() {
   return join3(getDataDir(), "checkpoints");
 }
-var CheckpointSchema = z2.object({
-  id: z2.string(),
-  createdAt: z2.number(),
-  messages: z2.array(
-    z2.object({
+var log, CheckpointSchema, CheckpointManager;
+var init_checkpoint = __esm({
+  "../shared/src/checkpoint.ts"() {
+    "use strict";
+    init_logger();
+    log = createLogger("checkpoint");
+    CheckpointSchema = z2.object({
       id: z2.string(),
-      role: z2.enum(["user", "assistant", "system"]),
-      content: z2.string(),
-      createdAt: z2.number()
-    })
-  ),
-  model: z2.string(),
-  provider: z2.string()
-});
-var CheckpointManager = class {
-  dir;
-  constructor() {
-    this.dir = getCheckpointsDir();
-    if (!existsSync2(this.dir)) mkdirSync2(this.dir, { recursive: true });
-  }
-  /** Persist the current session state to a new checkpoint file. */
-  save(messages, model, provider) {
-    const id = crypto.randomUUID();
-    const checkpoint = {
-      id,
-      createdAt: Date.now(),
-      messages: structuredClone(messages),
-      // deep copy to avoid mutation
-      model,
-      provider
-    };
-    const path = join3(this.dir, `${id}.json`);
-    writeFileSync(path, JSON.stringify(checkpoint, null, 2), "utf8");
-    const latest = join3(this.dir, "latest.json");
-    try {
-      writeFileSync(latest, JSON.stringify(checkpoint, null, 2), "utf8");
-    } catch (err) {
-      log.warn("failed to write latest symlink", String(err));
-    }
-    log.info("saved checkpoint", { id, messageCount: messages.length });
-    return id;
-  }
-  /** Load a checkpoint by id. Returns null if not found or corrupt. */
-  load(id) {
-    const path = join3(this.dir, `${id}.json`);
-    if (!existsSync2(path)) return null;
-    try {
-      const raw = readFileSync(path, "utf8");
-      const parsed = JSON.parse(raw);
-      const checkpoint = CheckpointSchema.parse(parsed);
-      return checkpoint;
-    } catch (err) {
-      log.warn("failed to load checkpoint", { id, error: String(err) });
-      return null;
-    }
-  }
-  /** Load the most recent checkpoint (latest.json). */
-  loadLatest() {
-    const path = join3(this.dir, "latest.json");
-    if (!existsSync2(path)) return null;
-    try {
-      const raw = readFileSync(path, "utf8");
-      const parsed = JSON.parse(raw);
-      const checkpoint = CheckpointSchema.parse(parsed);
-      return checkpoint;
-    } catch (err) {
-      log.warn("failed to load latest checkpoint", { error: String(err) });
-      return null;
-    }
-  }
-  /** List all checkpoint ids sorted by creation time (newest first). */
-  list() {
-    if (!existsSync2(this.dir)) return [];
-    const entries = [];
-    const files = readdirSync(this.dir, { withFileTypes: true });
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith(".json")) continue;
-      if (file.name === "latest.json") continue;
-      const id = file.name.slice(0, -5);
-      const cp = this.load(id);
-      if (cp) {
-        entries.push({ id, createdAt: cp.createdAt, messageCount: cp.messages.length });
+      createdAt: z2.number(),
+      messages: z2.array(
+        z2.object({
+          id: z2.string(),
+          role: z2.enum(["user", "assistant", "system"]),
+          content: z2.string(),
+          createdAt: z2.number()
+        })
+      ),
+      model: z2.string(),
+      provider: z2.string()
+    });
+    CheckpointManager = class {
+      dir;
+      constructor() {
+        this.dir = getCheckpointsDir();
+        if (!existsSync2(this.dir)) mkdirSync2(this.dir, { recursive: true });
       }
-    }
-    return entries.sort((a, b) => b.createdAt - a.createdAt);
+      /** Persist the current session state to a new checkpoint file. */
+      save(messages, model, provider) {
+        const id = crypto.randomUUID();
+        const checkpoint = {
+          id,
+          createdAt: Date.now(),
+          messages: structuredClone(messages),
+          // deep copy to avoid mutation
+          model,
+          provider
+        };
+        const path2 = join3(this.dir, `${id}.json`);
+        writeFileSync(path2, JSON.stringify(checkpoint, null, 2), "utf8");
+        const latest = join3(this.dir, "latest.json");
+        try {
+          writeFileSync(latest, JSON.stringify(checkpoint, null, 2), "utf8");
+        } catch (err) {
+          log.warn("failed to write latest symlink", String(err));
+        }
+        log.info("saved checkpoint", { id, messageCount: messages.length });
+        return id;
+      }
+      /** Load a checkpoint by id. Returns null if not found or corrupt. */
+      load(id) {
+        const path2 = join3(this.dir, `${id}.json`);
+        if (!existsSync2(path2)) return null;
+        try {
+          const raw = readFileSync(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          const checkpoint = CheckpointSchema.parse(parsed);
+          return checkpoint;
+        } catch (err) {
+          log.warn("failed to load checkpoint", { id, error: String(err) });
+          return null;
+        }
+      }
+      /** Load the most recent checkpoint (latest.json). */
+      loadLatest() {
+        const path2 = join3(this.dir, "latest.json");
+        if (!existsSync2(path2)) return null;
+        try {
+          const raw = readFileSync(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          const checkpoint = CheckpointSchema.parse(parsed);
+          return checkpoint;
+        } catch (err) {
+          log.warn("failed to load latest checkpoint", { error: String(err) });
+          return null;
+        }
+      }
+      /** List all checkpoint ids sorted by creation time (newest first). */
+      list() {
+        if (!existsSync2(this.dir)) return [];
+        const entries = [];
+        const files = readdirSync(this.dir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".json")) continue;
+          if (file.name === "latest.json") continue;
+          const id = file.name.slice(0, -5);
+          const cp = this.load(id);
+          if (cp) {
+            entries.push({ id, createdAt: cp.createdAt, messageCount: cp.messages.length });
+          }
+        }
+        return entries.sort((a, b) => b.createdAt - a.createdAt);
+      }
+      /** Delete a checkpoint file. */
+      delete(id) {
+        const path2 = join3(this.dir, `${id}.json`);
+        if (!existsSync2(path2)) return false;
+        try {
+          writeFileSync(path2, "");
+          log.info("deleted checkpoint", { id });
+          return true;
+        } catch (err) {
+          log.warn("failed to delete checkpoint", { id, error: String(err) });
+          return false;
+        }
+      }
+    };
   }
-  /** Delete a checkpoint file. */
-  delete(id) {
-    const path = join3(this.dir, `${id}.json`);
-    if (!existsSync2(path)) return false;
-    try {
-      writeFileSync(path, "");
-      log.info("deleted checkpoint", { id });
-      return true;
-    } catch (err) {
-      log.warn("failed to delete checkpoint", { id, error: String(err) });
-      return false;
-    }
-  }
-};
+});
 
 // ../shared/src/profiles.ts
 import { existsSync as existsSync3, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "fs";
 import { z as z3 } from "zod";
-var log2 = createLogger("profiles");
-var ProfileSchema = z3.object({
-  name: z3.enum(["default", "strict-ts", "hobby", "paranoid"]),
-  /** Model to use for this profile */
-  model: z3.string(),
-  /** Provider to use for this profile */
-  provider: z3.string(),
-  /** Approval mode for tools */
-  approvalMode: z3.enum(["always-ask", "session-bypass", "persistent-bypass"]),
-  /** Whether to enable telemetry */
-  telemetryEnabled: z3.boolean(),
-  /** Whether to enable auto-checkpoint */
-  autoCheckpoint: z3.boolean(),
-  /** Custom accent color */
-  accentColor: z3.string().optional()
-});
-var DEFAULT_PROFILES = {
-  default: {
-    name: "default",
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    approvalMode: "always-ask",
-    telemetryEnabled: false,
-    autoCheckpoint: true,
-    accentColor: "blue"
-  },
-  "strict-ts": {
-    name: "strict-ts",
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    approvalMode: "always-ask",
-    telemetryEnabled: true,
-    autoCheckpoint: true,
-    accentColor: "red"
-  },
-  hobby: {
-    name: "hobby",
-    model: "claude-3-haiku-20241022",
-    provider: "anthropic",
-    approvalMode: "session-bypass",
-    telemetryEnabled: false,
-    autoCheckpoint: false,
-    accentColor: "green"
-  },
-  paranoid: {
-    name: "paranoid",
-    model: "claude-3-5-sonnet-20241022",
-    provider: "anthropic",
-    approvalMode: "always-ask",
-    telemetryEnabled: false,
-    autoCheckpoint: true,
-    accentColor: "orange"
-  }
-};
-var SettingsSchema = z3.object({
-  activeProfile: z3.string(),
-  profiles: z3.record(z3.string(), ProfileSchema)
-});
-var ProfileManager = class {
-  settingsPath;
-  constructor() {
-    this.settingsPath = getSettingsPath();
-  }
-  /** Get the current active profile */
-  getActiveProfile() {
-    const settings = this.loadSettings();
-    const active = settings.profiles[settings.activeProfile];
-    if (!active) {
-      log2.warn("Active profile not found, falling back to default");
-      return DEFAULT_PROFILES.default;
-    }
-    return active;
-  }
-  /** Set the active profile by name */
-  setActiveProfile(name) {
-    const settings = this.loadSettings();
-    if (!settings.profiles[name]) {
-      log2.warn("Profile not found", { name });
-      return false;
-    }
-    settings.activeProfile = name;
-    this.saveSettings(settings);
-    log2.info("Switched profile", { name });
-    return true;
-  }
-  /** Get all available profiles */
-  listProfiles() {
-    const settings = this.loadSettings();
-    return settings.profiles;
-  }
-  /** Update a profile's settings */
-  updateProfile(name, updates) {
-    const settings = this.loadSettings();
-    if (!settings.profiles[name]) {
-      log2.warn("Profile not found for update", { name });
-      return false;
-    }
-    settings.profiles[name] = { ...settings.profiles[name], ...updates };
-    this.saveSettings(settings);
-    log2.info("Updated profile", { name, updates: Object.keys(updates) });
-    return true;
-  }
-  /** Reset a profile to its default configuration */
-  resetProfile(name) {
-    const defaultConfig = DEFAULT_PROFILES[name];
-    if (!defaultConfig) {
-      log2.warn("Cannot reset unknown profile", { name });
-      return false;
-    }
-    const { name: _, ...configWithoutName } = defaultConfig;
-    return this.updateProfile(name, configWithoutName);
-  }
-  loadSettings() {
-    if (!existsSync3(this.settingsPath)) {
-      const profiles = {};
-      for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
-        profiles[name] = { ...profile };
+var log2, ProfileSchema, DEFAULT_PROFILES, SettingsSchema, ProfileManager;
+var init_profiles = __esm({
+  "../shared/src/profiles.ts"() {
+    "use strict";
+    init_logger();
+    log2 = createLogger("profiles");
+    ProfileSchema = z3.object({
+      name: z3.enum(["default", "strict-ts", "hobby", "paranoid"]),
+      /** Model to use for this profile */
+      model: z3.string(),
+      /** Provider to use for this profile */
+      provider: z3.string(),
+      /** Approval mode for tools */
+      approvalMode: z3.enum(["always-ask", "session-bypass", "persistent-bypass"]),
+      /** Whether to enable telemetry */
+      telemetryEnabled: z3.boolean(),
+      /** Whether to enable auto-checkpoint */
+      autoCheckpoint: z3.boolean(),
+      /** Custom accent color */
+      accentColor: z3.string().optional()
+    });
+    DEFAULT_PROFILES = {
+      default: {
+        name: "default",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: false,
+        autoCheckpoint: true,
+        accentColor: "blue"
+      },
+      "strict-ts": {
+        name: "strict-ts",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: true,
+        autoCheckpoint: true,
+        accentColor: "red"
+      },
+      hobby: {
+        name: "hobby",
+        model: "claude-3-haiku-20241022",
+        provider: "anthropic",
+        approvalMode: "session-bypass",
+        telemetryEnabled: false,
+        autoCheckpoint: false,
+        accentColor: "green"
+      },
+      paranoid: {
+        name: "paranoid",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: false,
+        autoCheckpoint: true,
+        accentColor: "orange"
       }
-      const settings = {
-        activeProfile: "default",
-        profiles
-      };
-      this.saveSettings(settings);
-      return settings;
-    }
-    try {
-      const raw = readFileSync2(this.settingsPath, "utf8");
-      const parsed = JSON.parse(raw);
-      const settings = SettingsSchema.parse(parsed);
-      return settings;
-    } catch (err) {
-      log2.error("Failed to load settings, using defaults", { error: String(err) });
-      const profiles = {};
-      for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
-        profiles[name] = { ...profile };
+    };
+    SettingsSchema = z3.object({
+      activeProfile: z3.string(),
+      profiles: z3.record(z3.string(), ProfileSchema)
+    });
+    ProfileManager = class {
+      settingsPath;
+      constructor() {
+        this.settingsPath = getSettingsPath();
       }
-      return {
-        activeProfile: "default",
-        profiles
-      };
-    }
+      /** Get the current active profile */
+      getActiveProfile() {
+        const settings = this.loadSettings();
+        const active = settings.profiles[settings.activeProfile];
+        if (!active) {
+          log2.warn("Active profile not found, falling back to default");
+          return DEFAULT_PROFILES.default;
+        }
+        return active;
+      }
+      /** Set the active profile by name */
+      setActiveProfile(name) {
+        const settings = this.loadSettings();
+        if (!settings.profiles[name]) {
+          log2.warn("Profile not found", { name });
+          return false;
+        }
+        settings.activeProfile = name;
+        this.saveSettings(settings);
+        log2.info("Switched profile", { name });
+        return true;
+      }
+      /** Get all available profiles */
+      listProfiles() {
+        const settings = this.loadSettings();
+        return settings.profiles;
+      }
+      /** Update a profile's settings */
+      updateProfile(name, updates) {
+        const settings = this.loadSettings();
+        if (!settings.profiles[name]) {
+          log2.warn("Profile not found for update", { name });
+          return false;
+        }
+        settings.profiles[name] = { ...settings.profiles[name], ...updates };
+        this.saveSettings(settings);
+        log2.info("Updated profile", { name, updates: Object.keys(updates) });
+        return true;
+      }
+      /** Reset a profile to its default configuration */
+      resetProfile(name) {
+        const defaultConfig = DEFAULT_PROFILES[name];
+        if (!defaultConfig) {
+          log2.warn("Cannot reset unknown profile", { name });
+          return false;
+        }
+        const { name: _, ...configWithoutName } = defaultConfig;
+        return this.updateProfile(name, configWithoutName);
+      }
+      loadSettings() {
+        if (!existsSync3(this.settingsPath)) {
+          const profiles = {};
+          for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
+            profiles[name] = { ...profile };
+          }
+          const settings = {
+            activeProfile: "default",
+            profiles
+          };
+          this.saveSettings(settings);
+          return settings;
+        }
+        try {
+          const raw = readFileSync2(this.settingsPath, "utf8");
+          const parsed = JSON.parse(raw);
+          const settings = SettingsSchema.parse(parsed);
+          return settings;
+        } catch (err) {
+          log2.error("Failed to load settings, using defaults", { error: String(err) });
+          const profiles = {};
+          for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
+            profiles[name] = { ...profile };
+          }
+          return {
+            activeProfile: "default",
+            profiles
+          };
+        }
+      }
+      saveSettings(settings) {
+        try {
+          writeFileSync2(this.settingsPath, JSON.stringify(settings, null, 2), "utf8");
+        } catch (err) {
+          log2.error("Failed to save settings", { error: String(err) });
+        }
+      }
+    };
   }
-  saveSettings(settings) {
-    try {
-      writeFileSync2(this.settingsPath, JSON.stringify(settings, null, 2), "utf8");
-    } catch (err) {
-      log2.error("Failed to save settings", { error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/collaboration.ts
 import { existsSync as existsSync4, mkdirSync as mkdirSync3, readFileSync as readFileSync3, writeFileSync as writeFileSync3, readdirSync as readdirSync2 } from "fs";
 import { join as join4 } from "path";
 import { z as z4 } from "zod";
-var log3 = createLogger("collaboration");
-var CollaborationSessionSchema = z4.object({
-  id: z4.string(),
-  name: z4.string(),
-  createdAt: z4.number(),
-  participants: z4.array(z4.string()),
-  worktrees: z4.record(z4.string(), z4.string()),
-  sharedContext: z4.record(z4.unknown()),
-  status: z4.enum(["active", "paused", "completed"])
-});
-var CollaborationManager = class {
-  sessionsDir;
-  worktreesDir;
-  constructor() {
-    this.sessionsDir = join4(getDataDir(), "collaboration", "sessions");
-    this.worktreesDir = join4(getDataDir(), "collaboration", "worktrees");
-    if (!existsSync4(this.sessionsDir)) mkdirSync3(this.sessionsDir, { recursive: true });
-    if (!existsSync4(this.worktreesDir)) mkdirSync3(this.worktreesDir, { recursive: true });
-  }
-  /** Create a new collaboration session */
-  createSession(name, initialAgentId) {
-    const session = {
-      id: crypto.randomUUID(),
-      name,
-      createdAt: Date.now(),
-      participants: [initialAgentId],
-      worktrees: {},
-      sharedContext: {},
-      status: "active"
+var log3, CollaborationSessionSchema, CollaborationManager;
+var init_collaboration = __esm({
+  "../shared/src/collaboration.ts"() {
+    "use strict";
+    init_logger();
+    log3 = createLogger("collaboration");
+    CollaborationSessionSchema = z4.object({
+      id: z4.string(),
+      name: z4.string(),
+      createdAt: z4.number(),
+      participants: z4.array(z4.string()),
+      worktrees: z4.record(z4.string(), z4.string()),
+      sharedContext: z4.record(z4.unknown()),
+      status: z4.enum(["active", "paused", "completed"])
+    });
+    CollaborationManager = class {
+      sessionsDir;
+      worktreesDir;
+      constructor() {
+        this.sessionsDir = join4(getDataDir(), "collaboration", "sessions");
+        this.worktreesDir = join4(getDataDir(), "collaboration", "worktrees");
+        if (!existsSync4(this.sessionsDir)) mkdirSync3(this.sessionsDir, { recursive: true });
+        if (!existsSync4(this.worktreesDir)) mkdirSync3(this.worktreesDir, { recursive: true });
+      }
+      /** Create a new collaboration session */
+      createSession(name, initialAgentId) {
+        const session = {
+          id: crypto.randomUUID(),
+          name,
+          createdAt: Date.now(),
+          participants: [initialAgentId],
+          worktrees: {},
+          sharedContext: {},
+          status: "active"
+        };
+        this.saveSession(session);
+        log3.info("Created collaboration session", { sessionId: session.id, name });
+        return session;
+      }
+      /** Get a session by ID */
+      getSession(sessionId) {
+        const path2 = join4(this.sessionsDir, `${sessionId}.json`);
+        if (!existsSync4(path2)) return null;
+        try {
+          const raw = readFileSync3(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          return CollaborationSessionSchema.parse(parsed);
+        } catch (err) {
+          log3.warn("Failed to load session", { sessionId, error: String(err) });
+          return null;
+        }
+      }
+      /** List all sessions */
+      listSessions() {
+        if (!existsSync4(this.sessionsDir)) return [];
+        const sessions = [];
+        const files = readdirSync2(this.sessionsDir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".json")) continue;
+          const sessionId = file.name.slice(0, -5);
+          const session = this.getSession(sessionId);
+          if (session) sessions.push(session);
+        }
+        return sessions.sort((a, b) => b.createdAt - a.createdAt);
+      }
+      /** Add an agent to a session */
+      addParticipant(sessionId, agentId) {
+        const session = this.getSession(sessionId);
+        if (!session || session.participants.includes(agentId)) {
+          return false;
+        }
+        session.participants.push(agentId);
+        this.saveSession(session);
+        log3.info("Added participant to session", { sessionId, agentId });
+        return true;
+      }
+      /** Create a worktree for an agent in a session */
+      createWorktree(sessionId, agentId, _baseBranch = "main") {
+        const session = this.getSession(sessionId);
+        if (!session) return null;
+        const worktreeName = `${sessionId}-${agentId}`;
+        const worktreePath = join4(this.worktreesDir, worktreeName);
+        session.worktrees[agentId] = worktreePath;
+        this.saveSession(session);
+        log3.info("Created worktree for agent", { sessionId, agentId, worktreePath });
+        return worktreePath;
+      }
+      /** Update shared context for a session */
+      updateSharedContext(sessionId, updates) {
+        const session = this.getSession(sessionId);
+        if (!session) return false;
+        session.sharedContext = { ...session.sharedContext, ...updates };
+        this.saveSession(session);
+        return true;
+      }
+      /** Get shared context for a session */
+      getSharedContext(sessionId) {
+        const session = this.getSession(sessionId);
+        return session?.sharedContext || {};
+      }
+      /** Update session status */
+      updateSessionStatus(sessionId, status) {
+        const session = this.getSession(sessionId);
+        if (!session) return false;
+        session.status = status;
+        this.saveSession(session);
+        log3.info("Updated session status", { sessionId, status });
+        return true;
+      }
+      /** Delete a session and its worktrees */
+      deleteSession(sessionId) {
+        const session = this.getSession(sessionId);
+        if (!session) return false;
+        const sessionPath = join4(this.sessionsDir, `${sessionId}.json`);
+        try {
+          writeFileSync3(sessionPath, "");
+        } catch (err) {
+          log3.warn("Failed to delete session file", { sessionId, error: String(err) });
+        }
+        log3.info("Deleted collaboration session", { sessionId });
+        return true;
+      }
+      saveSession(session) {
+        const path2 = join4(this.sessionsDir, `${session.id}.json`);
+        try {
+          writeFileSync3(path2, JSON.stringify(session, null, 2), "utf8");
+        } catch (err) {
+          log3.error("Failed to save session", { sessionId: session.id, error: String(err) });
+        }
+      }
     };
-    this.saveSession(session);
-    log3.info("Created collaboration session", { sessionId: session.id, name });
-    return session;
   }
-  /** Get a session by ID */
-  getSession(sessionId) {
-    const path = join4(this.sessionsDir, `${sessionId}.json`);
-    if (!existsSync4(path)) return null;
-    try {
-      const raw = readFileSync3(path, "utf8");
-      const parsed = JSON.parse(raw);
-      return CollaborationSessionSchema.parse(parsed);
-    } catch (err) {
-      log3.warn("Failed to load session", { sessionId, error: String(err) });
-      return null;
-    }
-  }
-  /** List all sessions */
-  listSessions() {
-    if (!existsSync4(this.sessionsDir)) return [];
-    const sessions = [];
-    const files = readdirSync2(this.sessionsDir, { withFileTypes: true });
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith(".json")) continue;
-      const sessionId = file.name.slice(0, -5);
-      const session = this.getSession(sessionId);
-      if (session) sessions.push(session);
-    }
-    return sessions.sort((a, b) => b.createdAt - a.createdAt);
-  }
-  /** Add an agent to a session */
-  addParticipant(sessionId, agentId) {
-    const session = this.getSession(sessionId);
-    if (!session || session.participants.includes(agentId)) {
-      return false;
-    }
-    session.participants.push(agentId);
-    this.saveSession(session);
-    log3.info("Added participant to session", { sessionId, agentId });
-    return true;
-  }
-  /** Create a worktree for an agent in a session */
-  createWorktree(sessionId, agentId, _baseBranch = "main") {
-    const session = this.getSession(sessionId);
-    if (!session) return null;
-    const worktreeName = `${sessionId}-${agentId}`;
-    const worktreePath = join4(this.worktreesDir, worktreeName);
-    session.worktrees[agentId] = worktreePath;
-    this.saveSession(session);
-    log3.info("Created worktree for agent", { sessionId, agentId, worktreePath });
-    return worktreePath;
-  }
-  /** Update shared context for a session */
-  updateSharedContext(sessionId, updates) {
-    const session = this.getSession(sessionId);
-    if (!session) return false;
-    session.sharedContext = { ...session.sharedContext, ...updates };
-    this.saveSession(session);
-    return true;
-  }
-  /** Get shared context for a session */
-  getSharedContext(sessionId) {
-    const session = this.getSession(sessionId);
-    return session?.sharedContext || {};
-  }
-  /** Update session status */
-  updateSessionStatus(sessionId, status) {
-    const session = this.getSession(sessionId);
-    if (!session) return false;
-    session.status = status;
-    this.saveSession(session);
-    log3.info("Updated session status", { sessionId, status });
-    return true;
-  }
-  /** Delete a session and its worktrees */
-  deleteSession(sessionId) {
-    const session = this.getSession(sessionId);
-    if (!session) return false;
-    const sessionPath = join4(this.sessionsDir, `${sessionId}.json`);
-    try {
-      writeFileSync3(sessionPath, "");
-    } catch (err) {
-      log3.warn("Failed to delete session file", { sessionId, error: String(err) });
-    }
-    log3.info("Deleted collaboration session", { sessionId });
-    return true;
-  }
-  saveSession(session) {
-    const path = join4(this.sessionsDir, `${session.id}.json`);
-    try {
-      writeFileSync3(path, JSON.stringify(session, null, 2), "utf8");
-    } catch (err) {
-      log3.error("Failed to save session", { sessionId: session.id, error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/web-mirror.ts
 import { existsSync as existsSync5, mkdirSync as mkdirSync4, readFileSync as readFileSync4, writeFileSync as writeFileSync4, readdirSync as readdirSync3 } from "fs";
 import { join as join5 } from "path";
 import { createServer } from "http";
 import { z as z5 } from "zod";
-var log4 = createLogger("web-mirror");
-var MirrorSessionSchema = z5.object({
-  id: z5.string(),
-  sessionId: z5.string(),
-  name: z5.string(),
-  createdAt: z5.number(),
-  port: z5.number(),
-  clients: z5.array(z5.object({
-    id: z5.string(),
-    type: z5.enum(["cli", "web"]),
-    connectedAt: z5.number(),
-    lastActivity: z5.number(),
-    metadata: z5.record(z5.unknown()).optional()
-  })),
-  state: z5.object({
-    messages: z5.array(z5.unknown()),
-    agents: z5.record(z5.unknown()),
-    cursors: z5.record(z5.object({
-      line: z5.number(),
-      column: z5.number(),
-      file: z5.string()
-    })),
-    ui: z5.object({
-      activePanel: z5.string().optional(),
-      scrollPosition: z5.number().optional(),
-      focusedInput: z5.boolean().optional()
-    })
-  })
-});
-var WebMirrorManager = class {
-  mirrorsDir;
-  servers = /* @__PURE__ */ new Map();
-  sessions = /* @__PURE__ */ new Map();
-  constructor() {
-    this.mirrorsDir = join5(getDataDir(), "collaboration", "mirrors");
-    if (!existsSync5(this.mirrorsDir)) mkdirSync4(this.mirrorsDir, { recursive: true });
-    this.loadExistingSessions();
-  }
-  /** Create a new mirror session for a collaboration session */
-  createMirror(sessionId, name) {
-    const mirror = {
-      id: crypto.randomUUID(),
-      sessionId,
-      name,
-      createdAt: Date.now(),
-      port: this.allocatePort(),
-      clients: [],
-      state: {
-        messages: [],
-        agents: {},
-        cursors: {},
-        ui: {}
+var log4, MirrorSessionSchema, WebMirrorManager;
+var init_web_mirror = __esm({
+  "../shared/src/web-mirror.ts"() {
+    "use strict";
+    init_logger();
+    log4 = createLogger("web-mirror");
+    MirrorSessionSchema = z5.object({
+      id: z5.string(),
+      sessionId: z5.string(),
+      name: z5.string(),
+      createdAt: z5.number(),
+      port: z5.number(),
+      clients: z5.array(z5.object({
+        id: z5.string(),
+        type: z5.enum(["cli", "web"]),
+        connectedAt: z5.number(),
+        lastActivity: z5.number(),
+        metadata: z5.record(z5.unknown()).optional()
+      })),
+      state: z5.object({
+        messages: z5.array(z5.unknown()),
+        agents: z5.record(z5.unknown()),
+        cursors: z5.record(z5.object({
+          line: z5.number(),
+          column: z5.number(),
+          file: z5.string()
+        })),
+        ui: z5.object({
+          activePanel: z5.string().optional(),
+          scrollPosition: z5.number().optional(),
+          focusedInput: z5.boolean().optional()
+        })
+      })
+    });
+    WebMirrorManager = class {
+      mirrorsDir;
+      servers = /* @__PURE__ */ new Map();
+      sessions = /* @__PURE__ */ new Map();
+      constructor() {
+        this.mirrorsDir = join5(getDataDir(), "collaboration", "mirrors");
+        if (!existsSync5(this.mirrorsDir)) mkdirSync4(this.mirrorsDir, { recursive: true });
+        this.loadExistingSessions();
       }
-    };
-    this.sessions.set(mirror.id, mirror);
-    this.saveMirror(mirror);
-    this.startMirrorServer(mirror);
-    log4.info("Created web mirror", { mirrorId: mirror.id, sessionId, port: mirror.port });
-    return mirror;
-  }
-  /** Get a mirror session by ID */
-  getMirror(mirrorId) {
-    return this.sessions.get(mirrorId) || null;
-  }
-  /** Get mirror by collaboration session ID */
-  getMirrorBySession(sessionId) {
-    for (const mirror of this.sessions.values()) {
-      if (mirror.sessionId === sessionId) return mirror;
-    }
-    return null;
-  }
-  /** Add a client to a mirror session */
-  addClient(mirrorId, clientType, metadata) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return null;
-    const client = {
-      id: crypto.randomUUID(),
-      type: clientType,
-      connectedAt: Date.now(),
-      lastActivity: Date.now(),
-      metadata
-    };
-    mirror.clients.push(client);
-    this.saveMirror(mirror);
-    this.broadcastClientUpdate(mirror, "join", client);
-    log4.info("Added client to mirror", { mirrorId, clientId: client.id, type: clientType });
-    return client.id;
-  }
-  /** Remove a client from a mirror session */
-  removeClient(mirrorId, clientId) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    const index = mirror.clients.findIndex((c) => c.id === clientId);
-    if (index === -1) return false;
-    const client = mirror.clients[index];
-    if (!client) return false;
-    const clientType = client.type;
-    mirror.clients.splice(index, 1);
-    this.saveMirror(mirror);
-    this.broadcastClientUpdate(mirror, "leave", client);
-    log4.info("Removed client from mirror", { mirrorId, clientId, type: clientType });
-    return true;
-  }
-  /** Update mirror state */
-  updateState(mirrorId, updates) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    mirror.state = { ...mirror.state, ...updates };
-    this.saveMirror(mirror);
-    this.broadcastStateUpdate(mirror);
-    return true;
-  }
-  /** Update cursor position for an agent */
-  updateCursor(mirrorId, agentId, position) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    mirror.state.cursors[agentId] = position;
-    this.saveMirror(mirror);
-    this.broadcastCursorUpdate(mirror, agentId, position);
-    return true;
-  }
-  /** Add a message to the mirror */
-  addMessage(mirrorId, message) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    mirror.state.messages.push(message);
-    this.saveMirror(mirror);
-    this.broadcastMessage(mirror, message);
-    return true;
-  }
-  /** Get mirror URL for web access */
-  getMirrorUrl(mirrorId) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return null;
-    return `http://localhost:${mirror.port}`;
-  }
-  /** Stop a mirror server */
-  stopMirror(mirrorId) {
-    const mirror = this.sessions.get(mirrorId);
-    if (!mirror) return false;
-    const server = this.servers.get(mirrorId);
-    if (server) {
-      server.close();
-      this.servers.delete(mirrorId);
-    }
-    this.sessions.delete(mirrorId);
-    const mirrorPath = join5(this.mirrorsDir, `${mirrorId}.json`);
-    try {
-      writeFileSync4(mirrorPath, "");
-    } catch (err) {
-      log4.warn("Failed to delete mirror file", { mirrorId, error: String(err) });
-    }
-    log4.info("Stopped web mirror", { mirrorId });
-    return true;
-  }
-  allocatePort() {
-    const usedPorts = Array.from(this.sessions.values()).map((s) => s.port);
-    let port = 8080;
-    while (usedPorts.includes(port)) {
-      port++;
-    }
-    return port;
-  }
-  startMirrorServer(mirror) {
-    const server = createServer((_req, res) => {
-      res.writeHead(200, { "Content-Type": "text/html" });
-      res.end(this.generateWebUI(mirror));
-    });
-    server.listen(mirror.port, () => {
-      log4.info("Mirror server started", { mirrorId: mirror.id, port: mirror.port });
-    });
-    this.servers.set(mirror.id, server);
-  }
-  generateWebUI(mirror) {
-    return `
+      /** Create a new mirror session for a collaboration session */
+      createMirror(sessionId, name) {
+        const mirror = {
+          id: crypto.randomUUID(),
+          sessionId,
+          name,
+          createdAt: Date.now(),
+          port: this.allocatePort(),
+          clients: [],
+          state: {
+            messages: [],
+            agents: {},
+            cursors: {},
+            ui: {}
+          }
+        };
+        this.sessions.set(mirror.id, mirror);
+        this.saveMirror(mirror);
+        this.startMirrorServer(mirror);
+        log4.info("Created web mirror", { mirrorId: mirror.id, sessionId, port: mirror.port });
+        return mirror;
+      }
+      /** Get a mirror session by ID */
+      getMirror(mirrorId) {
+        return this.sessions.get(mirrorId) || null;
+      }
+      /** Get mirror by collaboration session ID */
+      getMirrorBySession(sessionId) {
+        for (const mirror of this.sessions.values()) {
+          if (mirror.sessionId === sessionId) return mirror;
+        }
+        return null;
+      }
+      /** Add a client to a mirror session */
+      addClient(mirrorId, clientType, metadata) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return null;
+        const client = {
+          id: crypto.randomUUID(),
+          type: clientType,
+          connectedAt: Date.now(),
+          lastActivity: Date.now(),
+          metadata
+        };
+        mirror.clients.push(client);
+        this.saveMirror(mirror);
+        this.broadcastClientUpdate(mirror, "join", client);
+        log4.info("Added client to mirror", { mirrorId, clientId: client.id, type: clientType });
+        return client.id;
+      }
+      /** Remove a client from a mirror session */
+      removeClient(mirrorId, clientId) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        const index = mirror.clients.findIndex((c) => c.id === clientId);
+        if (index === -1) return false;
+        const client = mirror.clients[index];
+        if (!client) return false;
+        const clientType = client.type;
+        mirror.clients.splice(index, 1);
+        this.saveMirror(mirror);
+        this.broadcastClientUpdate(mirror, "leave", client);
+        log4.info("Removed client from mirror", { mirrorId, clientId, type: clientType });
+        return true;
+      }
+      /** Update mirror state */
+      updateState(mirrorId, updates) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        mirror.state = { ...mirror.state, ...updates };
+        this.saveMirror(mirror);
+        this.broadcastStateUpdate(mirror);
+        return true;
+      }
+      /** Update cursor position for an agent */
+      updateCursor(mirrorId, agentId, position) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        mirror.state.cursors[agentId] = position;
+        this.saveMirror(mirror);
+        this.broadcastCursorUpdate(mirror, agentId, position);
+        return true;
+      }
+      /** Add a message to the mirror */
+      addMessage(mirrorId, message) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        mirror.state.messages.push(message);
+        this.saveMirror(mirror);
+        this.broadcastMessage(mirror, message);
+        return true;
+      }
+      /** Get mirror URL for web access */
+      getMirrorUrl(mirrorId) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return null;
+        return `http://localhost:${mirror.port}`;
+      }
+      /** Stop a mirror server */
+      stopMirror(mirrorId) {
+        const mirror = this.sessions.get(mirrorId);
+        if (!mirror) return false;
+        const server = this.servers.get(mirrorId);
+        if (server) {
+          server.close();
+          this.servers.delete(mirrorId);
+        }
+        this.sessions.delete(mirrorId);
+        const mirrorPath = join5(this.mirrorsDir, `${mirrorId}.json`);
+        try {
+          writeFileSync4(mirrorPath, "");
+        } catch (err) {
+          log4.warn("Failed to delete mirror file", { mirrorId, error: String(err) });
+        }
+        log4.info("Stopped web mirror", { mirrorId });
+        return true;
+      }
+      allocatePort() {
+        const usedPorts = Array.from(this.sessions.values()).map((s) => s.port);
+        let port = 8080;
+        while (usedPorts.includes(port)) {
+          port++;
+        }
+        return port;
+      }
+      startMirrorServer(mirror) {
+        const server = createServer((_req, res) => {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(this.generateWebUI(mirror));
+        });
+        server.listen(mirror.port, () => {
+          log4.info("Mirror server started", { mirrorId: mirror.id, port: mirror.port });
+        });
+        this.servers.set(mirror.id, server);
+      }
+      generateWebUI(mirror) {
+        return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -759,209 +814,216 @@ var WebMirrorManager = class {
     </script>
 </body>
 </html>`;
-  }
-  broadcastClientUpdate(mirror, action, client) {
-    log4.debug("Broadcasting client update", { mirrorId: mirror.id, action, clientId: client.id });
-  }
-  broadcastStateUpdate(mirror) {
-    log4.debug("Broadcasting state update", { mirrorId: mirror.id });
-  }
-  broadcastCursorUpdate(mirror, agentId, position) {
-    log4.debug("Broadcasting cursor update", { mirrorId: mirror.id, agentId, position });
-  }
-  broadcastMessage(mirror, message) {
-    log4.debug("Broadcasting message", { mirrorId: mirror.id, messageRole: message.role });
-  }
-  loadExistingSessions() {
-    if (!existsSync5(this.mirrorsDir)) return;
-    const files = readdirSync3(this.mirrorsDir, { withFileTypes: true });
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith(".json")) continue;
-      const mirrorId = file.name.slice(0, -5);
-      const path = join5(this.mirrorsDir, file.name);
-      try {
-        const raw = readFileSync4(path, "utf8");
-        const parsed = JSON.parse(raw);
-        const mirror = MirrorSessionSchema.parse(parsed);
-        this.sessions.set(mirrorId, mirror);
-      } catch (err) {
-        log4.warn("Failed to load mirror session", { mirrorId, error: String(err) });
       }
-    }
+      broadcastClientUpdate(mirror, action, client) {
+        log4.debug("Broadcasting client update", { mirrorId: mirror.id, action, clientId: client.id });
+      }
+      broadcastStateUpdate(mirror) {
+        log4.debug("Broadcasting state update", { mirrorId: mirror.id });
+      }
+      broadcastCursorUpdate(mirror, agentId, position) {
+        log4.debug("Broadcasting cursor update", { mirrorId: mirror.id, agentId, position });
+      }
+      broadcastMessage(mirror, message) {
+        log4.debug("Broadcasting message", { mirrorId: mirror.id, messageRole: message.role });
+      }
+      loadExistingSessions() {
+        if (!existsSync5(this.mirrorsDir)) return;
+        const files = readdirSync3(this.mirrorsDir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".json")) continue;
+          const mirrorId = file.name.slice(0, -5);
+          const path2 = join5(this.mirrorsDir, file.name);
+          try {
+            const raw = readFileSync4(path2, "utf8");
+            const parsed = JSON.parse(raw);
+            const mirror = MirrorSessionSchema.parse(parsed);
+            this.sessions.set(mirrorId, mirror);
+          } catch (err) {
+            log4.warn("Failed to load mirror session", { mirrorId, error: String(err) });
+          }
+        }
+      }
+      saveMirror(mirror) {
+        const path2 = join5(this.mirrorsDir, `${mirror.id}.json`);
+        try {
+          writeFileSync4(path2, JSON.stringify(mirror, null, 2), "utf8");
+        } catch (err) {
+          log4.error("Failed to save mirror", { mirrorId: mirror.id, error: String(err) });
+        }
+      }
+    };
   }
-  saveMirror(mirror) {
-    const path = join5(this.mirrorsDir, `${mirror.id}.json`);
-    try {
-      writeFileSync4(path, JSON.stringify(mirror, null, 2), "utf8");
-    } catch (err) {
-      log4.error("Failed to save mirror", { mirrorId: mirror.id, error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/rich-io.ts
 import { existsSync as existsSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync5, writeFileSync as writeFileSync5 } from "fs";
 import { join as join6 } from "path";
 import { z as z6 } from "zod";
-var log5 = createLogger("rich-io");
-var CostMetricsSchema = z6.object({
-  totalTokens: z6.number(),
-  totalCost: z6.number(),
-  modelBreakdown: z6.record(z6.object({
-    tokens: z6.number(),
-    cost: z6.number()
-  })),
-  sessionStart: z6.number(),
-  lastUpdate: z6.number()
-});
-var RichIOManager = class {
-  dataDir;
-  imagesDir;
-  screenshotsDir;
-  costMetrics;
-  constructor() {
-    this.dataDir = getDataDir();
-    this.imagesDir = join6(this.dataDir, "images");
-    this.screenshotsDir = join6(this.dataDir, "screenshots");
-    if (!existsSync6(this.imagesDir)) mkdirSync5(this.imagesDir, { recursive: true });
-    if (!existsSync6(this.screenshotsDir)) mkdirSync5(this.screenshotsDir, { recursive: true });
-    this.costMetrics = this.loadCostMetrics();
-  }
-  /** Process and store an image from various sources */
-  async processImage(input, alt, caption) {
-    let src;
-    if (typeof input === "string") {
-      if (input.startsWith("data:")) {
-        src = input;
-      } else if (input.startsWith("http")) {
-        src = input;
-        log5.info("Image URL provided", { url: input });
-      } else {
-        if (!existsSync6(input)) {
-          throw new Error(`Image file not found: ${input}`);
-        }
-        const buffer = readFileSync5(input);
-        const base64 = buffer.toString("base64");
-        const mimeType = this.getMimeType(input);
-        src = `data:${mimeType};base64,${base64}`;
+var log5, CostMetricsSchema, RichIOManager;
+var init_rich_io = __esm({
+  "../shared/src/rich-io.ts"() {
+    "use strict";
+    init_logger();
+    log5 = createLogger("rich-io");
+    CostMetricsSchema = z6.object({
+      totalTokens: z6.number(),
+      totalCost: z6.number(),
+      modelBreakdown: z6.record(z6.object({
+        tokens: z6.number(),
+        cost: z6.number()
+      })),
+      sessionStart: z6.number(),
+      lastUpdate: z6.number()
+    });
+    RichIOManager = class {
+      dataDir;
+      imagesDir;
+      screenshotsDir;
+      costMetrics;
+      constructor() {
+        this.dataDir = getDataDir();
+        this.imagesDir = join6(this.dataDir, "images");
+        this.screenshotsDir = join6(this.dataDir, "screenshots");
+        if (!existsSync6(this.imagesDir)) mkdirSync5(this.imagesDir, { recursive: true });
+        if (!existsSync6(this.screenshotsDir)) mkdirSync5(this.screenshotsDir, { recursive: true });
+        this.costMetrics = this.loadCostMetrics();
       }
-    } else {
-      const base64 = input.toString("base64");
-      src = "data:image/png;base64," + base64;
-    }
-    const image = {
-      type: "image",
-      src,
-      alt,
-      caption
-    };
-    log5.info("Processed image", { alt, hasCaption: !!caption });
-    return image;
-  }
-  /** Create a mermaid diagram */
-  createMermaidDiagram(code, title, theme = "default") {
-    const diagram = {
-      type: "mermaid",
-      code,
-      title,
-      theme
-    };
-    log5.info("Created mermaid diagram", { title, theme, codeLength: code.length });
-    return diagram;
-  }
-  /** Update cost metrics */
-  updateCostMetrics(model, tokens, cost) {
-    this.costMetrics.totalTokens += tokens;
-    this.costMetrics.totalCost += cost;
-    if (!this.costMetrics.modelBreakdown[model]) {
-      this.costMetrics.modelBreakdown[model] = { tokens: 0, cost: 0 };
-    }
-    this.costMetrics.modelBreakdown[model].tokens += tokens;
-    this.costMetrics.modelBreakdown[model].cost += cost;
-    this.costMetrics.lastUpdate = Date.now();
-    this.saveCostMetrics();
-    log5.debug("Updated cost metrics", { model, tokens, cost, totalCost: this.costMetrics.totalCost });
-  }
-  /** Get current cost metrics */
-  getCostMetrics() {
-    return { ...this.costMetrics };
-  }
-  /** Get cost formatted as string */
-  getCostString() {
-    const { totalCost, totalTokens } = this.costMetrics;
-    const duration = Date.now() - this.costMetrics.sessionStart;
-    const minutes = Math.floor(duration / 6e4);
-    return `$${totalCost.toFixed(4)} \u2022 ${totalTokens.toLocaleString()} tokens \u2022 ${minutes}m`;
-  }
-  /** Get default hotkey bindings */
-  getDefaultHotkeys() {
-    return [
-      // Navigation
-      { key: "k", modifiers: ["ctrl"], action: "clear", description: "Clear screen", category: "navigation" },
-      { key: "c", modifiers: ["ctrl"], action: "exit", description: "Exit CyberMind", category: "navigation" },
-      { key: "/", modifiers: [], action: "focus-input", description: "Focus input", category: "navigation" },
-      { key: "ArrowUp", modifiers: ["ctrl"], action: "history-prev", description: "Previous command", category: "navigation" },
-      { key: "ArrowDown", modifiers: ["ctrl"], action: "history-next", description: "Next command", category: "navigation" },
-      // Editing
-      { key: "l", modifiers: ["ctrl"], action: "clear-input", description: "Clear input", category: "editing" },
-      { key: "a", modifiers: ["ctrl"], action: "select-all", description: "Select all", category: "editing" },
-      { key: "z", modifiers: ["ctrl"], action: "undo", description: "Undo", category: "editing" },
-      { key: "y", modifiers: ["ctrl"], action: "redo", description: "Redo", category: "editing" },
-      // Session
-      { key: "s", modifiers: ["ctrl"], action: "save-session", description: "Save session", category: "session" },
-      { key: "r", modifiers: ["ctrl"], action: "rewind", description: "Open rewind menu", category: "session" },
-      { key: "p", modifiers: ["ctrl"], action: "profile", description: "Switch profile", category: "session" },
-      // Tools
-      { key: "t", modifiers: ["ctrl"], action: "trust", description: "Trust settings", category: "tools" },
-      { key: "m", modifiers: ["ctrl"], action: "model", description: "Model settings", category: "tools" },
-      { key: "h", modifiers: ["ctrl"], action: "help", description: "Show help", category: "tools" }
-    ];
-  }
-  /** Show hotkey palette */
-  getHotkeyPalette() {
-    const hotkeys = this.getDefaultHotkeys();
-    const grouped = /* @__PURE__ */ new Map();
-    for (const hotkey of hotkeys) {
-      if (!grouped.has(hotkey.category)) {
-        grouped.set(hotkey.category, []);
-      }
-      grouped.get(hotkey.category).push(hotkey);
-    }
-    return Array.from(grouped.entries()).map(([category, bindings]) => ({
-      category: category.charAt(0).toUpperCase() + category.slice(1),
-      bindings: bindings.sort((a, b) => a.key.localeCompare(b.key))
-    }));
-  }
-  /** Analyze a screenshot */
-  async analyzeScreenshot(imagePath) {
-    if (!existsSync6(imagePath)) {
-      throw new Error(`Screenshot file not found: ${imagePath}`);
-    }
-    const analysis = {
-      type: "screenshot",
-      imagePath,
-      analysis: {
-        description: "Screenshot captured successfully",
-        elements: [
-          {
-            type: "window",
-            description: "Application window",
-            position: { x: 0, y: 0, width: 1920, height: 1080 }
+      /** Process and store an image from various sources */
+      async processImage(input, alt, caption) {
+        let src;
+        if (typeof input === "string") {
+          if (input.startsWith("data:")) {
+            src = input;
+          } else if (input.startsWith("http")) {
+            src = input;
+            log5.info("Image URL provided", { url: input });
+          } else {
+            if (!existsSync6(input)) {
+              throw new Error(`Image file not found: ${input}`);
+            }
+            const buffer = readFileSync5(input);
+            const base64 = buffer.toString("base64");
+            const mimeType = this.getMimeType(input);
+            src = `data:${mimeType};base64,${base64}`;
           }
-        ],
-        suggestions: [
-          "Consider using this screenshot as reference for UI development",
-          "You can ask questions about specific elements in the image"
-        ]
-      },
-      timestamp: Date.now()
-    };
-    log5.info("Analyzed screenshot", { imagePath, elementCount: analysis.analysis.elements.length });
-    return analysis;
-  }
-  /** Generate mobile-responsive HTML for content */
-  generateMobileHTML(content, images, diagrams) {
-    return `
+        } else {
+          const base64 = input.toString("base64");
+          src = "data:image/png;base64," + base64;
+        }
+        const image = {
+          type: "image",
+          src,
+          alt,
+          caption
+        };
+        log5.info("Processed image", { alt, hasCaption: !!caption });
+        return image;
+      }
+      /** Create a mermaid diagram */
+      createMermaidDiagram(code, title, theme = "default") {
+        const diagram = {
+          type: "mermaid",
+          code,
+          title,
+          theme
+        };
+        log5.info("Created mermaid diagram", { title, theme, codeLength: code.length });
+        return diagram;
+      }
+      /** Update cost metrics */
+      updateCostMetrics(model, tokens, cost) {
+        this.costMetrics.totalTokens += tokens;
+        this.costMetrics.totalCost += cost;
+        if (!this.costMetrics.modelBreakdown[model]) {
+          this.costMetrics.modelBreakdown[model] = { tokens: 0, cost: 0 };
+        }
+        this.costMetrics.modelBreakdown[model].tokens += tokens;
+        this.costMetrics.modelBreakdown[model].cost += cost;
+        this.costMetrics.lastUpdate = Date.now();
+        this.saveCostMetrics();
+        log5.debug("Updated cost metrics", { model, tokens, cost, totalCost: this.costMetrics.totalCost });
+      }
+      /** Get current cost metrics */
+      getCostMetrics() {
+        return { ...this.costMetrics };
+      }
+      /** Get cost formatted as string */
+      getCostString() {
+        const { totalCost, totalTokens } = this.costMetrics;
+        const duration = Date.now() - this.costMetrics.sessionStart;
+        const minutes = Math.floor(duration / 6e4);
+        return `$${totalCost.toFixed(4)} \u2022 ${totalTokens.toLocaleString()} tokens \u2022 ${minutes}m`;
+      }
+      /** Get default hotkey bindings */
+      getDefaultHotkeys() {
+        return [
+          // Navigation
+          { key: "k", modifiers: ["ctrl"], action: "clear", description: "Clear screen", category: "navigation" },
+          { key: "c", modifiers: ["ctrl"], action: "exit", description: "Exit CyberMind", category: "navigation" },
+          { key: "/", modifiers: [], action: "focus-input", description: "Focus input", category: "navigation" },
+          { key: "ArrowUp", modifiers: ["ctrl"], action: "history-prev", description: "Previous command", category: "navigation" },
+          { key: "ArrowDown", modifiers: ["ctrl"], action: "history-next", description: "Next command", category: "navigation" },
+          // Editing
+          { key: "l", modifiers: ["ctrl"], action: "clear-input", description: "Clear input", category: "editing" },
+          { key: "a", modifiers: ["ctrl"], action: "select-all", description: "Select all", category: "editing" },
+          { key: "z", modifiers: ["ctrl"], action: "undo", description: "Undo", category: "editing" },
+          { key: "y", modifiers: ["ctrl"], action: "redo", description: "Redo", category: "editing" },
+          // Session
+          { key: "s", modifiers: ["ctrl"], action: "save-session", description: "Save session", category: "session" },
+          { key: "r", modifiers: ["ctrl"], action: "rewind", description: "Open rewind menu", category: "session" },
+          { key: "p", modifiers: ["ctrl"], action: "profile", description: "Switch profile", category: "session" },
+          // Tools
+          { key: "t", modifiers: ["ctrl"], action: "trust", description: "Trust settings", category: "tools" },
+          { key: "m", modifiers: ["ctrl"], action: "model", description: "Model settings", category: "tools" },
+          { key: "h", modifiers: ["ctrl"], action: "help", description: "Show help", category: "tools" }
+        ];
+      }
+      /** Show hotkey palette */
+      getHotkeyPalette() {
+        const hotkeys = this.getDefaultHotkeys();
+        const grouped = /* @__PURE__ */ new Map();
+        for (const hotkey of hotkeys) {
+          if (!grouped.has(hotkey.category)) {
+            grouped.set(hotkey.category, []);
+          }
+          grouped.get(hotkey.category).push(hotkey);
+        }
+        return Array.from(grouped.entries()).map(([category, bindings]) => ({
+          category: category.charAt(0).toUpperCase() + category.slice(1),
+          bindings: bindings.sort((a, b) => a.key.localeCompare(b.key))
+        }));
+      }
+      /** Analyze a screenshot */
+      async analyzeScreenshot(imagePath) {
+        if (!existsSync6(imagePath)) {
+          throw new Error(`Screenshot file not found: ${imagePath}`);
+        }
+        const analysis = {
+          type: "screenshot",
+          imagePath,
+          analysis: {
+            description: "Screenshot captured successfully",
+            elements: [
+              {
+                type: "window",
+                description: "Application window",
+                position: { x: 0, y: 0, width: 1920, height: 1080 }
+              }
+            ],
+            suggestions: [
+              "Consider using this screenshot as reference for UI development",
+              "You can ask questions about specific elements in the image"
+            ]
+          },
+          timestamp: Date.now()
+        };
+        log5.info("Analyzed screenshot", { imagePath, elementCount: analysis.analysis.elements.length });
+        return analysis;
+      }
+      /** Generate mobile-responsive HTML for content */
+      generateMobileHTML(content, images, diagrams) {
+        return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1045,877 +1107,626 @@ var RichIOManager = class {
     <script>mermaid.initialize({ theme: 'dark' });</script>
 </body>
 </html>`;
-  }
-  getMimeType(filePath) {
-    const ext = filePath.toLowerCase().split(".").pop();
-    const mimeTypes = {
-      "jpg": "image/jpeg",
-      "jpeg": "image/jpeg",
-      "png": "image/png",
-      "gif": "image/gif",
-      "webp": "image/webp",
-      "svg": "image/svg+xml"
+      }
+      getMimeType(filePath) {
+        const ext = filePath.toLowerCase().split(".").pop();
+        const mimeTypes = {
+          "jpg": "image/jpeg",
+          "jpeg": "image/jpeg",
+          "png": "image/png",
+          "gif": "image/gif",
+          "webp": "image/webp",
+          "svg": "image/svg+xml"
+        };
+        return mimeTypes[ext || ""] || "image/png";
+      }
+      loadCostMetrics() {
+        const path2 = join6(this.dataDir, "cost-metrics.json");
+        if (!existsSync6(path2)) {
+          const metrics = {
+            totalTokens: 0,
+            totalCost: 0,
+            modelBreakdown: {},
+            sessionStart: Date.now(),
+            lastUpdate: Date.now()
+          };
+          writeFileSync5(path2, JSON.stringify(metrics, null, 2), "utf8");
+          return metrics;
+        }
+        try {
+          const raw = readFileSync5(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          return CostMetricsSchema.parse(parsed);
+        } catch (err) {
+          log5.warn("Failed to load cost metrics, using defaults", { error: String(err) });
+          return {
+            totalTokens: 0,
+            totalCost: 0,
+            modelBreakdown: {},
+            sessionStart: Date.now(),
+            lastUpdate: Date.now()
+          };
+        }
+      }
+      saveCostMetrics() {
+        const path2 = join6(this.dataDir, "cost-metrics.json");
+        try {
+          writeFileSync5(path2, JSON.stringify(this.costMetrics, null, 2), "utf8");
+        } catch (err) {
+          log5.error("Failed to save cost metrics", { error: String(err) });
+        }
+      }
     };
-    return mimeTypes[ext || ""] || "image/png";
   }
-  loadCostMetrics() {
-    const path = join6(this.dataDir, "cost-metrics.json");
-    if (!existsSync6(path)) {
-      const metrics = {
-        totalTokens: 0,
-        totalCost: 0,
-        modelBreakdown: {},
-        sessionStart: Date.now(),
-        lastUpdate: Date.now()
-      };
-      writeFileSync5(path, JSON.stringify(metrics, null, 2), "utf8");
-      return metrics;
-    }
-    try {
-      const raw = readFileSync5(path, "utf8");
-      const parsed = JSON.parse(raw);
-      return CostMetricsSchema.parse(parsed);
-    } catch (err) {
-      log5.warn("Failed to load cost metrics, using defaults", { error: String(err) });
-      return {
-        totalTokens: 0,
-        totalCost: 0,
-        modelBreakdown: {},
-        sessionStart: Date.now(),
-        lastUpdate: Date.now()
-      };
-    }
-  }
-  saveCostMetrics() {
-    const path = join6(this.dataDir, "cost-metrics.json");
-    try {
-      writeFileSync5(path, JSON.stringify(this.costMetrics, null, 2), "utf8");
-    } catch (err) {
-      log5.error("Failed to save cost metrics", { error: String(err) });
-    }
-  }
-};
+});
 
 // ../shared/src/ecosystem.ts
 import { existsSync as existsSync7, mkdirSync as mkdirSync6, readFileSync as readFileSync6, writeFileSync as writeFileSync6 } from "fs";
 import { join as join7 } from "path";
 import { z as z7 } from "zod";
-var log6 = createLogger("ecosystem");
-var TelemetrySettingsSchema = z7.object({
-  enabled: z7.boolean(),
-  level: z7.enum(["minimal", "basic", "detailed"]),
-  dataRetention: z7.number(),
-  shareUsageStats: z7.boolean(),
-  shareErrorReports: z7.boolean(),
-  sharePerformanceMetrics: z7.boolean()
+var log6, TelemetrySettingsSchema, EcosystemManager;
+var init_ecosystem = __esm({
+  "../shared/src/ecosystem.ts"() {
+    "use strict";
+    init_logger();
+    log6 = createLogger("ecosystem");
+    TelemetrySettingsSchema = z7.object({
+      enabled: z7.boolean(),
+      level: z7.enum(["minimal", "basic", "detailed"]),
+      dataRetention: z7.number(),
+      shareUsageStats: z7.boolean(),
+      shareErrorReports: z7.boolean(),
+      sharePerformanceMetrics: z7.boolean()
+    });
+    EcosystemManager = class {
+      dataDir;
+      mcpDir;
+      skillsDir;
+      telemetrySettings;
+      constructor() {
+        this.dataDir = getDataDir();
+        this.mcpDir = join7(this.dataDir, "mcp");
+        this.skillsDir = join7(this.dataDir, "skills");
+        if (!existsSync7(this.mcpDir)) mkdirSync6(this.mcpDir, { recursive: true });
+        if (!existsSync7(this.skillsDir)) mkdirSync6(this.skillsDir, { recursive: true });
+        this.telemetrySettings = this.loadTelemetrySettings();
+      }
+      // MCP Marketplace Functions
+      async searchMCPServers(query, tags) {
+        const servers = this.getAvailableMCPServers();
+        return servers.filter((server) => {
+          const matchesQuery = !query || server.name.toLowerCase().includes(query.toLowerCase()) || server.description.toLowerCase().includes(query.toLowerCase());
+          const matchesTags = !tags || tags.length === 0 || tags.some((tag) => server.tags.includes(tag));
+          return matchesQuery && matchesTags;
+        });
+      }
+      getAvailableMCPServers() {
+        const builtInServers = this.getBuiltInMCPServers();
+        const installedServers = this.getInstalledMCPServers();
+        return [...builtInServers, ...installedServers];
+      }
+      async installMCPServer(serverId) {
+        const servers = this.getAvailableMCPServers();
+        const server = servers.find((s) => s.id === serverId);
+        if (!server) {
+          log6.warn("MCP server not found", { serverId });
+          return false;
+        }
+        if (server.installed) {
+          log6.info("MCP server already installed", { serverId });
+          return true;
+        }
+        server.installed = true;
+        server.lastUpdated = Date.now();
+        this.saveMCPServer(server);
+        log6.info("MCP server installed", { serverId, name: server.name });
+        return true;
+      }
+      async uninstallMCPServer(serverId) {
+        const server = this.getMCPServer(serverId);
+        if (!server) return false;
+        server.installed = false;
+        server.lastUpdated = Date.now();
+        this.saveMCPServer(server);
+        log6.info("MCP server uninstalled", { serverId });
+        return true;
+      }
+      // Skill Marketplace Functions
+      async searchSkills(query, category, tags) {
+        const skills = this.getAvailableSkills();
+        return skills.filter((skill) => {
+          const matchesQuery = !query || skill.name.toLowerCase().includes(query.toLowerCase()) || skill.description.toLowerCase().includes(query.toLowerCase());
+          const matchesCategory = !category || skill.category === category;
+          const matchesTags = !tags || tags.length === 0 || tags.some((tag) => skill.tags.includes(tag));
+          return matchesQuery && matchesCategory && matchesTags;
+        });
+      }
+      getAvailableSkills() {
+        const seedSkills = this.getSeedSkills();
+        const installedSkills = this.getInstalledSkills();
+        return [...seedSkills, ...installedSkills];
+      }
+      async installSkill(skillId) {
+        const skills = this.getAvailableSkills();
+        const skill = skills.find((s) => s.id === skillId);
+        if (!skill) {
+          log6.warn("Skill not found", { skillId });
+          return false;
+        }
+        if (skill.installed) {
+          log6.info("Skill already installed", { skillId });
+          return true;
+        }
+        if (skill.dependencies) {
+          for (const depId of skill.dependencies) {
+            const dep = this.getSkill(depId);
+            if (!dep || !dep.installed) {
+              log6.warn("Skill dependency not installed", { skillId, dependency: depId });
+              return false;
+            }
+          }
+        }
+        skill.installed = true;
+        skill.lastUpdated = Date.now();
+        skill.downloadCount++;
+        this.saveSkill(skill);
+        log6.info("Skill installed", { skillId, name: skill.name });
+        return true;
+      }
+      async uninstallSkill(skillId) {
+        const skill = this.getSkill(skillId);
+        if (!skill) return false;
+        skill.installed = false;
+        skill.lastUpdated = Date.now();
+        this.saveSkill(skill);
+        log6.info("Skill uninstalled", { skillId });
+        return true;
+      }
+      // Telemetry Functions
+      getTelemetrySettings() {
+        return { ...this.telemetrySettings };
+      }
+      updateTelemetrySettings(settings) {
+        this.telemetrySettings = { ...this.telemetrySettings, ...settings };
+        this.saveTelemetrySettings();
+        log6.info("Telemetry settings updated", { enabled: this.telemetrySettings.enabled });
+      }
+      isTelemetryEnabled() {
+        return this.telemetrySettings.enabled;
+      }
+      recordUsage(event2, _data) {
+        if (!this.telemetrySettings.enabled) return;
+        log6.debug("Usage recorded", { event: event2, level: this.telemetrySettings.level });
+      }
+      // Private helper methods
+      getBuiltInMCPServers() {
+        return [
+          {
+            id: "filesystem",
+            name: "Filesystem MCP",
+            description: "File system operations and management",
+            version: "1.0.0",
+            author: "CyberMind",
+            tags: ["filesystem", "files", "storage"],
+            installed: true,
+            lastUpdated: Date.now()
+          },
+          {
+            id: "database",
+            name: "Database MCP",
+            description: "Database connections and queries",
+            version: "1.0.0",
+            author: "CyberMind",
+            tags: ["database", "sql", "storage"],
+            installed: false,
+            lastUpdated: Date.now()
+          },
+          {
+            id: "web-api",
+            name: "Web API MCP",
+            description: "HTTP requests and API interactions",
+            version: "1.0.0",
+            author: "CyberMind",
+            tags: ["api", "http", "web"],
+            installed: false,
+            lastUpdated: Date.now()
+          }
+        ];
+      }
+      getSeedSkills() {
+        return [
+          // Development Skills (20)
+          { id: "code-analyzer", name: "Code Analyzer", description: "Analyze code quality and structure", version: "1.0.0", author: "CyberMind", category: "development", tags: ["analysis", "quality"], installed: false, lastUpdated: Date.now(), downloadCount: 1250, rating: 4.5 },
+          { id: "refactor-assistant", name: "Refactor Assistant", description: "Intelligent code refactoring suggestions", version: "1.0.0", author: "CyberMind", category: "development", tags: ["refactor", "cleanup"], installed: false, lastUpdated: Date.now(), downloadCount: 980, rating: 4.7 },
+          { id: "debug-helper", name: "Debug Helper", description: "Debugging assistance and issue diagnosis", version: "1.0.0", author: "CyberMind", category: "development", tags: ["debug", "troubleshoot"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
+          { id: "test-generator", name: "Test Generator", description: "Generate unit and integration tests", version: "1.0.0", author: "CyberMind", category: "development", tags: ["testing", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 1500, rating: 4.8 },
+          { id: "api-designer", name: "API Designer", description: "Design and document REST APIs", version: "1.0.0", author: "CyberMind", category: "development", tags: ["api", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.4 },
+          // Design Skills (15)
+          { id: "ui-mockup", name: "UI Mockup Generator", description: "Create user interface mockups", version: "1.0.0", author: "CyberMind", category: "design", tags: ["ui", "mockup"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.5 },
+          { id: "color-palette", name: "Color Palette Creator", description: "Generate color schemes and palettes", version: "1.0.0", author: "CyberMind", category: "design", tags: ["colors", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.3 },
+          { id: "typography", name: "Typography Advisor", description: "Typography recommendations and pairings", version: "1.0.0", author: "CyberMind", category: "design", tags: ["fonts", "typography"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.2 },
+          { id: "layout-designer", name: "Layout Designer", description: "Create responsive layout designs", version: "1.0.0", author: "CyberMind", category: "design", tags: ["layout", "responsive"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.6 },
+          { id: "icon-generator", name: "Icon Generator", description: "Generate custom icons and symbols", version: "1.0.0", author: "CyberMind", category: "design", tags: ["icons", "graphics"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.4 },
+          // Testing Skills (10)
+          { id: "e2e-tester", name: "E2E Test Generator", description: "Generate end-to-end test scenarios", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["e2e", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.5 },
+          { id: "performance-tester", name: "Performance Tester", description: "Create performance and load tests", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["performance", "load"], installed: false, lastUpdated: Date.now(), downloadCount: 540, rating: 4.3 },
+          { id: "security-scanner", name: "Security Scanner", description: "Security vulnerability scanning", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["security", "scan"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
+          { id: "accessibility-tester", name: "Accessibility Tester", description: "Test for accessibility compliance", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["a11y", "compliance"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.4 },
+          { id: "compatibility-tester", name: "Compatibility Tester", description: "Cross-browser compatibility testing", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["compatibility", "browser"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.2 },
+          // Deployment Skills (10)
+          { id: "docker-generator", name: "Docker Generator", description: "Generate Docker configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["docker", "containers"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
+          { id: "kubernetes-deployer", name: "Kubernetes Deployer", description: "Kubernetes deployment manifests", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["k8s", "orchestration"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.5 },
+          { id: "ci-cd-pipeline", name: "CI/CD Pipeline", description: "Generate CI/CD pipeline configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cicd", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.7 },
+          { id: "cloud-deployer", name: "Cloud Deployer", description: "Cloud deployment configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cloud", "deploy"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.4 },
+          { id: "env-manager", name: "Environment Manager", description: "Manage deployment environments", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["environment", "config"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
+          // Monitoring Skills (5)
+          { id: "log-analyzer", name: "Log Analyzer", description: "Analyze and parse application logs", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["logs", "analysis"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
+          { id: "metrics-collector", name: "Metrics Collector", description: "Collect and visualize metrics", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["metrics", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
+          { id: "alert-manager", name: "Alert Manager", description: "Configure alerts and notifications", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["alerts", "notifications"], installed: false, lastUpdated: Date.now(), downloadCount: 340, rating: 4.3 },
+          { id: "health-checker", name: "Health Checker", description: "Application health monitoring", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["health", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.5 },
+          { id: "uptime-monitor", name: "Uptime Monitor", description: "Monitor service uptime and availability", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["uptime", "availability"], installed: false, lastUpdated: Date.now(), downloadCount: 290, rating: 4.1 },
+          // Security Skills (5)
+          { id: "vulnerability-scanner", name: "Vulnerability Scanner", description: "Scan for security vulnerabilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["security", "vulnerability"], installed: false, lastUpdated: Date.now(), downloadCount: 680, rating: 4.6 },
+          { id: "password-manager", name: "Password Manager", description: "Generate and manage secure passwords", version: "1.0.0", author: "CyberMind", category: "security", tags: ["passwords", "security"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.3 },
+          { id: "encryption-helper", name: "Encryption Helper", description: "Encryption and decryption utilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["encryption", "crypto"], installed: false, lastUpdated: Date.now(), downloadCount: 320, rating: 4.4 },
+          { id: "audit-logger", name: "Audit Logger", description: "Security audit logging", version: "1.0.0", author: "CyberMind", category: "security", tags: ["audit", "logging"], installed: false, lastUpdated: Date.now(), downloadCount: 280, rating: 4.2 },
+          { id: "compliance-checker", name: "Compliance Checker", description: "Check regulatory compliance", version: "1.0.0", author: "CyberMind", category: "security", tags: ["compliance", "regulation"], installed: false, lastUpdated: Date.now(), downloadCount: 360, rating: 4.3 },
+          // Data Skills (5)
+          { id: "data-visualizer", name: "Data Visualizer", description: "Create data visualizations and charts", version: "1.0.0", author: "CyberMind", category: "data", tags: ["visualization", "charts"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.5 },
+          { id: "etl-pipeline", name: "ETL Pipeline", description: "Design ETL data pipelines", version: "1.0.0", author: "CyberMind", category: "data", tags: ["etl", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
+          { id: "data-cleaner", name: "Data Cleaner", description: "Clean and preprocess data", version: "1.0.0", author: "CyberMind", category: "data", tags: ["cleaning", "preprocessing"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
+          { id: "schema-designer", name: "Schema Designer", description: "Design database schemas", version: "1.0.0", author: "CyberMind", category: "data", tags: ["schema", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.6 },
+          { id: "migration-tool", name: "Migration Tool", description: "Database migration assistance", version: "1.0.0", author: "CyberMind", category: "data", tags: ["migration", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
+          // AI Skills (5)
+          { id: "ml-model-trainer", name: "ML Model Trainer", description: "Train machine learning models", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["ml", "training"], installed: false, lastUpdated: Date.now(), downloadCount: 580, rating: 4.5 },
+          { id: "prompt-engineer", name: "Prompt Engineer", description: "Optimize AI prompts", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["prompt", "ai"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
+          { id: "model-evaluator", name: "Model Evaluator", description: "Evaluate AI model performance", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["evaluation", "metrics"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.4 },
+          { id: "data-augmenter", name: "Data Augmenter", description: "Augment training data", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["augmentation", "data"], installed: false, lastUpdated: Date.now(), downloadCount: 350, rating: 4.3 },
+          { id: "ai-deployer", name: "AI Deployer", description: "Deploy AI models to production", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["deployment", "production"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.5 }
+        ];
+      }
+      getMCPServer(serverId) {
+        const servers = this.getAvailableMCPServers();
+        return servers.find((s) => s.id === serverId) || null;
+      }
+      getSkill(skillId) {
+        const skills = this.getAvailableSkills();
+        return skills.find((s) => s.id === skillId) || null;
+      }
+      getInstalledMCPServers() {
+        return [];
+      }
+      getInstalledSkills() {
+        return [];
+      }
+      saveMCPServer(server) {
+        const path2 = join7(this.mcpDir, `${server.id}.json`);
+        try {
+          writeFileSync6(path2, JSON.stringify(server, null, 2), "utf8");
+        } catch (err) {
+          log6.error("Failed to save MCP server", { serverId: server.id, error: String(err) });
+        }
+      }
+      saveSkill(skill) {
+        const path2 = join7(this.skillsDir, `${skill.id}.json`);
+        try {
+          writeFileSync6(path2, JSON.stringify(skill, null, 2), "utf8");
+        } catch (err) {
+          log6.error("Failed to save skill", { skillId: skill.id, error: String(err) });
+        }
+      }
+      loadTelemetrySettings() {
+        const path2 = join7(this.dataDir, "telemetry-settings.json");
+        if (!existsSync7(path2)) {
+          const settings = {
+            enabled: false,
+            // Default to off
+            level: "minimal",
+            dataRetention: 30,
+            shareUsageStats: false,
+            shareErrorReports: false,
+            sharePerformanceMetrics: false
+          };
+          writeFileSync6(path2, JSON.stringify(settings, null, 2), "utf8");
+          return settings;
+        }
+        try {
+          const raw = readFileSync6(path2, "utf8");
+          const parsed = JSON.parse(raw);
+          return TelemetrySettingsSchema.parse(parsed);
+        } catch (err) {
+          log6.warn("Failed to load telemetry settings, using defaults", { error: String(err) });
+          return {
+            enabled: false,
+            level: "minimal",
+            dataRetention: 30,
+            shareUsageStats: false,
+            shareErrorReports: false,
+            sharePerformanceMetrics: false
+          };
+        }
+      }
+      saveTelemetrySettings() {
+        const path2 = join7(this.dataDir, "telemetry-settings.json");
+        try {
+          writeFileSync6(path2, JSON.stringify(this.telemetrySettings, null, 2), "utf8");
+        } catch (err) {
+          log6.error("Failed to save telemetry settings", { error: String(err) });
+        }
+      }
+    };
+  }
 });
-var EcosystemManager = class {
-  dataDir;
-  mcpDir;
-  skillsDir;
-  telemetrySettings;
-  constructor() {
-    this.dataDir = getDataDir();
-    this.mcpDir = join7(this.dataDir, "mcp");
-    this.skillsDir = join7(this.dataDir, "skills");
-    if (!existsSync7(this.mcpDir)) mkdirSync6(this.mcpDir, { recursive: true });
-    if (!existsSync7(this.skillsDir)) mkdirSync6(this.skillsDir, { recursive: true });
-    this.telemetrySettings = this.loadTelemetrySettings();
+
+// ../shared/src/providers/ollama-config.ts
+var log7;
+var init_ollama_config = __esm({
+  "../shared/src/providers/ollama-config.ts"() {
+    "use strict";
+    init_logger();
+    log7 = createLogger("ollama-config");
   }
-  // MCP Marketplace Functions
-  async searchMCPServers(query, tags) {
-    const servers = this.getAvailableMCPServers();
-    return servers.filter((server) => {
-      const matchesQuery = !query || server.name.toLowerCase().includes(query.toLowerCase()) || server.description.toLowerCase().includes(query.toLowerCase());
-      const matchesTags = !tags || tags.length === 0 || tags.some((tag) => server.tags.includes(tag));
-      return matchesQuery && matchesTags;
-    });
-  }
-  getAvailableMCPServers() {
-    const builtInServers = this.getBuiltInMCPServers();
-    const installedServers = this.getInstalledMCPServers();
-    return [...builtInServers, ...installedServers];
-  }
-  async installMCPServer(serverId) {
-    const servers = this.getAvailableMCPServers();
-    const server = servers.find((s) => s.id === serverId);
-    if (!server) {
-      log6.warn("MCP server not found", { serverId });
-      return false;
-    }
-    if (server.installed) {
-      log6.info("MCP server already installed", { serverId });
-      return true;
-    }
-    server.installed = true;
-    server.lastUpdated = Date.now();
-    this.saveMCPServer(server);
-    log6.info("MCP server installed", { serverId, name: server.name });
-    return true;
-  }
-  async uninstallMCPServer(serverId) {
-    const server = this.getMCPServer(serverId);
-    if (!server) return false;
-    server.installed = false;
-    server.lastUpdated = Date.now();
-    this.saveMCPServer(server);
-    log6.info("MCP server uninstalled", { serverId });
-    return true;
-  }
-  // Skill Marketplace Functions
-  async searchSkills(query, category, tags) {
-    const skills = this.getAvailableSkills();
-    return skills.filter((skill) => {
-      const matchesQuery = !query || skill.name.toLowerCase().includes(query.toLowerCase()) || skill.description.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = !category || skill.category === category;
-      const matchesTags = !tags || tags.length === 0 || tags.some((tag) => skill.tags.includes(tag));
-      return matchesQuery && matchesCategory && matchesTags;
-    });
-  }
-  getAvailableSkills() {
-    const seedSkills = this.getSeedSkills();
-    const installedSkills = this.getInstalledSkills();
-    return [...seedSkills, ...installedSkills];
-  }
-  async installSkill(skillId) {
-    const skills = this.getAvailableSkills();
-    const skill = skills.find((s) => s.id === skillId);
-    if (!skill) {
-      log6.warn("Skill not found", { skillId });
-      return false;
-    }
-    if (skill.installed) {
-      log6.info("Skill already installed", { skillId });
-      return true;
-    }
-    if (skill.dependencies) {
-      for (const depId of skill.dependencies) {
-        const dep = this.getSkill(depId);
-        if (!dep || !dep.installed) {
-          log6.warn("Skill dependency not installed", { skillId, dependency: depId });
+});
+
+// ../shared/src/providers/custom-server.ts
+var log8, DEFAULT_CUSTOM_SERVER_CONFIG, CustomServerManager;
+var init_custom_server = __esm({
+  "../shared/src/providers/custom-server.ts"() {
+    "use strict";
+    init_logger();
+    log8 = createLogger("custom-server");
+    DEFAULT_CUSTOM_SERVER_CONFIG = {
+      baseUrl: "https://api.cybermind.ai/v1",
+      models: [
+        {
+          id: "cybermind-ultra",
+          name: "CyberMind Ultra",
+          provider: "CyberMind",
+          description: "Most powerful model for complex tasks",
+          contextWindow: 2e5,
+          inputCost: 5,
+          outputCost: 15,
+          capabilities: ["code", "reasoning", "analysis", "multimodal"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-pro",
+          name: "CyberMind Pro",
+          provider: "CyberMind",
+          description: "Balanced model for most tasks",
+          contextWindow: 128e3,
+          inputCost: 2,
+          outputCost: 6,
+          capabilities: ["code", "reasoning", "analysis"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-speed",
+          name: "CyberMind Speed",
+          provider: "CyberMind",
+          description: "Fast model for quick responses",
+          contextWindow: 32e3,
+          inputCost: 0.5,
+          outputCost: 1.5,
+          capabilities: ["code", "basic-reasoning"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-code",
+          name: "CyberMind Code",
+          provider: "CyberMind",
+          description: "Specialized for coding tasks",
+          contextWindow: 128e3,
+          inputCost: 1.5,
+          outputCost: 4.5,
+          capabilities: ["code", "debugging", "refactoring"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-creative",
+          name: "CyberMind Creative",
+          provider: "CyberMind",
+          description: "Creative and design tasks",
+          contextWindow: 64e3,
+          inputCost: 1,
+          outputCost: 3,
+          capabilities: ["creative", "design", "writing"],
+          endpoint: "/chat/completions",
+          isActive: true
+        }
+      ],
+      timeout: 6e4,
+      retries: 3,
+      rateLimit: {
+        requestsPerMinute: 60,
+        tokensPerMinute: 1e6
+      }
+    };
+    CustomServerManager = class {
+      config;
+      apiKey = null;
+      constructor(config = {}) {
+        this.config = { ...DEFAULT_CUSTOM_SERVER_CONFIG, ...config };
+      }
+      setApiKey(apiKey) {
+        this.apiKey = apiKey;
+        log8.info("Custom server API key set");
+      }
+      getApiKey() {
+        return this.apiKey;
+      }
+      async testConnection() {
+        try {
+          const response = await fetch(`${this.config.baseUrl}/models`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
+            },
+            signal: AbortSignal.timeout(5e3)
+          });
+          if (!response.ok) {
+            log8.warn("Custom server connection failed", { status: response.status });
+            return false;
+          }
+          const data = await response.json();
+          log8.info("Custom server connected successfully", { models: data.data?.length || 0 });
+          return true;
+        } catch (error) {
+          log8.warn("Custom server connection error", { error: String(error) });
           return false;
         }
       }
-    }
-    skill.installed = true;
-    skill.lastUpdated = Date.now();
-    skill.downloadCount++;
-    this.saveSkill(skill);
-    log6.info("Skill installed", { skillId, name: skill.name });
-    return true;
-  }
-  async uninstallSkill(skillId) {
-    const skill = this.getSkill(skillId);
-    if (!skill) return false;
-    skill.installed = false;
-    skill.lastUpdated = Date.now();
-    this.saveSkill(skill);
-    log6.info("Skill uninstalled", { skillId });
-    return true;
-  }
-  // Telemetry Functions
-  getTelemetrySettings() {
-    return { ...this.telemetrySettings };
-  }
-  updateTelemetrySettings(settings) {
-    this.telemetrySettings = { ...this.telemetrySettings, ...settings };
-    this.saveTelemetrySettings();
-    log6.info("Telemetry settings updated", { enabled: this.telemetrySettings.enabled });
-  }
-  isTelemetryEnabled() {
-    return this.telemetrySettings.enabled;
-  }
-  recordUsage(event, _data) {
-    if (!this.telemetrySettings.enabled) return;
-    log6.debug("Usage recorded", { event, level: this.telemetrySettings.level });
-  }
-  // Private helper methods
-  getBuiltInMCPServers() {
-    return [
-      {
-        id: "filesystem",
-        name: "Filesystem MCP",
-        description: "File system operations and management",
-        version: "1.0.0",
-        author: "CyberMind",
-        tags: ["filesystem", "files", "storage"],
-        installed: true,
-        lastUpdated: Date.now()
-      },
-      {
-        id: "database",
-        name: "Database MCP",
-        description: "Database connections and queries",
-        version: "1.0.0",
-        author: "CyberMind",
-        tags: ["database", "sql", "storage"],
-        installed: false,
-        lastUpdated: Date.now()
-      },
-      {
-        id: "web-api",
-        name: "Web API MCP",
-        description: "HTTP requests and API interactions",
-        version: "1.0.0",
-        author: "CyberMind",
-        tags: ["api", "http", "web"],
-        installed: false,
-        lastUpdated: Date.now()
+      async listModels() {
+        try {
+          const response = await fetch(`${this.config.baseUrl}/models`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
+            },
+            signal: AbortSignal.timeout(this.config.timeout)
+          });
+          if (!response.ok) {
+            throw new Error(`Custom server API error: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.data || this.config.models;
+        } catch (error) {
+          log8.error("Failed to list custom server models", { error: String(error) });
+          return this.config.models;
+        }
       }
-    ];
-  }
-  getSeedSkills() {
-    return [
-      // Development Skills (20)
-      { id: "code-analyzer", name: "Code Analyzer", description: "Analyze code quality and structure", version: "1.0.0", author: "CyberMind", category: "development", tags: ["analysis", "quality"], installed: false, lastUpdated: Date.now(), downloadCount: 1250, rating: 4.5 },
-      { id: "refactor-assistant", name: "Refactor Assistant", description: "Intelligent code refactoring suggestions", version: "1.0.0", author: "CyberMind", category: "development", tags: ["refactor", "cleanup"], installed: false, lastUpdated: Date.now(), downloadCount: 980, rating: 4.7 },
-      { id: "debug-helper", name: "Debug Helper", description: "Debugging assistance and issue diagnosis", version: "1.0.0", author: "CyberMind", category: "development", tags: ["debug", "troubleshoot"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
-      { id: "test-generator", name: "Test Generator", description: "Generate unit and integration tests", version: "1.0.0", author: "CyberMind", category: "development", tags: ["testing", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 1500, rating: 4.8 },
-      { id: "api-designer", name: "API Designer", description: "Design and document REST APIs", version: "1.0.0", author: "CyberMind", category: "development", tags: ["api", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.4 },
-      // Design Skills (15)
-      { id: "ui-mockup", name: "UI Mockup Generator", description: "Create user interface mockups", version: "1.0.0", author: "CyberMind", category: "design", tags: ["ui", "mockup"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.5 },
-      { id: "color-palette", name: "Color Palette Creator", description: "Generate color schemes and palettes", version: "1.0.0", author: "CyberMind", category: "design", tags: ["colors", "design"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.3 },
-      { id: "typography", name: "Typography Advisor", description: "Typography recommendations and pairings", version: "1.0.0", author: "CyberMind", category: "design", tags: ["fonts", "typography"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.2 },
-      { id: "layout-designer", name: "Layout Designer", description: "Create responsive layout designs", version: "1.0.0", author: "CyberMind", category: "design", tags: ["layout", "responsive"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.6 },
-      { id: "icon-generator", name: "Icon Generator", description: "Generate custom icons and symbols", version: "1.0.0", author: "CyberMind", category: "design", tags: ["icons", "graphics"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.4 },
-      // Testing Skills (10)
-      { id: "e2e-tester", name: "E2E Test Generator", description: "Generate end-to-end test scenarios", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["e2e", "automation"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.5 },
-      { id: "performance-tester", name: "Performance Tester", description: "Create performance and load tests", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["performance", "load"], installed: false, lastUpdated: Date.now(), downloadCount: 540, rating: 4.3 },
-      { id: "security-scanner", name: "Security Scanner", description: "Security vulnerability scanning", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["security", "scan"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
-      { id: "accessibility-tester", name: "Accessibility Tester", description: "Test for accessibility compliance", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["a11y", "compliance"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.4 },
-      { id: "compatibility-tester", name: "Compatibility Tester", description: "Cross-browser compatibility testing", version: "1.0.0", author: "CyberMind", category: "testing", tags: ["compatibility", "browser"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.2 },
-      // Deployment Skills (10)
-      { id: "docker-generator", name: "Docker Generator", description: "Generate Docker configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["docker", "containers"], installed: false, lastUpdated: Date.now(), downloadCount: 1100, rating: 4.6 },
-      { id: "kubernetes-deployer", name: "Kubernetes Deployer", description: "Kubernetes deployment manifests", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["k8s", "orchestration"], installed: false, lastUpdated: Date.now(), downloadCount: 780, rating: 4.5 },
-      { id: "ci-cd-pipeline", name: "CI/CD Pipeline", description: "Generate CI/CD pipeline configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cicd", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 920, rating: 4.7 },
-      { id: "cloud-deployer", name: "Cloud Deployer", description: "Cloud deployment configurations", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["cloud", "deploy"], installed: false, lastUpdated: Date.now(), downloadCount: 650, rating: 4.4 },
-      { id: "env-manager", name: "Environment Manager", description: "Manage deployment environments", version: "1.0.0", author: "CyberMind", category: "deployment", tags: ["environment", "config"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
-      // Monitoring Skills (5)
-      { id: "log-analyzer", name: "Log Analyzer", description: "Analyze and parse application logs", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["logs", "analysis"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
-      { id: "metrics-collector", name: "Metrics Collector", description: "Collect and visualize metrics", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["metrics", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
-      { id: "alert-manager", name: "Alert Manager", description: "Configure alerts and notifications", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["alerts", "notifications"], installed: false, lastUpdated: Date.now(), downloadCount: 340, rating: 4.3 },
-      { id: "health-checker", name: "Health Checker", description: "Application health monitoring", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["health", "monitoring"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.5 },
-      { id: "uptime-monitor", name: "Uptime Monitor", description: "Monitor service uptime and availability", version: "1.0.0", author: "CyberMind", category: "monitoring", tags: ["uptime", "availability"], installed: false, lastUpdated: Date.now(), downloadCount: 290, rating: 4.1 },
-      // Security Skills (5)
-      { id: "vulnerability-scanner", name: "Vulnerability Scanner", description: "Scan for security vulnerabilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["security", "vulnerability"], installed: false, lastUpdated: Date.now(), downloadCount: 680, rating: 4.6 },
-      { id: "password-manager", name: "Password Manager", description: "Generate and manage secure passwords", version: "1.0.0", author: "CyberMind", category: "security", tags: ["passwords", "security"], installed: false, lastUpdated: Date.now(), downloadCount: 450, rating: 4.3 },
-      { id: "encryption-helper", name: "Encryption Helper", description: "Encryption and decryption utilities", version: "1.0.0", author: "CyberMind", category: "security", tags: ["encryption", "crypto"], installed: false, lastUpdated: Date.now(), downloadCount: 320, rating: 4.4 },
-      { id: "audit-logger", name: "Audit Logger", description: "Security audit logging", version: "1.0.0", author: "CyberMind", category: "security", tags: ["audit", "logging"], installed: false, lastUpdated: Date.now(), downloadCount: 280, rating: 4.2 },
-      { id: "compliance-checker", name: "Compliance Checker", description: "Check regulatory compliance", version: "1.0.0", author: "CyberMind", category: "security", tags: ["compliance", "regulation"], installed: false, lastUpdated: Date.now(), downloadCount: 360, rating: 4.3 },
-      // Data Skills (5)
-      { id: "data-visualizer", name: "Data Visualizer", description: "Create data visualizations and charts", version: "1.0.0", author: "CyberMind", category: "data", tags: ["visualization", "charts"], installed: false, lastUpdated: Date.now(), downloadCount: 750, rating: 4.5 },
-      { id: "etl-pipeline", name: "ETL Pipeline", description: "Design ETL data pipelines", version: "1.0.0", author: "CyberMind", category: "data", tags: ["etl", "pipeline"], installed: false, lastUpdated: Date.now(), downloadCount: 520, rating: 4.4 },
-      { id: "data-cleaner", name: "Data Cleaner", description: "Clean and preprocess data", version: "1.0.0", author: "CyberMind", category: "data", tags: ["cleaning", "preprocessing"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.3 },
-      { id: "schema-designer", name: "Schema Designer", description: "Design database schemas", version: "1.0.0", author: "CyberMind", category: "data", tags: ["schema", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 620, rating: 4.6 },
-      { id: "migration-tool", name: "Migration Tool", description: "Database migration assistance", version: "1.0.0", author: "CyberMind", category: "data", tags: ["migration", "database"], installed: false, lastUpdated: Date.now(), downloadCount: 380, rating: 4.2 },
-      // AI Skills (5)
-      { id: "ml-model-trainer", name: "ML Model Trainer", description: "Train machine learning models", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["ml", "training"], installed: false, lastUpdated: Date.now(), downloadCount: 580, rating: 4.5 },
-      { id: "prompt-engineer", name: "Prompt Engineer", description: "Optimize AI prompts", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["prompt", "ai"], installed: false, lastUpdated: Date.now(), downloadCount: 890, rating: 4.7 },
-      { id: "model-evaluator", name: "Model Evaluator", description: "Evaluate AI model performance", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["evaluation", "metrics"], installed: false, lastUpdated: Date.now(), downloadCount: 420, rating: 4.4 },
-      { id: "data-augmenter", name: "Data Augmenter", description: "Augment training data", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["augmentation", "data"], installed: false, lastUpdated: Date.now(), downloadCount: 350, rating: 4.3 },
-      { id: "ai-deployer", name: "AI Deployer", description: "Deploy AI models to production", version: "1.0.0", author: "CyberMind", category: "ai", tags: ["deployment", "production"], installed: false, lastUpdated: Date.now(), downloadCount: 480, rating: 4.5 }
-    ];
-  }
-  getMCPServer(serverId) {
-    const servers = this.getAvailableMCPServers();
-    return servers.find((s) => s.id === serverId) || null;
-  }
-  getSkill(skillId) {
-    const skills = this.getAvailableSkills();
-    return skills.find((s) => s.id === skillId) || null;
-  }
-  getInstalledMCPServers() {
-    return [];
-  }
-  getInstalledSkills() {
-    return [];
-  }
-  saveMCPServer(server) {
-    const path = join7(this.mcpDir, `${server.id}.json`);
-    try {
-      writeFileSync6(path, JSON.stringify(server, null, 2), "utf8");
-    } catch (err) {
-      log6.error("Failed to save MCP server", { serverId: server.id, error: String(err) });
-    }
-  }
-  saveSkill(skill) {
-    const path = join7(this.skillsDir, `${skill.id}.json`);
-    try {
-      writeFileSync6(path, JSON.stringify(skill, null, 2), "utf8");
-    } catch (err) {
-      log6.error("Failed to save skill", { skillId: skill.id, error: String(err) });
-    }
-  }
-  loadTelemetrySettings() {
-    const path = join7(this.dataDir, "telemetry-settings.json");
-    if (!existsSync7(path)) {
-      const settings = {
-        enabled: false,
-        // Default to off
-        level: "minimal",
-        dataRetention: 30,
-        shareUsageStats: false,
-        shareErrorReports: false,
-        sharePerformanceMetrics: false
-      };
-      writeFileSync6(path, JSON.stringify(settings, null, 2), "utf8");
-      return settings;
-    }
-    try {
-      const raw = readFileSync6(path, "utf8");
-      const parsed = JSON.parse(raw);
-      return TelemetrySettingsSchema.parse(parsed);
-    } catch (err) {
-      log6.warn("Failed to load telemetry settings, using defaults", { error: String(err) });
-      return {
-        enabled: false,
-        level: "minimal",
-        dataRetention: 30,
-        shareUsageStats: false,
-        shareErrorReports: false,
-        sharePerformanceMetrics: false
-      };
-    }
-  }
-  saveTelemetrySettings() {
-    const path = join7(this.dataDir, "telemetry-settings.json");
-    try {
-      writeFileSync6(path, JSON.stringify(this.telemetrySettings, null, 2), "utf8");
-    } catch (err) {
-      log6.error("Failed to save telemetry settings", { error: String(err) });
-    }
-  }
-};
-
-// ../shared/src/providers/ollama-config.ts
-var log7 = createLogger("ollama-config");
-
-// ../shared/src/providers/custom-server.ts
-var log8 = createLogger("custom-server");
-var DEFAULT_CUSTOM_SERVER_CONFIG = {
-  baseUrl: "https://api.cybermind.ai/v1",
-  models: [
-    {
-      id: "cybermind-ultra",
-      name: "CyberMind Ultra",
-      provider: "CyberMind",
-      description: "Most powerful model for complex tasks",
-      contextWindow: 2e5,
-      inputCost: 5,
-      outputCost: 15,
-      capabilities: ["code", "reasoning", "analysis", "multimodal"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-pro",
-      name: "CyberMind Pro",
-      provider: "CyberMind",
-      description: "Balanced model for most tasks",
-      contextWindow: 128e3,
-      inputCost: 2,
-      outputCost: 6,
-      capabilities: ["code", "reasoning", "analysis"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-speed",
-      name: "CyberMind Speed",
-      provider: "CyberMind",
-      description: "Fast model for quick responses",
-      contextWindow: 32e3,
-      inputCost: 0.5,
-      outputCost: 1.5,
-      capabilities: ["code", "basic-reasoning"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-code",
-      name: "CyberMind Code",
-      provider: "CyberMind",
-      description: "Specialized for coding tasks",
-      contextWindow: 128e3,
-      inputCost: 1.5,
-      outputCost: 4.5,
-      capabilities: ["code", "debugging", "refactoring"],
-      endpoint: "/chat/completions",
-      isActive: true
-    },
-    {
-      id: "cybermind-creative",
-      name: "CyberMind Creative",
-      provider: "CyberMind",
-      description: "Creative and design tasks",
-      contextWindow: 64e3,
-      inputCost: 1,
-      outputCost: 3,
-      capabilities: ["creative", "design", "writing"],
-      endpoint: "/chat/completions",
-      isActive: true
-    }
-  ],
-  timeout: 6e4,
-  retries: 3,
-  rateLimit: {
-    requestsPerMinute: 60,
-    tokensPerMinute: 1e6
-  }
-};
-var CustomServerManager = class {
-  config;
-  apiKey = null;
-  constructor(config = {}) {
-    this.config = { ...DEFAULT_CUSTOM_SERVER_CONFIG, ...config };
-  }
-  setApiKey(apiKey) {
-    this.apiKey = apiKey;
-    log8.info("Custom server API key set");
-  }
-  getApiKey() {
-    return this.apiKey;
-  }
-  async testConnection() {
-    try {
-      const response = await fetch(`${this.config.baseUrl}/models`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
-        },
-        signal: AbortSignal.timeout(5e3)
-      });
-      if (!response.ok) {
-        log8.warn("Custom server connection failed", { status: response.status });
+      async generateResponse(modelId, messages) {
+        if (!this.apiKey) {
+          throw new Error("API key required for custom server");
+        }
+        try {
+          const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+              model: modelId,
+              messages,
+              stream: false,
+              temperature: 0.7,
+              max_tokens: 2048
+            }),
+            signal: AbortSignal.timeout(this.config.timeout)
+          });
+          if (!response.ok) {
+            throw new Error(`Generation failed: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.choices[0]?.message?.content || "";
+        } catch (error) {
+          log8.error("Failed to generate response from custom server", { model: modelId, error: String(error) });
+          throw error;
+        }
+      }
+      getModel(modelId) {
+        return this.config.models.find((model) => model.id === modelId) || null;
+      }
+      getActiveModels() {
+        return this.config.models.filter((model) => model.isActive);
+      }
+      getModelsByCapability(capability) {
+        return this.config.models.filter(
+          (model) => model.isActive && model.capabilities.includes(capability)
+        );
+      }
+      calculateCost(modelId, inputTokens, outputTokens) {
+        const model = this.getModel(modelId);
+        if (!model) return 0;
+        const inputCost = inputTokens / 1e6 * model.inputCost;
+        const outputCost = outputTokens / 1e6 * model.outputCost;
+        return inputCost + outputCost;
+      }
+      updateConfig(updates) {
+        this.config = { ...this.config, ...updates };
+        log8.info("Custom server config updated", { updates: Object.keys(updates) });
+      }
+      addCustomModel(model) {
+        this.config.models.push(model);
+        log8.info("Custom model added", { modelId: model.id, name: model.name });
+      }
+      removeModel(modelId) {
+        const index = this.config.models.findIndex((model) => model.id === modelId);
+        if (index !== -1) {
+          this.config.models.splice(index, 1);
+          log8.info("Model removed", { modelId });
+          return true;
+        }
         return false;
       }
-      const data = await response.json();
-      log8.info("Custom server connected successfully", { models: data.data?.length || 0 });
-      return true;
-    } catch (error) {
-      log8.warn("Custom server connection error", { error: String(error) });
-      return false;
-    }
-  }
-  async listModels() {
-    try {
-      const response = await fetch(`${this.config.baseUrl}/models`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
-        },
-        signal: AbortSignal.timeout(this.config.timeout)
-      });
-      if (!response.ok) {
-        throw new Error(`Custom server API error: ${response.status}`);
+      getConfig() {
+        return { ...this.config };
       }
-      const data = await response.json();
-      return data.data || this.config.models;
-    } catch (error) {
-      log8.error("Failed to list custom server models", { error: String(error) });
-      return this.config.models;
-    }
-  }
-  async generateResponse(modelId, messages) {
-    if (!this.apiKey) {
-      throw new Error("API key required for custom server");
-    }
-    try {
-      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelId,
-          messages,
-          stream: false,
-          temperature: 0.7,
-          max_tokens: 2048
-        }),
-        signal: AbortSignal.timeout(this.config.timeout)
-      });
-      if (!response.ok) {
-        throw new Error(`Generation failed: ${response.status}`);
+      // Rate limiting
+      rateLimitTracker = {
+        requests: [],
+        tokens: []
+      };
+      async checkRateLimit() {
+        const now = Date.now();
+        const oneMinuteAgo = now - 6e4;
+        this.rateLimitTracker.requests = this.rateLimitTracker.requests.filter((time) => time > oneMinuteAgo);
+        this.rateLimitTracker.tokens = this.rateLimitTracker.tokens.filter((time) => time > oneMinuteAgo);
+        if (this.rateLimitTracker.requests.length >= this.config.rateLimit.requestsPerMinute) {
+          log8.warn("Rate limit exceeded for requests");
+          return false;
+        }
+        return true;
       }
-      const data = await response.json();
-      return data.choices[0]?.message?.content || "";
-    } catch (error) {
-      log8.error("Failed to generate response from custom server", { model: modelId, error: String(error) });
-      throw error;
-    }
+      recordRequest(tokenCount = 0) {
+        this.rateLimitTracker.requests.push(Date.now());
+        this.rateLimitTracker.tokens.push(tokenCount);
+      }
+    };
   }
-  getModel(modelId) {
-    return this.config.models.find((model) => model.id === modelId) || null;
-  }
-  getActiveModels() {
-    return this.config.models.filter((model) => model.isActive);
-  }
-  getModelsByCapability(capability) {
-    return this.config.models.filter(
-      (model) => model.isActive && model.capabilities.includes(capability)
-    );
-  }
-  calculateCost(modelId, inputTokens, outputTokens) {
-    const model = this.getModel(modelId);
-    if (!model) return 0;
-    const inputCost = inputTokens / 1e6 * model.inputCost;
-    const outputCost = outputTokens / 1e6 * model.outputCost;
-    return inputCost + outputCost;
-  }
-  updateConfig(updates) {
-    this.config = { ...this.config, ...updates };
-    log8.info("Custom server config updated", { updates: Object.keys(updates) });
-  }
-  addCustomModel(model) {
-    this.config.models.push(model);
-    log8.info("Custom model added", { modelId: model.id, name: model.name });
-  }
-  removeModel(modelId) {
-    const index = this.config.models.findIndex((model) => model.id === modelId);
-    if (index !== -1) {
-      this.config.models.splice(index, 1);
-      log8.info("Model removed", { modelId });
-      return true;
-    }
-    return false;
-  }
-  getConfig() {
-    return { ...this.config };
-  }
-  // Rate limiting
-  rateLimitTracker = {
-    requests: [],
-    tokens: []
-  };
-  async checkRateLimit() {
-    const now = Date.now();
-    const oneMinuteAgo = now - 6e4;
-    this.rateLimitTracker.requests = this.rateLimitTracker.requests.filter((time) => time > oneMinuteAgo);
-    this.rateLimitTracker.tokens = this.rateLimitTracker.tokens.filter((time) => time > oneMinuteAgo);
-    if (this.rateLimitTracker.requests.length >= this.config.rateLimit.requestsPerMinute) {
-      log8.warn("Rate limit exceeded for requests");
-      return false;
-    }
-    return true;
-  }
-  recordRequest(tokenCount = 0) {
-    this.rateLimitTracker.requests.push(Date.now());
-    this.rateLimitTracker.tokens.push(tokenCount);
-  }
-};
+});
 
 // ../shared/src/auto-agent.ts
-var log9 = createLogger("auto-agent");
+var log9;
+var init_auto_agent = __esm({
+  "../shared/src/auto-agent.ts"() {
+    "use strict";
+    init_logger();
+    log9 = createLogger("auto-agent");
+  }
+});
 
-// src/app.tsx
-import { Box as Box13, Text as Text15, useApp as useApp2, useInput as useInput7 } from "ink";
-import { useCallback, useEffect, useMemo, useRef, useState as useState7 } from "react";
-
-// src/components/Welcome.tsx
-import { Box, Text as Text3 } from "ink";
-
-// src/components/Mascot.tsx
-import { Text } from "ink";
-import { jsx, jsxs } from "react/jsx-runtime";
-var Mascot = () => {
-  return /* @__PURE__ */ jsxs(Text, { children: [
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "    \u2584\u2584\u2584\u2584\u2584\u2584\u2584    ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "   \u2584\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2588\u2584   ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF8E8E", children: [
-      "  \u2584\u2588\u2591\u2591\u2584\u2591\u2591\u2584\u2591\u2591\u2588\u2584  ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF8E8E", children: [
-      "  \u2588\u2591\u2591\u2591\u2580\u2591\u2591\u2580\u2591\u2591\u2591\u2588  ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "  \u2588\u2591\u2591\u2591\u2591\u2584\u2584\u2591\u2591\u2591\u2591\u2588  ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      "   \u2580\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2588\u2580   ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF4757", children: [
-      "     \u2580\u2580\u2580\u2580\u2580\u2580     ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF4757", children: [
-      "     \u258C    \u258C     ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsx(Text, { color: "#FF4757", children: "     \u258C    \u258C     " })
-  ] });
-};
-var MiniMascot = () => {
-  return /* @__PURE__ */ jsxs(Text, { children: [
-    /* @__PURE__ */ jsxs(Text, { color: "#FF8E8E", children: [
-      "  \u2584\u2584\u2584\u2584\u2584\u2584\u2584  ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF8E8E", children: [
-      " \u2584\u2588\u2584\u2584\u2584\u2584\u2584\u2584\u2588\u2584 ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      " \u2588\u2591\u2591\u2584\u2591\u2591\u2584\u2591\u2591\u2588 ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF6B6B", children: [
-      " \u2588\u2591\u2591\u2580\u2591\u2591\u2580\u2591\u2591\u2588 ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsxs(Text, { color: "#FF4757", children: [
-      "  \u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580  ",
-      "\n"
-    ] }),
-    /* @__PURE__ */ jsx(Text, { color: "#FF4757", children: "  \u2590      \u258C  " })
-  ] });
-};
-
-// src/components/SkyScene.tsx
-import { Text as Text2 } from "ink";
-import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
-var SkyScene = () => {
-  return /* @__PURE__ */ jsxs2(Text2, { children: [
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "     " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                       " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#E8E8E8", children: "\u2588\u2588\u2588\u2588\u2588\u2593\u2593\u2591" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                 " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "         " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#D0D0D0", children: "\u2588\u2588\u2588\u2593\u2591     \u2591\u2591" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "            " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                        " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#B8B8B8", children: "\u2588\u2588\u2588\u2593\u2591        " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "    " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#505050", children: "\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "   " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#707070", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                      " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#A0A0A0", children: "\u2588\u2588\u2588\u2593\u2591        " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "   " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#404040", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "    " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#888888", children: "\u2588\u2588\u2593\u2591\u2591      \u2593" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                             " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#707070", children: "\u2591\u2593\u2593\u2588\u2588\u2588\u2593\u2593\u2591 " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: " " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                 " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#505050", children: "\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "               " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                 " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "              " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                               " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#707070", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "        " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "       " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#404040", children: "\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "               " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#808080", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "         " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "      " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#505050", children: "\u2588\u2588\u2584\u2588\u2588\u2588\u2588\u2588\u2584\u2588\u2588" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                        " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "               " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "       " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "      " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                   " }),
-    "\n"
-  ] });
-};
-var DottedBorder = ({ width = 58 }) => {
-  return /* @__PURE__ */ jsx2(Text2, { color: "#D97736", children: ".".repeat(width) });
-};
-var CompactSkyScene = () => {
-  return /* @__PURE__ */ jsxs2(Text2, { children: [
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "     " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                 " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#E8E8E8", children: "\u2588\u2588\u2588\u2588\u2593\u2593\u2591" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                         " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "         " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#C0C0C0", children: "\u2588\u2588\u2593\u2591   \u2591\u2591" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "          " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                    " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#A0A0A0", children: "\u2588\u2588\u2593\u2591      " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "   " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#505050", children: "\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "   " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#707070", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                  " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#888888", children: "\u2588\u2588\u2593\u2591      " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "  " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#404040", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "  " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "              " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#707070", children: "\u2588\u2593\u2591\u2591    \u2593" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                                           " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2591\u2593\u2593\u2588\u2588\u2593\u2593\u2591" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: " " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                               " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#505050", children: "\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "             " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                               " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "            " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                             " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#707070", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "      " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "     " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#404040", children: "\u2588\u2588\u2588\u2588\u2588\u2588\u2588" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "             " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#808080", children: "\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "       " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "    " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#505050", children: "\u2588\u2588\u2584\u2588\u2588\u2588\u2584\u2588\u2588" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                      " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "             " }),
-    "\n",
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "     " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "#606060", children: "\u2588\u2588\u2588\u2588\u2588\u2588\u2588" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "    " }),
-    /* @__PURE__ */ jsx2(Text2, { color: "white", bold: true, children: "*" }),
-    /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "                 " }),
-    "\n"
-  ] });
-};
-
-// src/components/Welcome.tsx
-import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
-var Welcome = ({ model = "auto" }) => {
-  const cwd = process.cwd();
-  const user = process.env.USER ?? process.env.USERNAME ?? "friend";
-  return /* @__PURE__ */ jsxs3(Box, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsxs3(Text3, { color: "#D97736", children: [
-      CYBERMIND_NAME,
-      " Code v",
-      CYBERMIND_VERSION
-    ] }),
-    /* @__PURE__ */ jsx3(Text3, { color: "#D97736", children: "\u2500".repeat(58) }),
-    /* @__PURE__ */ jsxs3(Box, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsxs3(Box, { flexDirection: "column", width: 40, paddingLeft: 1, children: [
-        /* @__PURE__ */ jsx3(Text3, { bold: true, color: "white", children: "  Welcome back!" }),
-        /* @__PURE__ */ jsx3(Box, { marginTop: 1 }),
-        /* @__PURE__ */ jsx3(CompactSkyScene, {}),
-        /* @__PURE__ */ jsx3(Box, { marginTop: 1 }),
-        /* @__PURE__ */ jsx3(MiniMascot, {}),
-        /* @__PURE__ */ jsx3(Box, { marginTop: 1 }),
-        /* @__PURE__ */ jsxs3(Text3, { color: "gray", children: [
-          "  ",
-          model,
-          " \xB7 API Usage Billing"
-        ] }),
-        /* @__PURE__ */ jsxs3(Text3, { color: "gray", children: [
-          "  ",
-          user,
-          "'s Individual Org"
-        ] }),
-        /* @__PURE__ */ jsx3(Box, { marginTop: 1 }),
-        /* @__PURE__ */ jsxs3(Text3, { color: "gray", children: [
-          "  ",
-          cwd
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxs3(Box, { flexDirection: "column", flexGrow: 1, paddingLeft: 1, children: [
-        /* @__PURE__ */ jsx3(Text3, { color: "#ff9f43", bold: true, children: "Tips for getting started" }),
-        /* @__PURE__ */ jsxs3(Text3, { children: [
-          "Run ",
-          /* @__PURE__ */ jsx3(Text3, { color: "cyan", children: "/init" }),
-          " to create a CYBER.md file with instructions for CyberCoder."
-        ] }),
-        /* @__PURE__ */ jsx3(Box, { marginTop: 1 }),
-        /* @__PURE__ */ jsx3(Text3, { color: "#ff9f43", bold: true, children: "What's new" }),
-        /* @__PURE__ */ jsx3(Text3, { color: "gray", children: "Fixed theme picker to apply colors in real-time across the terminal." }),
-        /* @__PURE__ */ jsx3(Text3, { color: "gray", children: "Added config persistence so login state survives between sessions." }),
-        /* @__PURE__ */ jsx3(Text3, { color: "gray", children: "New 3rd-party platform support: OpenRouter, Groq, local Ollama." }),
-        /* @__PURE__ */ jsxs3(Text3, { color: "gray", children: [
-          "See ",
-          /* @__PURE__ */ jsx3(Text3, { color: "cyan", children: "/release-notes" }),
-          " for the full changelog."
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx3(Text3, { color: "#D97736", children: "\u2500".repeat(58) })
-  ] });
-};
-
-// src/components/Onboarding.tsx
-import { useState } from "react";
-import { Box as Box2, Text as Text4, useInput, useApp, useStdout } from "ink";
-import TextInput from "ink-text-input";
-import { exec } from "child_process";
+// ../shared/src/index.ts
+var init_src = __esm({
+  "../shared/src/index.ts"() {
+    "use strict";
+    init_types();
+    init_logger();
+    init_paths();
+    init_version();
+    init_checkpoint();
+    init_profiles();
+    init_collaboration();
+    init_web_mirror();
+    init_rich_io();
+    init_ecosystem();
+    init_ollama_config();
+    init_custom_server();
+    init_auto_agent();
+  }
+});
 
 // src/utils/config.ts
 import { readFileSync as readFileSync7, writeFileSync as writeFileSync7, existsSync as existsSync8, mkdirSync as mkdirSync7 } from "fs";
 import { homedir as homedir2 } from "os";
 import { join as join8 } from "path";
-var CONFIG_DIR = join8(homedir2(), ".cybercoder");
-var CONFIG_FILE = join8(CONFIG_DIR, "config.json");
-var DEFAULT_CONFIG = {
-  onboardingComplete: false,
-  loginMethod: null,
-  theme: {
-    mode: "dark",
-    syntaxTheme: "Monokai Extended"
-  },
-  apiKeys: {},
-  lastProvider: "auto",
-  lastModel: "auto",
-  user: {},
-  autoUpdateCheck: true,
-  showWelcome: true,
-  telemetry: true,
-  version: "0.1.16"
-};
 function ensureConfigDir() {
   if (!existsSync8(CONFIG_DIR)) {
     mkdirSync7(CONFIG_DIR, { recursive: true });
@@ -1957,7 +1768,9 @@ function clearLogin() {
     onboardingComplete: false,
     loginMethod: null,
     user: {},
-    apiKeys: {}
+    apiKeys: {},
+    authToken: void 0,
+    sessionId: void 0
   });
 }
 function setApiKey(provider, key) {
@@ -1966,40 +1779,4187 @@ function setApiKey(provider, key) {
   apiKeys[provider] = key;
   updateConfig({ apiKeys });
 }
+function setAuthToken(token) {
+  updateConfig({ authToken: token });
+}
+function getAuthToken() {
+  return loadConfig().authToken;
+}
+function setSessionId(sessionId) {
+  updateConfig({ sessionId });
+}
+function getSessionId() {
+  return loadConfig().sessionId;
+}
+function isAuthenticated() {
+  const config = loadConfig();
+  if (config.loginMethod === "cybercli") {
+    return !!config.authToken;
+  }
+  if (config.loginMethod === "apikey") {
+    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.anthropic));
+  }
+  if (config.loginMethod === "thirdparty") {
+    return true;
+  }
+  return false;
+}
+function setUserProfile(profile) {
+  updateConfig({ user: profile });
+}
+function getUserProfile() {
+  return loadConfig().user ?? {};
+}
 function setTheme(mode, syntaxTheme) {
   updateConfig({ theme: { mode, syntaxTheme } });
 }
 function getTheme() {
   return loadConfig().theme ?? DEFAULT_CONFIG.theme;
 }
+var CONFIG_DIR, CONFIG_FILE, DEFAULT_CONFIG;
+var init_config = __esm({
+  "src/utils/config.ts"() {
+    "use strict";
+    CONFIG_DIR = join8(homedir2(), ".cybercoder");
+    CONFIG_FILE = join8(CONFIG_DIR, "config.json");
+    DEFAULT_CONFIG = {
+      onboardingComplete: false,
+      loginMethod: null,
+      theme: {
+        mode: "dark",
+        syntaxTheme: "Monokai Extended"
+      },
+      apiKeys: {},
+      lastProvider: "auto",
+      lastModel: "auto",
+      user: {},
+      authToken: void 0,
+      sessionId: void 0,
+      autoUpdateCheck: true,
+      showWelcome: true,
+      telemetry: true,
+      version: "0.1.16"
+    };
+  }
+});
+
+// ../core/src/context.ts
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+function estimateMessagesTokens(messages) {
+  let total = 0;
+  for (const m of messages) {
+    total += estimateTokens(m.content);
+    if (m.toolCalls) {
+      for (const tc of m.toolCalls) {
+        total += estimateTokens(tc.name) + estimateTokens(JSON.stringify(tc.input));
+      }
+    }
+  }
+  return total;
+}
+function trimToolOutput(output, opts = {}) {
+  const maxChars = opts.maxChars ?? 12e3;
+  if (output.length <= maxChars) return output;
+  const headTail = opts.headTail ?? Math.floor(maxChars / 2) - 40;
+  const head = output.slice(0, headTail);
+  const tail = output.slice(output.length - headTail);
+  const elided = output.length - head.length - tail.length;
+  return `${head}
+
+\u2026 [${elided} chars elided to save context \u2014 re-read with offset/limit if you need the middle] \u2026
+
+${tail}`;
+}
+function manageContext(messages, budget) {
+  const highWater = budget.highWater ?? 0.75;
+  const keepRecent = budget.keepRecent ?? 6;
+  const limit = Math.floor(budget.windowTokens * highWater);
+  const tokens = estimateMessagesTokens(messages);
+  if (tokens <= limit || messages.length <= keepRecent + 1) {
+    return { messages, compacted: false, tokens };
+  }
+  const splitAt = messages.length - keepRecent;
+  const old = messages.slice(0, splitAt);
+  let recent = messages.slice(splitAt);
+  while (recent.length && recent[0].role === "tool") {
+    recent = recent.slice(1);
+  }
+  const synopsis = condense(old);
+  const synopsisMsg = {
+    role: "system",
+    content: synopsis
+  };
+  const next = [synopsisMsg, ...recent];
+  return {
+    messages: next,
+    compacted: true,
+    tokens: estimateMessagesTokens(next),
+    note: `context auto-compacted: ${old.length} older turns \u2192 synopsis (${tokens} \u2192 ~${estimateMessagesTokens(next)} tok)`
+  };
+}
+function condense(old) {
+  const userAsks = [];
+  const toolActions = [];
+  let lastAssistant = "";
+  for (const m of old) {
+    if (m.role === "user") {
+      const oneLine = m.content.replace(/\s+/g, " ").trim().slice(0, 160);
+      if (oneLine) userAsks.push(oneLine);
+    } else if (m.role === "assistant") {
+      if (m.content.trim()) lastAssistant = m.content.replace(/\s+/g, " ").trim().slice(0, 240);
+      for (const tc of m.toolCalls ?? []) {
+        const target = tc.input.path || tc.input.command || tc.input.pattern || "";
+        toolActions.push(`${tc.name}(${String(target).slice(0, 60)})`);
+      }
+    }
+  }
+  const parts = ["[Earlier conversation compacted to save context]"];
+  if (userAsks.length) parts.push(`Goals: ${userAsks.slice(-4).join(" | ")}`);
+  if (toolActions.length) {
+    const uniq = Array.from(new Set(toolActions)).slice(-12);
+    parts.push(`Actions taken: ${uniq.join(", ")}`);
+  }
+  if (lastAssistant) parts.push(`Last note: ${lastAssistant}`);
+  return parts.join("\n");
+}
+function windowForModel(model) {
+  const m = model.toLowerCase();
+  if (m.includes("gpt-4o") || m.includes("claude") || m.includes("gemini-1.5") || m.includes("gemini-2")) return 128e3;
+  if (m.includes("llama-3.1") || m.includes("llama-3.3")) return 128e3;
+  if (m.includes("mixtral") || m.includes("mistral")) return 32e3;
+  if (m.includes("gemma")) return 8192;
+  return 16e3;
+}
+var init_context = __esm({
+  "../core/src/context.ts"() {
+    "use strict";
+  }
+});
+
+// ../core/src/agent-loop.ts
+async function* runAgentLoop(messages, opts) {
+  const tools = opts.tools ?? [];
+  const toolMap = new Map(tools.map((t) => [t.schema.name, t]));
+  const toolSchemas = tools.map((t) => t.schema);
+  const max = opts.maxIterations ?? 10;
+  const ctx = { cwd: process.cwd() };
+  const maxToolChars = opts.maxToolOutputChars ?? 12e3;
+  const budget = {
+    windowTokens: opts.contextBudget?.windowTokens ?? windowForModel(opts.model ?? "auto"),
+    highWater: opts.contextBudget?.highWater ?? 0.75,
+    keepRecent: opts.contextBudget?.keepRecent ?? 6
+  };
+  let buffer = [...messages];
+  for (let iter = 0; iter < max; iter++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted" };
+      return;
+    }
+    yield { type: "iteration", index: iter, max };
+    const managed = manageContext(buffer, budget);
+    if (managed.compacted) {
+      buffer = managed.messages;
+      yield { type: "context", note: managed.note ?? "context compacted", tokens: managed.tokens };
+    }
+    const req = {
+      model: opts.model ?? "auto",
+      messages: buffer,
+      systemPrompt: opts.systemPrompt,
+      tools: toolSchemas.length > 0 ? toolSchemas : void 0,
+      signal: opts.signal
+    };
+    let assistantText = "";
+    let assistantToolCalls = [];
+    let stopReason = { type: "done", reason: "end_turn" };
+    let attempt = 0;
+    while (true) {
+      assistantText = "";
+      assistantToolCalls = [];
+      stopReason = { type: "done", reason: "end_turn" };
+      let sawError;
+      for await (const chunk of opts.provider.chat(req)) {
+        if (chunk.type === "text") {
+          assistantText += chunk.text;
+          yield { type: "text", text: chunk.text };
+        } else if (chunk.type === "tool_call") {
+          assistantToolCalls.push(chunk.toolCall);
+          yield {
+            type: "tool_call",
+            name: chunk.toolCall.name,
+            input: chunk.toolCall.input,
+            id: chunk.toolCall.id
+          };
+        } else if (chunk.type === "usage") {
+          yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+        } else if (chunk.type === "done") {
+          stopReason = chunk;
+          if (chunk.reason === "error") sawError = chunk.error;
+        }
+      }
+      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
+        attempt++;
+        log10.warn("provider transient error; retrying once", { error: sawError });
+        yield { type: "context", note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
+        await delay(400);
+        continue;
+      }
+      break;
+    }
+    buffer.push({
+      role: "assistant",
+      content: assistantText,
+      toolCalls: assistantToolCalls.length ? assistantToolCalls : void 0
+    });
+    if (stopReason.reason === "error") {
+      yield { type: "done", reason: "error", error: stopReason.error };
+      return;
+    }
+    if (assistantToolCalls.length === 0) {
+      yield { type: "done", reason: "end_turn" };
+      return;
+    }
+    const results = await executeToolCalls(assistantToolCalls, toolMap, ctx, maxToolChars);
+    for (const r of results) {
+      yield { type: "tool_result", name: r.name, id: r.id, output: r.output, ok: r.ok };
+      buffer.push({ role: "tool", content: r.output, toolCallId: r.id });
+    }
+  }
+  yield { type: "done", reason: "max_iterations" };
+}
+async function executeToolCalls(calls, toolMap, ctx, maxToolChars) {
+  const results = new Array(calls.length);
+  const runOne = async (tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (!tool) {
+      results[index] = { name: tc.name, id: tc.id, output: `Tool '${tc.name}' is not registered.`, ok: false };
+      return;
+    }
+    try {
+      if (ctx.approve) {
+        const ok = await ctx.approve(tc.name, tc.input);
+        if (!ok) {
+          results[index] = { name: tc.name, id: tc.id, output: `[user denied tool '${tc.name}']`, ok: false };
+          return;
+        }
+      }
+      let output = await tool.execute(tc.input, ctx);
+      if (tool.verify) {
+        const problem = await tool.verify(tc.input, output, ctx);
+        if (problem) {
+          results[index] = {
+            name: tc.name,
+            id: tc.id,
+            output: `${output}
+
+[verify] ${problem}`,
+            ok: false
+          };
+          return;
+        }
+      }
+      output = trimToolOutput(output, { maxChars: maxToolChars });
+      results[index] = { name: tc.name, id: tc.id, output, ok: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log10.error("tool execution failed", { tool: tc.name, err: msg });
+      results[index] = { name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
+    }
+  };
+  const parallel = [];
+  const sequential = [];
+  calls.forEach((tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (tool && tool.destructive) {
+      sequential.push({ tc, index });
+    } else {
+      parallel.push(runOne(tc, index));
+    }
+  });
+  await Promise.all(parallel);
+  for (const { tc, index } of sequential) {
+    await runOne(tc, index);
+  }
+  return results;
+}
+function isTransient(error) {
+  const e = error.toLowerCase();
+  return e.includes("429") || e.includes("rate limit") || e.includes("timeout") || e.includes("econnreset") || e.includes("etimedout") || e.includes("503") || e.includes("502") || e.includes("overloaded") || e.includes("fetch failed");
+}
+function delay(ms) {
+  return new Promise((resolve13) => setTimeout(resolve13, ms));
+}
+var log10;
+var init_agent_loop = __esm({
+  "../core/src/agent-loop.ts"() {
+    "use strict";
+    init_src();
+    init_context();
+    log10 = createLogger("core:agent");
+  }
+});
+
+// ../core/src/consensus.ts
+async function runConsensus(messages, opts) {
+  const timeout = opts.timeoutMs ?? 6e4;
+  const tasks = opts.providers.map(async (p2, i) => {
+    const req = {
+      model: opts.models?.[i] ?? "auto",
+      messages,
+      systemPrompt: opts.systemPrompt
+    };
+    const out = { text: "" };
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeout);
+    try {
+      for await (const chunk of p2.chat({ ...req, signal: ac.signal })) {
+        if (chunk.type === "text") out.text += chunk.text;
+        else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
+      }
+    } catch (err) {
+      out.error = err instanceof Error ? err.message : String(err);
+    } finally {
+      clearTimeout(timer);
+    }
+    return { provider: p2.info.id, model: req.model, text: out.text, error: out.error };
+  });
+  const perProvider = await Promise.all(tasks);
+  const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
+  return { perProvider, merged };
+}
+function mergeAnswers(answers) {
+  if (answers.length === 0) return "";
+  if (answers.length === 1) return answers[0] ?? "";
+  const sorted = [...answers].sort((a, b) => b.length - a.length);
+  const spine = sorted[0] ?? "";
+  const seen = new Set(spine.split("\n").map((l) => l.trim()));
+  const extras = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const lines = (sorted[i] ?? "").split("\n");
+    for (const line of lines) {
+      const t = line.trim();
+      if (t.length > 0 && !seen.has(t)) {
+        seen.add(t);
+        extras.push(line);
+      }
+    }
+  }
+  return extras.length > 0 ? `${spine}
+
+--- additional perspectives ---
+${extras.join("\n")}` : spine;
+}
+var init_consensus = __esm({
+  "../core/src/consensus.ts"() {
+    "use strict";
+  }
+});
+
+// ../core/src/plan-act.ts
+async function* runGoal(initialMessages, opts) {
+  const maxRounds = opts.maxRounds ?? 8;
+  const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
+  const buffer = [...initialMessages];
+  for (let round = 0; round < maxRounds; round++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted", round };
+      return;
+    }
+    let roundText = "";
+    let endedTurn = false;
+    for await (const evt of runAgentLoop(buffer, {
+      provider: opts.provider,
+      systemPrompt: system,
+      model: opts.model ?? "auto",
+      tools: opts.tools,
+      signal: opts.signal
+    })) {
+      if (evt.type === "text") roundText += evt.text;
+      if (evt.type === "done") endedTurn = true;
+      yield { ...evt, round };
+    }
+    buffer.push({ role: "assistant", content: roundText });
+    if (roundText.includes(GOAL_SENTINEL)) {
+      yield { type: "done", reason: "end_turn", round };
+      return;
+    }
+    if (!endedTurn) {
+      return;
+    }
+    buffer.push({
+      role: "user",
+      content: `Continue working toward the goal. If it is fully done and verified, reply with ${GOAL_SENTINEL}.`
+    });
+  }
+  yield { type: "done", reason: "max_iterations" };
+}
+var GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
+var init_plan_act = __esm({
+  "../core/src/plan-act.ts"() {
+    "use strict";
+    init_agent_loop();
+    GOAL_SENTINEL = "GOAL_COMPLETE";
+    GOAL_SYSTEM_SUFFIX = `
+
+You are working toward a GOAL until it is fully achieved.
+After each round, assess whether the goal is met. When \u2014 and only when \u2014 the goal
+is fully complete and verified, end your message with the exact token ${GOAL_SENTINEL}
+on its own line. If not complete, keep going: take the next concrete action.`;
+  }
+});
+
+// ../core/src/index.ts
+var init_src2 = __esm({
+  "../core/src/index.ts"() {
+    "use strict";
+    init_agent_loop();
+    init_consensus();
+    init_context();
+    init_plan_act();
+  }
+});
+
+// ../providers/src/types.ts
+import { z as z8 } from "zod";
+var ProviderRoleSchema;
+var init_types2 = __esm({
+  "../providers/src/types.ts"() {
+    "use strict";
+    ProviderRoleSchema = z8.enum(["system", "user", "assistant", "tool"]);
+  }
+});
+
+// ../providers/src/anthropic.ts
+import Anthropic from "@anthropic-ai/sdk";
+function splitSystem(messages, systemPrompt) {
+  const sysFromMessages = messages.filter((m) => m.role === "system").map((m) => m.content);
+  const rest = messages.filter((m) => m.role !== "system");
+  const system = [systemPrompt ?? "", ...sysFromMessages].filter(Boolean).join("\n\n");
+  return { system, messages: rest };
+}
+function toAnthropicMessage(m) {
+  if (m.role === "tool") {
+    return {
+      role: "user",
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: m.toolCallId ?? "",
+          content: m.content
+        }
+      ]
+    };
+  }
+  if (m.role === "assistant" && m.toolCalls?.length) {
+    const blocks = [];
+    if (m.content) blocks.push({ type: "text", text: m.content });
+    for (const tc of m.toolCalls) {
+      blocks.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.input });
+    }
+    return { role: "assistant", content: blocks };
+  }
+  return {
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: m.content
+  };
+}
+function toAnthropicTool(t) {
+  return {
+    name: t.name,
+    description: t.description,
+    input_schema: t.inputSchema
+  };
+}
+function withToolCaching(tools) {
+  if (!tools || tools.length === 0) return tools;
+  const out = tools.slice();
+  const last = out[out.length - 1];
+  out[out.length - 1] = { ...last, cache_control: { type: "ephemeral" } };
+  return out;
+}
+var log11, AnthropicProvider;
+var init_anthropic = __esm({
+  "../providers/src/anthropic.ts"() {
+    "use strict";
+    init_src();
+    log11 = createLogger("providers:anthropic");
+    AnthropicProvider = class {
+      info;
+      client;
+      defaultModel;
+      constructor(opts = {}) {
+        const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+        this.client = new Anthropic({
+          apiKey: apiKey ?? "",
+          baseURL: opts.baseURL
+        });
+        this.defaultModel = opts.defaultModel ?? "claude-3-5-sonnet-latest";
+        this.info = {
+          id: "anthropic",
+          displayName: "Anthropic",
+          requiresNetwork: true,
+          ready: Boolean(apiKey)
+        };
+      }
+      async listModels() {
+        return [
+          "claude-3-5-sonnet-latest",
+          "claude-3-5-haiku-latest",
+          "claude-3-opus-latest",
+          "claude-sonnet-4-5",
+          "claude-opus-4"
+        ];
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        const { system, messages } = splitSystem(req.messages, req.systemPrompt);
+        log11.debug("anthropic chat", { model, messages: messages.length, tools: req.tools?.length ?? 0 });
+        try {
+          const stream = this.client.messages.stream({
+            model,
+            max_tokens: req.maxTokens ?? 4096,
+            temperature: req.temperature,
+            // Cache the (constant) system prompt across loop iterations so re-sends
+            // are billed at the cheap cache-read rate instead of full input rate.
+            // (cache_control is runtime-supported; the pinned SDK types predate it.)
+            system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : void 0,
+            messages: messages.map(toAnthropicMessage),
+            tools: withToolCaching(req.tools?.map(toAnthropicTool))
+          });
+          const inflightToolCalls = /* @__PURE__ */ new Map();
+          for await (const event2 of stream) {
+            if (event2.type === "content_block_start") {
+              if (event2.content_block.type === "tool_use") {
+                inflightToolCalls.set(event2.index, {
+                  id: event2.content_block.id,
+                  name: event2.content_block.name,
+                  input: {}
+                });
+              }
+            } else if (event2.type === "content_block_delta") {
+              if (event2.delta.type === "text_delta") {
+                yield { type: "text", text: event2.delta.text };
+              } else if (event2.delta.type === "input_json_delta") {
+                const tc = inflightToolCalls.get(event2.index);
+                if (tc) {
+                  tc._raw = (tc._raw ?? "") + event2.delta.partial_json;
+                }
+              }
+            } else if (event2.type === "content_block_stop") {
+              const tc = inflightToolCalls.get(event2.index);
+              if (tc) {
+                const raw = tc._raw ?? "{}";
+                try {
+                  tc.input = raw.length > 0 ? JSON.parse(raw) : {};
+                } catch (err) {
+                  log11.warn("failed to parse tool input json", { raw, err: String(err) });
+                  tc.input = {};
+                }
+                yield { type: "tool_call", toolCall: { id: tc.id, name: tc.name, input: tc.input } };
+                inflightToolCalls.delete(event2.index);
+              }
+            } else if (event2.type === "message_delta") {
+              if (event2.usage) {
+                yield { type: "usage", inputTokens: 0, outputTokens: event2.usage.output_tokens ?? 0 };
+              }
+            } else if (event2.type === "message_stop") {
+            }
+          }
+          const final = await stream.finalMessage();
+          yield {
+            type: "done",
+            reason: final.stop_reason === "tool_use" ? "tool_use" : final.stop_reason === "max_tokens" ? "max_tokens" : final.stop_reason === "end_turn" ? "end_turn" : "stop"
+          };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log11.error("anthropic chat failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/cybermind-cloud.ts
+var DEFAULT_BASE_URL, CybermindCloudProvider;
+var init_cybermind_cloud = __esm({
+  "../providers/src/cybermind-cloud.ts"() {
+    "use strict";
+    init_anthropic();
+    DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com";
+    CybermindCloudProvider = class extends AnthropicProvider {
+      info;
+      constructor(opts = {}) {
+        const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY;
+        super({
+          apiKey,
+          baseURL: opts.baseURL ?? DEFAULT_BASE_URL,
+          defaultModel: opts.defaultModel ?? "cybermind-default"
+        });
+        this.info = {
+          id: "cybermind-cloud",
+          displayName: "Codeva Cloud",
+          requiresNetwork: true,
+          ready: Boolean(apiKey)
+        };
+      }
+    };
+  }
+});
+
+// ../providers/src/ollama.ts
+function toOllamaMessage(m) {
+  if (m.role === "tool") {
+    return { role: "tool", content: m.content, tool_call_id: m.toolCallId };
+  }
+  return { role: m.role, content: m.content };
+}
+var log12, OllamaProvider;
+var init_ollama = __esm({
+  "../providers/src/ollama.ts"() {
+    "use strict";
+    init_src();
+    log12 = createLogger("providers:ollama");
+    OllamaProvider = class {
+      info;
+      baseURL;
+      defaultModel;
+      constructor(opts = {}) {
+        this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
+        this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? "llama3.1";
+        this.info = {
+          id: "ollama",
+          displayName: "Ollama (local)",
+          requiresNetwork: false,
+          ready: true
+          // Optimistic; reachability is checked lazily on first call.
+        };
+      }
+      async listModels() {
+        try {
+          const res = await fetch(`${this.baseURL}/api/tags`, { method: "GET" });
+          if (!res.ok) return [];
+          const json = await res.json();
+          return json.models?.map((m) => m.name) ?? [];
+        } catch (err) {
+          log12.warn("ollama listModels failed", String(err));
+          return [];
+        }
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        log12.debug("ollama chat", { model, messages: req.messages.length });
+        const body = {
+          model,
+          messages: [
+            ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
+            ...req.messages.map(toOllamaMessage)
+          ],
+          stream: true,
+          options: {
+            temperature: req.temperature,
+            num_predict: req.maxTokens
+          },
+          tools: req.tools?.map((t) => ({
+            type: "function",
+            function: { name: t.name, description: t.description, parameters: t.inputSchema }
+          }))
+        };
+        try {
+          const res = await fetch(`${this.baseURL}/api/chat`, {
+            method: "POST",
+            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json" },
+            signal: req.signal
+          });
+          if (!res.ok || !res.body) {
+            yield {
+              type: "done",
+              reason: "error",
+              error: `ollama HTTP ${res.status}: ${await res.text().catch(() => res.statusText)}`
+            };
+            return;
+          }
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let done = false;
+          let stopReason = { type: "done", reason: "stop" };
+          while (!done) {
+            const { value, done: chunkDone } = await reader.read();
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                  const evt = JSON.parse(trimmed);
+                  if (evt.message?.content) {
+                    yield { type: "text", text: evt.message.content };
+                  }
+                  if (evt.message?.tool_calls?.length) {
+                    for (const raw of evt.message.tool_calls) {
+                      const tc = {
+                        id: raw.id ?? `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        name: raw.function.name,
+                        input: raw.function.arguments ?? {}
+                      };
+                      yield { type: "tool_call", toolCall: tc };
+                    }
+                  }
+                  if (evt.done) {
+                    if (evt.eval_count != null && evt.prompt_eval_count != null) {
+                      yield {
+                        type: "usage",
+                        inputTokens: evt.prompt_eval_count,
+                        outputTokens: evt.eval_count
+                      };
+                    }
+                    stopReason = {
+                      type: "done",
+                      reason: evt.done_reason === "length" ? "max_tokens" : evt.message?.tool_calls?.length ? "tool_use" : "end_turn"
+                    };
+                    done = true;
+                    break;
+                  }
+                } catch (err) {
+                  log12.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
+                }
+              }
+            }
+            if (chunkDone) done = true;
+          }
+          yield stopReason;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log12.error("ollama chat failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/openai.ts
+function toOpenAIMessage(m) {
+  if (m.role === "tool") {
+    return {
+      role: "tool",
+      content: m.content,
+      tool_call_id: m.toolCallId
+    };
+  }
+  if (m.role === "assistant" && m.toolCalls?.length) {
+    return {
+      role: "assistant",
+      content: m.content || null,
+      tool_calls: m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: "function",
+        function: {
+          name: tc.name,
+          arguments: JSON.stringify(tc.input)
+        }
+      }))
+    };
+  }
+  return {
+    role: m.role,
+    content: m.content
+  };
+}
+function toOpenAITool(t) {
+  return {
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema
+    }
+  };
+}
+var log13, OpenAIProvider;
+var init_openai = __esm({
+  "../providers/src/openai.ts"() {
+    "use strict";
+    init_src();
+    log13 = createLogger("providers:openai");
+    OpenAIProvider = class {
+      info;
+      apiKey;
+      baseURL;
+      defaultModel;
+      constructor(opts = {}, providerId = "openai", displayName = "OpenAI") {
+        this.apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY ?? "";
+        this.baseURL = opts.baseURL ?? "https://api.openai.com/v1";
+        this.defaultModel = opts.defaultModel ?? "gpt-4o-mini";
+        this.info = {
+          id: providerId,
+          displayName,
+          requiresNetwork: true,
+          ready: Boolean(this.apiKey)
+        };
+      }
+      async listModels() {
+        return ["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview"];
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        log13.debug("openai chat", { model, messages: req.messages.length });
+        const messages = [
+          ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
+          ...req.messages.map(toOpenAIMessage)
+        ];
+        const body = {
+          model,
+          messages,
+          stream: true,
+          temperature: req.temperature ?? 0.7,
+          max_tokens: req.maxTokens ?? 4096,
+          stream_options: { include_usage: true }
+        };
+        if (req.tools?.length) {
+          body.tools = req.tools.map(toOpenAITool);
+        }
+        try {
+          const res = await fetch(`${this.baseURL}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify(body),
+            signal: req.signal
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => res.statusText);
+            yield {
+              type: "done",
+              reason: "error",
+              error: `OpenAI HTTP ${res.status}: ${errText}`
+            };
+            return;
+          }
+          if (!res.body) {
+            yield { type: "done", reason: "error", error: "Response body is null" };
+            return;
+          }
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let done = false;
+          const toolCallsMap = /* @__PURE__ */ new Map();
+          let usageInfo = null;
+          while (!done) {
+            const { value, done: chunkDone } = await reader.read();
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                if (trimmed === "data: [DONE]") {
+                  done = true;
+                  break;
+                }
+                if (trimmed.startsWith("data: ")) {
+                  try {
+                    const json = JSON.parse(trimmed.slice(6));
+                    if (json.usage) {
+                      usageInfo = json.usage;
+                    }
+                    const choice = json.choices?.[0];
+                    if (!choice) continue;
+                    if (choice.delta?.content) {
+                      yield { type: "text", text: choice.delta.content };
+                    }
+                    if (choice.delta?.tool_calls) {
+                      for (const tcDelta of choice.delta.tool_calls) {
+                        const idx = tcDelta.index ?? 0;
+                        let tc = toolCallsMap.get(idx);
+                        if (!tc) {
+                          tc = { id: tcDelta.id, name: tcDelta.function?.name, arguments: "" };
+                          toolCallsMap.set(idx, tc);
+                        }
+                        if (tcDelta.id) tc.id = tcDelta.id;
+                        if (tcDelta.function?.name) tc.name = tcDelta.function.name;
+                        if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
+                      }
+                    }
+                  } catch (err) {
+                  }
+                }
+              }
+            }
+            if (chunkDone) done = true;
+          }
+          for (const [, tc] of toolCallsMap) {
+            if (tc.id && tc.name) {
+              let parsedArgs = {};
+              try {
+                parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
+              } catch (e) {
+                log13.warn("Failed to parse tool arguments JSON", tc.arguments);
+              }
+              yield {
+                type: "tool_call",
+                toolCall: {
+                  id: tc.id,
+                  name: tc.name,
+                  input: parsedArgs
+                }
+              };
+            }
+          }
+          if (usageInfo) {
+            yield {
+              type: "usage",
+              inputTokens: usageInfo.prompt_tokens,
+              outputTokens: usageInfo.completion_tokens
+            };
+          }
+          yield { type: "done", reason: toolCallsMap.size > 0 ? "tool_use" : "end_turn" };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log13.error("openai stream failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/groq.ts
+var GroqProvider;
+var init_groq = __esm({
+  "../providers/src/groq.ts"() {
+    "use strict";
+    init_openai();
+    GroqProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.GROQ_API_KEY,
+            baseURL: opts.baseURL ?? "https://api.groq.com/openai/v1",
+            defaultModel: opts.defaultModel ?? "llama-3.3-70b-versatile"
+          },
+          "groq",
+          "Groq"
+        );
+      }
+      async listModels() {
+        return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+      }
+    };
+  }
+});
+
+// ../providers/src/google.ts
+var GoogleProvider;
+var init_google = __esm({
+  "../providers/src/google.ts"() {
+    "use strict";
+    init_openai();
+    GoogleProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY,
+            baseURL: opts.baseURL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
+            defaultModel: opts.defaultModel ?? "gemini-2.5-flash"
+          },
+          "gemini",
+          "Google Gemini"
+        );
+      }
+      async listModels() {
+        return ["gemini-2.5-flash", "gemini-2.5-pro"];
+      }
+    };
+  }
+});
+
+// ../providers/src/openrouter.ts
+var OpenRouterProvider;
+var init_openrouter = __esm({
+  "../providers/src/openrouter.ts"() {
+    "use strict";
+    init_openai();
+    OpenRouterProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.OPENROUTER_API_KEY,
+            baseURL: opts.baseURL ?? "https://openrouter.ai/api/v1",
+            defaultModel: opts.defaultModel ?? "google/gemini-2.5-flash"
+          },
+          "openrouter",
+          "OpenRouter"
+        );
+      }
+      async listModels() {
+        return [
+          "google/gemini-2.5-flash",
+          "google/gemini-2.5-pro",
+          "meta-llama/llama-3.3-70b-instruct",
+          "deepseek/deepseek-r1-distill-llama-70b",
+          "anthropic/claude-3.5-sonnet"
+        ];
+      }
+    };
+  }
+});
+
+// ../providers/src/router.ts
+var log14, ProviderRouter;
+var init_router = __esm({
+  "../providers/src/router.ts"() {
+    "use strict";
+    init_src();
+    init_anthropic();
+    init_cybermind_cloud();
+    init_ollama();
+    init_openai();
+    init_groq();
+    init_google();
+    init_openrouter();
+    log14 = createLogger("providers:router");
+    ProviderRouter = class {
+      info;
+      providers = /* @__PURE__ */ new Map();
+      preferred;
+      fallback;
+      constructor(opts = {}) {
+        this.providers.set("anthropic", new AnthropicProvider(opts.anthropic));
+        this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
+        this.providers.set("openai", new OpenAIProvider(opts.openai));
+        this.providers.set("groq", new GroqProvider(opts.groq));
+        this.providers.set("gemini", new GoogleProvider(opts.google));
+        this.providers.set("openrouter", new OpenRouterProvider(opts.openrouter));
+        const ollama = new OllamaProvider(opts.ollama);
+        this.providers.set("ollama", ollama);
+        this.fallback = opts.fallback ?? ollama;
+        this.preferred = opts.preferred ?? ["cybermind-cloud", "anthropic", "ollama"];
+        const active = this.activeProvider();
+        this.info = {
+          id: active.info.id,
+          displayName: `Router (${active.info.displayName})`,
+          requiresNetwork: active.info.requiresNetwork,
+          ready: active.info.ready
+        };
+      }
+      /** First preferred-and-ready provider, or the fallback. */
+      activeProvider() {
+        for (const id of this.preferred) {
+          const p2 = this.providers.get(id);
+          if (p2?.info.ready) return p2;
+        }
+        return this.fallback;
+      }
+      get(id) {
+        return this.providers.get(id);
+      }
+      async listModels() {
+        return this.activeProvider().listModels();
+      }
+      async *chat(req) {
+        const primary = this.activeProvider();
+        log14.debug("routing chat", { primary: primary.info.id });
+        let primaryYieldedSomething = false;
+        let primaryError;
+        for await (const chunk of primary.chat(req)) {
+          if (chunk.type === "done" && chunk.reason === "error" && !primaryYieldedSomething) {
+            primaryError = chunk.error;
+            break;
+          }
+          primaryYieldedSomething = true;
+          yield chunk;
+        }
+        if (primaryError !== void 0 && primary !== this.fallback) {
+          log14.warn("primary provider failed; falling back", {
+            primary: primary.info.id,
+            fallback: this.fallback.info.id,
+            error: primaryError
+          });
+          yield {
+            type: "text",
+            text: `
+[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.
+`
+          };
+          yield* this.fallback.chat(req);
+        } else if (primaryError !== void 0) {
+          yield { type: "done", reason: "error", error: primaryError };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/index.ts
+var init_src3 = __esm({
+  "../providers/src/index.ts"() {
+    "use strict";
+    init_types2();
+    init_router();
+    init_anthropic();
+    init_ollama();
+    init_cybermind_cloud();
+    init_openai();
+    init_groq();
+    init_google();
+    init_openrouter();
+  }
+});
+
+// ../tools/src/approval.ts
+import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8 } from "fs";
+import { dirname } from "path";
+function loadTrustStore() {
+  const path2 = getTrustPath();
+  if (!existsSync9(path2)) return { tools: [] };
+  try {
+    const raw = readFileSync8(path2, "utf8");
+    const parsed = JSON.parse(raw);
+    return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
+  } catch (err) {
+    log15.warn("failed to load trust store", String(err));
+    return { tools: [] };
+  }
+}
+function saveTrustStore(store) {
+  const path2 = getTrustPath();
+  if (!existsSync9(dirname(path2))) mkdirSync8(dirname(path2), { recursive: true });
+  writeFileSync8(path2, JSON.stringify(store, null, 2), "utf8");
+}
+var log15, ApprovalGate, HeadlessApprovalUI;
+var init_approval = __esm({
+  "../tools/src/approval.ts"() {
+    "use strict";
+    init_src();
+    log15 = createLogger("tools:approval");
+    ApprovalGate = class {
+      constructor(ui) {
+        this.ui = ui;
+        this.persistent = new Set(loadTrustStore().tools);
+      }
+      ui;
+      persistent;
+      sessionAllow = /* @__PURE__ */ new Set();
+      mode = "always-ask";
+      setMode(mode) {
+        this.mode = mode;
+      }
+      /** True if the tool is already trusted (either persistently or for the session). */
+      isTrusted(toolName) {
+        return this.persistent.has(toolName) || this.sessionAllow.has(toolName);
+      }
+      /** Trust a tool persistently — written to ~/.cybermind/trust.json. */
+      trustPersistent(toolName) {
+        this.persistent.add(toolName);
+        saveTrustStore({ tools: [...this.persistent] });
+        log15.info("tool persistently trusted", { toolName });
+      }
+      /** Revoke persistent trust. */
+      revoke(toolName) {
+        this.persistent.delete(toolName);
+        this.sessionAllow.delete(toolName);
+        saveTrustStore({ tools: [...this.persistent] });
+      }
+      listTrusted() {
+        return { persistent: [...this.persistent], session: [...this.sessionAllow] };
+      }
+      /**
+       * Main entry point used by the agent loop. Returns true when the tool call
+       * may proceed; false when the user denied.
+       */
+      async request(prompt) {
+        if (this.mode === "persistent-bypass") return true;
+        if (this.isTrusted(prompt.toolName)) return true;
+        if (this.mode === "session-bypass" && !prompt.destructive) return true;
+        const decision = await this.ui.ask(prompt);
+        switch (decision) {
+          case "allow":
+            return true;
+          case "allow-session":
+            this.sessionAllow.add(prompt.toolName);
+            return true;
+          case "allow-persistent":
+            this.trustPersistent(prompt.toolName);
+            return true;
+          case "deny":
+          default:
+            return false;
+        }
+      }
+    };
+    HeadlessApprovalUI = class {
+      async ask(prompt) {
+        return prompt.destructive ? "deny" : "allow";
+      }
+    };
+  }
+});
+
+// ../tools/src/secrets.ts
+import { existsSync as existsSync10, mkdirSync as mkdirSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync9 } from "fs";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
+var log16, ALGO, IV_LEN, SALT_LEN, KEY_LEN, SecretsVault;
+var init_secrets = __esm({
+  "../tools/src/secrets.ts"() {
+    "use strict";
+    init_src();
+    log16 = createLogger("tools:secrets");
+    ALGO = "aes-256-gcm";
+    IV_LEN = 12;
+    SALT_LEN = 16;
+    KEY_LEN = 32;
+    SecretsVault = class {
+      cache = null;
+      list() {
+        return Object.keys(this.load());
+      }
+      get(name) {
+        return this.load()[name];
+      }
+      set(name, value) {
+        const all = this.load();
+        all[name] = value;
+        this.save(all);
+      }
+      remove(name) {
+        const all = this.load();
+        if (!(name in all)) return false;
+        delete all[name];
+        this.save(all);
+        return true;
+      }
+      /** Merge the vault into a process env-like object for tool execution. */
+      injectInto(env) {
+        return { ...env, ...this.load() };
+      }
+      load() {
+        if (this.cache) return this.cache;
+        const path2 = getSecretsPath();
+        if (!existsSync10(path2)) {
+          this.cache = {};
+          return this.cache;
+        }
+        try {
+          const buf = readFileSync9(path2);
+          const salt = buf.subarray(0, SALT_LEN);
+          const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
+          const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
+          const ciphertext = buf.subarray(SALT_LEN + IV_LEN + 16);
+          const key = scryptSync(this.pepper(), salt, KEY_LEN);
+          const decipher = createDecipheriv(ALGO, key, iv);
+          decipher.setAuthTag(tag);
+          const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+          this.cache = JSON.parse(plain.toString("utf8"));
+          return this.cache;
+        } catch (err) {
+          log16.error("failed to decrypt secrets vault; treating as empty", String(err));
+          this.cache = {};
+          return this.cache;
+        }
+      }
+      save(all) {
+        const path2 = getSecretsPath();
+        if (!existsSync10(getHomeDir())) mkdirSync9(getHomeDir(), { recursive: true });
+        const salt = randomBytes(SALT_LEN);
+        const iv = randomBytes(IV_LEN);
+        const key = scryptSync(this.pepper(), salt, KEY_LEN);
+        const cipher = createCipheriv(ALGO, key, iv);
+        const ciphertext = Buffer.concat([cipher.update(JSON.stringify(all), "utf8"), cipher.final()]);
+        const tag = cipher.getAuthTag();
+        writeFileSync9(path2, Buffer.concat([salt, iv, tag, ciphertext]));
+        this.cache = { ...all };
+      }
+      /**
+       * Stable per-machine pepper. Not a secret — just makes the encrypted file
+       * non-portable between machines. M6 will swap this for an OS-keychain entry.
+       */
+      pepper() {
+        const host = (process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "cybermind") + ":cybermind-v1";
+        return createHash("sha256").update(host).digest();
+      }
+    };
+  }
+});
+
+// ../tools/src/workspace-checkpoint.ts
+import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync } from "fs";
+import { homedir as homedir3 } from "os";
+import { join as join9, resolve as resolve2, relative, dirname as dirname2 } from "path";
+import { createHash as createHash2 } from "crypto";
+function checkpointRoot() {
+  const dir = join9(homedir3(), ".codeva", "checkpoints");
+  if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
+  return dir;
+}
+var WorkspaceCheckpoints;
+var init_workspace_checkpoint = __esm({
+  "../tools/src/workspace-checkpoint.ts"() {
+    "use strict";
+    WorkspaceCheckpoints = class {
+      constructor(sessionId, cwd2 = process.cwd()) {
+        this.cwd = cwd2;
+        this.dir = join9(checkpointRoot(), sessionId);
+        if (!existsSync11(this.dir)) mkdirSync10(this.dir, { recursive: true });
+        this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);
+      }
+      cwd;
+      dir;
+      seq = 0;
+      /**
+       * Snapshot the given files (by absolute or cwd-relative path) before they are
+       * modified. Files that don't exist yet are recorded as "existed:false" so a
+       * rewind deletes them. Returns the checkpoint sequence number.
+       */
+      snapshot(paths, label) {
+        const seq = ++this.seq;
+        const cpDir = join9(this.dir, String(seq));
+        mkdirSync10(cpDir, { recursive: true });
+        const files = [];
+        for (const p2 of paths) {
+          const abs = resolve2(this.cwd, p2);
+          const existed = existsSync11(abs);
+          const safeName = createHash2("sha1").update(abs).digest("hex");
+          if (existed) {
+            try {
+              const content = readFileSync10(abs);
+              writeFileSync10(join9(cpDir, safeName), content);
+            } catch {
+              continue;
+            }
+          }
+          files.push({ path: abs, existed });
+        }
+        const entry = { seq, label, createdAt: Date.now(), files };
+        writeFileSync10(join9(cpDir, "manifest.json"), JSON.stringify(entry, null, 2), "utf8");
+        return seq;
+      }
+      /** List checkpoints, newest first. */
+      list() {
+        if (!existsSync11(this.dir)) return [];
+        const out = [];
+        for (const name of readdirSync4(this.dir)) {
+          const manifest = join9(this.dir, name, "manifest.json");
+          if (existsSync11(manifest)) {
+            try {
+              out.push(JSON.parse(readFileSync10(manifest, "utf8")));
+            } catch {
+            }
+          }
+        }
+        return out.sort((a, b) => b.seq - a.seq);
+      }
+      /**
+       * Restore the workspace to the state captured at `seq` (and undo everything
+       * after it). Files that didn't exist at snapshot time are deleted; existing
+       * files are rewritten with their captured bytes.
+       */
+      restore(seq) {
+        let restored = 0;
+        let deleted = 0;
+        const entries = this.list().filter((e) => e.seq >= seq).sort((a, b) => b.seq - a.seq);
+        for (const entry of entries) {
+          const cpDir = join9(this.dir, String(entry.seq));
+          for (const f of entry.files) {
+            const safeName = createHash2("sha1").update(f.path).digest("hex");
+            const snapPath = join9(cpDir, safeName);
+            if (f.existed && existsSync11(snapPath)) {
+              try {
+                const d = dirname2(f.path);
+                if (!existsSync11(d)) mkdirSync10(d, { recursive: true });
+                writeFileSync10(f.path, readFileSync10(snapPath));
+                restored++;
+              } catch {
+              }
+            } else if (!f.existed && existsSync11(f.path)) {
+              try {
+                rmSync(f.path, { force: true });
+                deleted++;
+              } catch {
+              }
+            }
+          }
+        }
+        return { restored, deleted };
+      }
+      /** Human-readable relative path for display. */
+      rel(abs) {
+        return relative(this.cwd, abs) || abs;
+      }
+    };
+  }
+});
+
+// ../tools/src/mcp-client.ts
+import { spawn } from "child_process";
+import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
+import { homedir as homedir4 } from "os";
+import { join as join10 } from "path";
+function readMcpConfig(cwd2) {
+  for (const path2 of [join10(cwd2, ".codeva", "mcp.json"), join10(homedir4(), ".codeva", "mcp.json")]) {
+    try {
+      if (existsSync12(path2)) return JSON.parse(readFileSync11(path2, "utf8"));
+    } catch {
+    }
+  }
+  return {};
+}
+async function loadMcpTools(cwd2 = process.cwd()) {
+  const cfg = readMcpConfig(cwd2);
+  const servers = [];
+  const tools = [];
+  const entries = Object.entries(cfg.mcpServers ?? {});
+  await Promise.all(
+    entries.map(async ([name, sc]) => {
+      const server = new McpServer(name, sc);
+      try {
+        await server.start();
+        servers.push(server);
+        for (const t of server.tools) {
+          tools.push({
+            schema: {
+              name: `mcp__${name}__${t.name}`,
+              description: `[MCP:${name}] ${t.description}`,
+              inputSchema: t.inputSchema ?? { type: "object", properties: {} }
+            },
+            destructive: true,
+            // MCP tools can do anything; gate them by default
+            async execute(input) {
+              return server.callTool(t.name, input);
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })
+  );
+  return { tools, servers };
+}
+var McpServer;
+var init_mcp_client = __esm({
+  "../tools/src/mcp-client.ts"() {
+    "use strict";
+    McpServer = class {
+      constructor(name, cfg) {
+        this.name = name;
+        this.cfg = cfg;
+      }
+      name;
+      cfg;
+      proc = null;
+      nextId = 1;
+      pending = /* @__PURE__ */ new Map();
+      buffer = "";
+      tools = [];
+      async start(timeoutMs = 15e3) {
+        const isWin = process.platform === "win32";
+        const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
+        this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
+          env: { ...process.env, ...this.cfg.env ?? {} },
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+          shell: needsShell
+        });
+        this.proc.stdout.setEncoding("utf8");
+        this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+        this.proc.on("error", () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
+        this.proc.on("exit", () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
+        await this.rpc("initialize", {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "cybercoder", version: "0.1.0" }
+        }, timeoutMs);
+        this.notify("notifications/initialized", {});
+        const listed = await this.rpc("tools/list", {}, timeoutMs);
+        this.tools = listed?.tools ?? [];
+      }
+      async callTool(toolName, args, timeoutMs = 6e4) {
+        const res = await this.rpc("tools/call", { name: toolName, arguments: args }, timeoutMs);
+        const text = (res?.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : `[${c.type}]`).join("\n");
+        return res?.isError ? `[MCP error] ${text}` : text || "[no content]";
+      }
+      stop() {
+        try {
+          this.proc?.kill();
+        } catch {
+        }
+      }
+      onData(chunk) {
+        this.buffer += chunk;
+        let idx;
+        while ((idx = this.buffer.indexOf("\n")) !== -1) {
+          const line = this.buffer.slice(0, idx).trim();
+          this.buffer = this.buffer.slice(idx + 1);
+          if (!line) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (typeof msg.id === "number" && this.pending.has(msg.id)) {
+              const p2 = this.pending.get(msg.id);
+              this.pending.delete(msg.id);
+              if (msg.error) p2.reject(new Error(msg.error.message ?? "MCP error"));
+              else p2.resolve(msg.result);
+            }
+          } catch {
+          }
+        }
+      }
+      rpc(method, params, timeoutMs) {
+        if (!this.proc) return Promise.reject(new Error("MCP server not started"));
+        const id = this.nextId++;
+        const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
+        return new Promise((resolve13, reject) => {
+          const timer = setTimeout(() => {
+            this.pending.delete(id);
+            reject(new Error(`MCP '${this.name}' ${method} timed out`));
+          }, timeoutMs);
+          this.pending.set(id, {
+            resolve: (v) => {
+              clearTimeout(timer);
+              resolve13(v);
+            },
+            reject: (e) => {
+              clearTimeout(timer);
+              reject(e);
+            }
+          });
+          this.proc.stdin.write(payload);
+        });
+      }
+      notify(method, params) {
+        if (!this.proc) return;
+        this.proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
+      }
+      failAll(err) {
+        for (const p2 of this.pending.values()) p2.reject(err);
+        this.pending.clear();
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/read-file.ts
+import { readFileSync as readFileSync12 } from "fs";
+import { resolve as resolve3 } from "path";
+function numberLines(text, offset, limit) {
+  const lines = text.split("\n");
+  const start = Math.max(1, offset ?? 1);
+  const end = limit ? Math.min(lines.length, start + limit - 1) : lines.length;
+  const slice = lines.slice(start - 1, end);
+  const width = String(end).length;
+  return slice.map((l, i) => `${String(start + i).padStart(width, " ")}	${l}`).join("\n");
+}
+var MAX_BYTES, readFileTool;
+var init_read_file = __esm({
+  "../tools/src/builtin/read-file.ts"() {
+    "use strict";
+    MAX_BYTES = 1e6;
+    readFileTool = {
+      schema: {
+        name: "read_file",
+        description: "Read the contents of a file at the given path. Returns up to ~1MB of UTF-8 text with 1-indexed line numbers. Use an absolute path or one relative to the current working directory.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Absolute or relative file path." },
+            offset: { type: "integer", minimum: 1, description: "Optional 1-indexed line to start at." },
+            limit: { type: "integer", minimum: 1, description: "Optional number of lines to read." }
+          },
+          required: ["path"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? "");
+        if (!path2) throw new Error("read_file requires a non-empty path");
+        const abs = resolve3(ctx.cwd, path2);
+        const raw = readFileSync12(abs);
+        if (raw.byteLength > MAX_BYTES) {
+          const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
+          return numberLines(truncated, input.offset, input.limit) + `
+
+[truncated: file is ${raw.byteLength} bytes, only first ${MAX_BYTES} shown]`;
+        }
+        return numberLines(raw.toString("utf8"), input.offset, input.limit);
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/read-many.ts
+import { readFileSync as readFileSync13, statSync } from "fs";
+import { resolve as resolve4 } from "path";
+function numberLines2(text) {
+  const lines = text.split("\n");
+  const width = String(lines.length).length;
+  return lines.map((l, i) => `${String(i + 1).padStart(width, " ")}	${l}`).join("\n");
+}
+var MAX_BYTES_PER_FILE, MAX_FILES, readManyTool;
+var init_read_many = __esm({
+  "../tools/src/builtin/read-many.ts"() {
+    "use strict";
+    MAX_BYTES_PER_FILE = 2e5;
+    MAX_FILES = 20;
+    readManyTool = {
+      schema: {
+        name: "read_many",
+        description: "Read multiple files at once and return their numbered contents, separated by headers. Use this instead of many read_file calls when you need several files to understand a feature. Max 20 files.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            paths: {
+              type: "array",
+              items: { type: "string" },
+              description: "Absolute or relative file paths to read."
+            }
+          },
+          required: ["paths"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const paths = Array.isArray(input.paths) ? input.paths.map(String) : [];
+        if (paths.length === 0) throw new Error('read_many requires a non-empty "paths" array');
+        const limited = paths.slice(0, MAX_FILES);
+        const blocks = limited.map((p2) => {
+          const abs = resolve4(ctx.cwd, p2);
+          try {
+            const st = statSync(abs);
+            if (!st.isFile()) return `### ${p2}
+[not a file]`;
+            const raw = readFileSync13(abs);
+            const text = raw.byteLength > MAX_BYTES_PER_FILE ? raw.subarray(0, MAX_BYTES_PER_FILE).toString("utf8") + "\n[truncated]" : raw.toString("utf8");
+            return `### ${p2}
+${numberLines2(text)}`;
+          } catch (err) {
+            return `### ${p2}
+[error: ${err instanceof Error ? err.message : String(err)}]`;
+          }
+        });
+        const extra = paths.length > MAX_FILES ? `
+
+[${paths.length - MAX_FILES} more files omitted; request them separately]` : "";
+        return blocks.join("\n\n") + extra;
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/write-file.ts
+import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync11 } from "fs";
+import { dirname as dirname3, resolve as resolve5 } from "path";
+var writeFileTool;
+var init_write_file = __esm({
+  "../tools/src/builtin/write-file.ts"() {
+    "use strict";
+    writeFileTool = {
+      schema: {
+        name: "write_file",
+        description: "Create a new file at the given path with the given UTF-8 content. Fails if the file already exists \u2014 use edit for modifications. Parent directories are created.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Absolute or relative file path." },
+            content: { type: "string", description: "Full UTF-8 file content." }
+          },
+          required: ["path", "content"]
+        }
+      },
+      destructive: true,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? "");
+        const content = String(input.content ?? "");
+        if (!path2) throw new Error("write_file requires a path");
+        const abs = resolve5(ctx.cwd, path2);
+        if (existsSync13(abs)) {
+          throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
+        }
+        const dir = dirname3(abs);
+        if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
+        writeFileSync11(abs, content, "utf8");
+        return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
+      },
+      // Self-correction: confirm the file now exists with the expected size.
+      async verify(input, _output, ctx) {
+        try {
+          const abs = resolve5(ctx.cwd, String(input.path ?? ""));
+          const content = String(input.content ?? "");
+          if (!existsSync13(abs)) return "write_file verification failed: file does not exist after writing.";
+          const written = readFileSync14(abs, "utf8");
+          if (written.length !== content.length) {
+            return `write_file verification warning: written size (${written.length}) differs from intended (${content.length}).`;
+          }
+          return null;
+        } catch (err) {
+          return `write_file verification error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/edit.ts
+import { readFileSync as readFileSync15, writeFileSync as writeFileSync12 } from "fs";
+import { resolve as resolve6 } from "path";
+function occurrenceCount(haystack, needle) {
+  if (!needle) return 0;
+  let n = 0;
+  let i = 0;
+  while ((i = haystack.indexOf(needle, i)) !== -1) {
+    n++;
+    i += needle.length;
+  }
+  return n;
+}
+var editTool;
+var init_edit = __esm({
+  "../tools/src/builtin/edit.ts"() {
+    "use strict";
+    editTool = {
+      schema: {
+        name: "edit",
+        description: "Replace an exact string in a file with a new string. The old_string must appear exactly once unless replace_all is true. Use for surgical code edits; create new files with write_file instead.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string" },
+            old_string: { type: "string", description: "Exact text to replace, including indentation." },
+            new_string: { type: "string", description: "Replacement text." },
+            replace_all: { type: "boolean", default: false }
+          },
+          required: ["path", "old_string", "new_string"]
+        }
+      },
+      destructive: true,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? "");
+        const oldStr = String(input.old_string ?? "");
+        const newStr = String(input.new_string ?? "");
+        const replaceAll = Boolean(input.replace_all);
+        if (!path2) throw new Error("edit requires a path");
+        if (!oldStr) throw new Error("edit requires a non-empty old_string");
+        if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
+        const abs = resolve6(ctx.cwd, path2);
+        const original = readFileSync15(abs, "utf8");
+        if (replaceAll) {
+          const count = occurrenceCount(original, oldStr);
+          if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
+          const next2 = original.split(oldStr).join(newStr);
+          writeFileSync12(abs, next2, "utf8");
+          return `Replaced ${count} occurrence(s) in ${abs}.`;
+        }
+        const idx = original.indexOf(oldStr);
+        if (idx === -1) throw new Error(`old_string not found in ${abs}`);
+        if (original.indexOf(oldStr, idx + 1) !== -1) {
+          throw new Error(
+            `old_string is not unique in ${abs}; provide a longer surrounding snippet or set replace_all=true.`
+          );
+        }
+        const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
+        writeFileSync12(abs, next, "utf8");
+        return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
+      },
+      // Self-correction: re-read the file and confirm the edit actually landed.
+      async verify(input, _output, ctx) {
+        try {
+          const abs = resolve6(ctx.cwd, String(input.path ?? ""));
+          const newStr = String(input.new_string ?? "");
+          const current = readFileSync15(abs, "utf8");
+          if (newStr && !current.includes(newStr)) {
+            return "Edit verification failed: new_string is not present in the file after writing. The change may not have applied as intended.";
+          }
+          return null;
+        } catch (err) {
+          return `Edit verification could not read the file back: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/list-dir.ts
+import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
+import { join as join11, resolve as resolve7 } from "path";
+var MAX_ENTRIES, listDirTool;
+var init_list_dir = __esm({
+  "../tools/src/builtin/list-dir.ts"() {
+    "use strict";
+    MAX_ENTRIES = 200;
+    listDirTool = {
+      schema: {
+        name: "list_dir",
+        description: "List files and directories at the given absolute or relative path. Returns up to 200 entries with type and size.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Directory to list." }
+          },
+          required: ["path"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const path2 = String(input.path ?? ".");
+        const abs = resolve7(ctx.cwd, path2);
+        const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
+        const lines = [];
+        for (const e of entries) {
+          const full = join11(abs, e.name);
+          let size = "";
+          try {
+            if (e.isFile()) size = `${statSync2(full).size}b`;
+            else if (e.isDirectory()) size = "dir";
+            else if (e.isSymbolicLink()) size = "symlink";
+          } catch {
+            size = "?";
+          }
+          lines.push(`${size.padEnd(10)} ${e.name}`);
+        }
+        return lines.length === 0 ? "(empty directory)" : lines.join("\n");
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/grep.ts
+import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
+import { join as join12, resolve as resolve8 } from "path";
+function extToRegex(glob) {
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  return new RegExp(`${escaped}$`, "i");
+}
+function walk(root, visit) {
+  const stack = [root];
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    let stat;
+    try {
+      stat = statSync3(cur);
+    } catch {
+      continue;
+    }
+    if (stat.isFile()) {
+      if (!visit(cur)) return;
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    let entries;
+    try {
+      entries = readdirSync6(cur, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
+      stack.push(join12(cur, e.name));
+    }
+  }
+}
+var MAX_MATCHES, MAX_FILE_BYTES, SKIP_DIRS, grepTool;
+var init_grep = __esm({
+  "../tools/src/builtin/grep.ts"() {
+    "use strict";
+    MAX_MATCHES = 200;
+    MAX_FILE_BYTES = 2e6;
+    SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".turbo", ".next", ".cache"]);
+    grepTool = {
+      schema: {
+        name: "grep",
+        description: "Search files for a regex pattern (case-insensitive by default). Returns up to 200 matching lines with file:line prefix. Skips node_modules and other build dirs.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            pattern: { type: "string", description: "Regular expression to search for." },
+            path: { type: "string", description: "Directory or file to search. Defaults to cwd." },
+            case_sensitive: { type: "boolean", default: false },
+            include: { type: "string", description: 'Optional glob-like extension filter, e.g. "*.ts".' }
+          },
+          required: ["pattern"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const pattern = String(input.pattern ?? "");
+        if (!pattern) throw new Error("grep requires a pattern");
+        const flags = input.case_sensitive ? "g" : "gi";
+        const re = new RegExp(pattern, flags);
+        const root = resolve8(ctx.cwd, String(input.path ?? "."));
+        const include = typeof input.include === "string" ? extToRegex(input.include) : null;
+        const matches = [];
+        walk(root, (file) => {
+          if (matches.length >= MAX_MATCHES) return false;
+          if (include && !include.test(file)) return true;
+          try {
+            const stat = statSync3(file);
+            if (stat.size > MAX_FILE_BYTES) return true;
+            const text = readFileSync16(file, "utf8");
+            const lines = text.split("\n");
+            for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
+              const line = lines[i] ?? "";
+              if (re.test(line)) {
+                matches.push(`${file}:${i + 1}: ${line}`);
+              }
+            }
+          } catch {
+          }
+          return true;
+        });
+        if (matches.length === 0) return `(no matches for /${pattern}/${flags})`;
+        return matches.join("\n");
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/repo-map.ts
+import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
+import { join as join13, resolve as resolve9, relative as relative2, extname } from "path";
+function extractSymbols(file) {
+  let text;
+  try {
+    const st = statSync4(file);
+    if (st.size > 4e5) return [];
+    text = readFileSync17(file, "utf8");
+  } catch {
+    return [];
+  }
+  const symbols = /* @__PURE__ */ new Set();
+  const patterns = [
+    /export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g,
+    /export\s+(?:abstract\s+)?class\s+([A-Za-z0-9_]+)/g,
+    /export\s+(?:const|let|var)\s+([A-Za-z0-9_]+)/g,
+    /export\s+interface\s+([A-Za-z0-9_]+)/g,
+    /export\s+type\s+([A-Za-z0-9_]+)/g,
+    /(?:^|\n)\s*(?:public|private|protected\s+)?(?:async\s+)?def\s+([A-Za-z0-9_]+)/g,
+    // python
+    /(?:^|\n)func\s+(?:\([^)]*\)\s+)?([A-Za-z0-9_]+)/g,
+    // go
+    /(?:^|\n)(?:pub\s+)?fn\s+([A-Za-z0-9_]+)/g
+    // rust
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(text)) !== null && symbols.size < MAX_SYMBOLS_PER_FILE) {
+      if (m[1] && m[1].length > 1) symbols.add(m[1]);
+    }
+  }
+  return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+}
+var IGNORE_DIRS, CODE_EXT, MAX_FILES2, MAX_SYMBOLS_PER_FILE, repoMapTool;
+var init_repo_map = __esm({
+  "../tools/src/builtin/repo-map.ts"() {
+    "use strict";
+    IGNORE_DIRS = /* @__PURE__ */ new Set([
+      "node_modules",
+      ".git",
+      "dist",
+      "build",
+      ".next",
+      "out",
+      "coverage",
+      ".turbo",
+      ".cache",
+      "vendor",
+      "__pycache__",
+      ".venv",
+      "venv",
+      ".idea",
+      ".vscode"
+    ]);
+    CODE_EXT = /* @__PURE__ */ new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".rb", ".php", ".c", ".cpp", ".h", ".cs"]);
+    MAX_FILES2 = 400;
+    MAX_SYMBOLS_PER_FILE = 12;
+    repoMapTool = {
+      schema: {
+        name: "repo_map",
+        description: "Build a compact map of the project: directory structure plus the key exported symbols (functions/classes/components) in each code file. Call this FIRST on an unfamiliar repo to understand its layout efficiently.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Root to map (default: cwd)." },
+            max_depth: { type: "integer", description: "Max directory depth (default 4)." }
+          }
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const root = resolve9(ctx.cwd, String(input.path ?? "."));
+        const maxDepth = Number(input.max_depth ?? 4);
+        const files = [];
+        const walk2 = (dir, depth) => {
+          if (depth > maxDepth || files.length >= MAX_FILES2) return;
+          let entries;
+          try {
+            entries = readdirSync7(dir, { withFileTypes: true });
+          } catch {
+            return;
+          }
+          for (const e of entries) {
+            if (files.length >= MAX_FILES2) break;
+            if (e.name.startsWith(".") && e.name !== ".codeva") continue;
+            if (IGNORE_DIRS.has(e.name)) continue;
+            const full = join13(dir, e.name);
+            if (e.isDirectory()) walk2(full, depth + 1);
+            else if (e.isFile() && CODE_EXT.has(extname(e.name))) files.push(full);
+          }
+        };
+        walk2(root, 0);
+        if (files.length === 0) return "No code files found to map.";
+        const byDir = /* @__PURE__ */ new Map();
+        for (const f of files) {
+          const rel = relative2(root, f);
+          const dir = rel.includes("/") || rel.includes("\\") ? rel.replace(/[\\/][^\\/]+$/, "") : ".";
+          if (!byDir.has(dir)) byDir.set(dir, []);
+          byDir.get(dir).push(f);
+        }
+        const lines = [`# Repo map: ${relative2(ctx.cwd, root) || "."} (${files.length} code files)`];
+        const dirs = [...byDir.keys()].sort();
+        for (const dir of dirs) {
+          lines.push(`
+## ${dir}/`);
+          for (const f of byDir.get(dir).sort()) {
+            const name = f.replace(/^.*[\\/]/, "");
+            const symbols = extractSymbols(f);
+            if (symbols.length) {
+              lines.push(`- ${name}: ${symbols.join(", ")}`);
+            } else {
+              lines.push(`- ${name}`);
+            }
+          }
+        }
+        const out = lines.join("\n");
+        return out.length > 16e3 ? out.slice(0, 16e3) + "\n\u2026[map truncated]" : out;
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/project-memory-tool.ts
+import { existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync18, writeFileSync as writeFileSync13, statSync as statSync5 } from "fs";
+import { join as join14 } from "path";
+function p(cwd2, ...parts) {
+  return join14(cwd2, CYBER_DIR, ...parts);
+}
+function ensureDir(cwd2) {
+  const d = join14(cwd2, CYBER_DIR);
+  if (!existsSync14(d)) mkdirSync12(d, { recursive: true });
+}
+function read(cwd2) {
+  const f = p(cwd2, "project.json");
+  if (!existsSync14(f)) return null;
+  try {
+    return { ...DEFAULTS, ...JSON.parse(readFileSync18(f, "utf8")) };
+  } catch {
+    return null;
+  }
+}
+function readNotes(cwd2) {
+  const f = p(cwd2, "memory.md");
+  if (!existsSync14(f)) return "";
+  try {
+    return readFileSync18(f, "utf8");
+  } catch {
+    return "";
+  }
+}
+function mergeArr(a, b) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const item of [...a ?? [], ...b ?? []]) {
+    const k = typeof item === "string" ? item : JSON.stringify(item);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(item);
+    }
+  }
+  return out;
+}
+var CYBER_DIR, DEFAULTS, projectMemoryTool;
+var init_project_memory_tool = __esm({
+  "../tools/src/builtin/project-memory-tool.ts"() {
+    "use strict";
+    CYBER_DIR = ".cyber";
+    DEFAULTS = {
+      version: 1,
+      stack: [],
+      entryPoints: [],
+      commands: {},
+      conventions: [],
+      importantPaths: [],
+      glossary: [],
+      decisions: []
+    };
+    projectMemoryTool = {
+      schema: {
+        name: "project_memory",
+        description: "Persist or read self-learning project memory in the .cyber/ folder so future sessions understand this project from .cyber/ alone. Use action='read' to recall, 'update' to save structured facts (stack, entryPoints, commands, conventions, importantPaths, glossary, decisions, name, summary), and 'note' to append a free-form learning. Call 'update'/'note' whenever you discover something durable about the project.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["read", "update", "note"], description: "read | update | note" },
+            name: { type: "string" },
+            summary: { type: "string" },
+            stack: { type: "array", items: { type: "string" } },
+            entryPoints: { type: "array", items: { type: "string" } },
+            commands: { type: "object", description: 'map of label -> shell command, e.g. {"build":"npm run build"}' },
+            conventions: { type: "array", items: { type: "string" } },
+            importantPaths: { type: "array", items: { type: "object", properties: { path: { type: "string" }, note: { type: "string" } } } },
+            glossary: { type: "array", items: { type: "object", properties: { term: { type: "string" }, meaning: { type: "string" } } } },
+            decisions: { type: "array", items: { type: "string" } },
+            note: { type: "string", description: "For action='note': the learning to append." }
+          },
+          required: ["action"]
+        }
+      },
+      destructive: false,
+      async execute(input, ctx) {
+        const cwd2 = ctx.cwd;
+        const action = String(input.action ?? "read");
+        if (action === "read") {
+          const mem = read(cwd2);
+          const notes = readNotes(cwd2);
+          if (!mem && !notes) return 'No .cyber/ project memory yet. Use action="update"/"note" to start one.';
+          return JSON.stringify({ project: mem, notes }, null, 2);
+        }
+        if (action === "note") {
+          const note = String(input.note ?? "").trim();
+          if (!note) return "Provide a non-empty `note`.";
+          ensureDir(cwd2);
+          const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ");
+          const prev = readNotes(cwd2) || "# Project Memory Log\n";
+          writeFileSync13(p(cwd2, "memory.md"), `${prev}
+- [${stamp}] ${note}
+`, "utf8");
+          return `Recorded learning to .cyber/memory.md`;
+        }
+        ensureDir(cwd2);
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        const current = read(cwd2) ?? { ...DEFAULTS, createdAt: now };
+        const patch = input;
+        const next = {
+          ...current,
+          ...patch.name !== void 0 ? { name: patch.name } : {},
+          ...patch.summary !== void 0 ? { summary: patch.summary } : {},
+          version: 1,
+          stack: mergeArr(current.stack, patch.stack),
+          entryPoints: mergeArr(current.entryPoints, patch.entryPoints),
+          conventions: mergeArr(current.conventions, patch.conventions),
+          decisions: mergeArr(current.decisions, patch.decisions),
+          importantPaths: mergeArr(current.importantPaths, patch.importantPaths),
+          glossary: mergeArr(current.glossary, patch.glossary),
+          commands: { ...current.commands ?? {}, ...patch.commands ?? {} },
+          createdAt: current.createdAt ?? now,
+          updatedAt: now
+        };
+        writeFileSync13(p(cwd2, "project.json"), JSON.stringify(next, null, 2), "utf8");
+        const readme = p(cwd2, "README.md");
+        if (!existsSync14(readme)) {
+          writeFileSync13(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
+        }
+        return `Updated .cyber/project.json (${Object.keys(patch).filter((k) => k !== "action").join(", ") || "no fields"}).`;
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/run-command.ts
+import { spawn as spawn2 } from "child_process";
+var DEFAULT_TIMEOUT_MS, MAX_OUTPUT_BYTES, SHELL, SHELL_ARG, runCommandTool;
+var init_run_command = __esm({
+  "../tools/src/builtin/run-command.ts"() {
+    "use strict";
+    DEFAULT_TIMEOUT_MS = 6e4;
+    MAX_OUTPUT_BYTES = 2e5;
+    SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
+    SHELL_ARG = process.platform === "win32" ? "-NoProfile" : "-lc";
+    runCommandTool = {
+      schema: {
+        name: "run_command",
+        description: "Execute a shell command in the user's default shell (PowerShell on Windows, bash on Unix). Returns combined stdout/stderr (up to ~200KB) and the exit code. Always destructive \u2014 requires approval.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            command: { type: "string", description: "Command line to run." },
+            cwd: { type: "string", description: "Optional working directory." },
+            timeout_ms: { type: "integer", description: "Optional timeout (defaults 60s)." }
+          },
+          required: ["command"]
+        }
+      },
+      destructive: true,
+      async execute(input, ctx) {
+        const command = String(input.command ?? "");
+        if (!command) throw new Error("run_command requires a command");
+        const cwd2 = input.cwd ?? ctx.cwd;
+        const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
+        return await new Promise((resolveResult) => {
+          const child = spawn2(SHELL, [SHELL_ARG, command], {
+            cwd: cwd2,
+            env: process.env,
+            windowsHide: true
+          });
+          const chunks = [];
+          let totalBytes = 0;
+          let truncated = false;
+          const onData = (buf) => {
+            if (totalBytes >= MAX_OUTPUT_BYTES) {
+              truncated = true;
+              return;
+            }
+            const room = MAX_OUTPUT_BYTES - totalBytes;
+            const slice = buf.byteLength > room ? buf.subarray(0, room) : buf;
+            chunks.push(slice);
+            totalBytes += slice.byteLength;
+            if (totalBytes >= MAX_OUTPUT_BYTES) {
+              truncated = true;
+              child.kill();
+            }
+          };
+          child.stdout.on("data", onData);
+          child.stderr.on("data", onData);
+          const killer = setTimeout(() => {
+            truncated = true;
+            chunks.push(Buffer.from(`
+[timeout: killed after ${timeoutMs}ms]
+`));
+            child.kill();
+          }, timeoutMs);
+          child.on("close", (code) => {
+            clearTimeout(killer);
+            const out = Buffer.concat(chunks).toString("utf8");
+            const tail = truncated ? `
+[truncated at ${MAX_OUTPUT_BYTES} bytes]` : "";
+            resolveResult(`exit ${code ?? 0}
+${out}${tail}`);
+          });
+          child.on("error", (err) => {
+            clearTimeout(killer);
+            resolveResult(`exit -1
+[spawn error] ${err.message}`);
+          });
+        });
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/web-search.ts
+function parseDuckResults(html, max) {
+  const out = [];
+  const linkRe = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippetRe = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippets = [];
+  let sm;
+  while ((sm = snippetRe.exec(html)) !== null) {
+    snippets.push(stripTags(sm[1] ?? ""));
+  }
+  let lm;
+  let i = 0;
+  while ((lm = linkRe.exec(html)) !== null && out.length < max) {
+    const rawHref = lm[1] ?? "";
+    const title = stripTags(lm[2] ?? "");
+    const url = decodeDuckUrl(rawHref);
+    out.push({ title, url, snippet: snippets[i] ?? "" });
+    i++;
+  }
+  return out;
+}
+function stripTags(s) {
+  return s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/\s+/g, " ").trim();
+}
+function decodeDuckUrl(href) {
+  const m = href.match(/[?&]uddg=([^&]+)/);
+  if (m && m[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return href;
+    }
+  }
+  return href.startsWith("//") ? `https:${href}` : href;
+}
+var MAX_RESULTS, TIMEOUT_MS, webSearchTool;
+var init_web_search = __esm({
+  "../tools/src/builtin/web-search.ts"() {
+    "use strict";
+    MAX_RESULTS = 8;
+    TIMEOUT_MS = 15e3;
+    webSearchTool = {
+      schema: {
+        name: "web_search",
+        description: "Search the web and return the top results (title, url, snippet). Use for current docs, library versions, error messages, and anything outside the local repo. Keyless.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search query." },
+            max_results: { type: "integer", description: `Max results (default ${MAX_RESULTS}).` }
+          },
+          required: ["query"]
+        }
+      },
+      destructive: false,
+      async execute(input) {
+        const query = String(input.query ?? "").trim();
+        if (!query) throw new Error("web_search requires a non-empty query");
+        const max = Math.min(Number(input.max_results ?? MAX_RESULTS) || MAX_RESULTS, 15);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)",
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `q=${encodeURIComponent(query)}`,
+            signal: controller.signal
+          });
+          if (!res.ok) return `web_search failed: HTTP ${res.status}`;
+          const html = await res.text();
+          const results = parseDuckResults(html, max);
+          if (results.length === 0) return `No results for "${query}".`;
+          return results.map((r, i) => `${i + 1}. ${r.title}
+   ${r.url}
+   ${r.snippet}`).join("\n\n");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return `web_search error: ${msg}`;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/builtin/web-fetch.ts
+function htmlToText(html) {
+  return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<svg[\s\S]*?<\/svg>/gi, " ").replace(/<head[\s\S]*?<\/head>/gi, " ").replace(/<\/(p|div|section|article|li|h[1-6]|tr|br)>/gi, "\n").replace(/<li[^>]*>/gi, "\u2022 ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&#39;/g, "'").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+var TIMEOUT_MS2, MAX_CHARS, webFetchTool;
+var init_web_fetch = __esm({
+  "../tools/src/builtin/web-fetch.ts"() {
+    "use strict";
+    TIMEOUT_MS2 = 2e4;
+    MAX_CHARS = 2e4;
+    webFetchTool = {
+      schema: {
+        name: "web_fetch",
+        description: "Fetch a URL and return its readable text content (HTML stripped to text, or raw for JSON/markdown). Use after web_search to read a specific page or to pull docs/specs.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            url: { type: "string", description: "Absolute http(s) URL to fetch." },
+            max_chars: { type: "integer", description: `Max characters returned (default ${MAX_CHARS}).` }
+          },
+          required: ["url"]
+        }
+      },
+      destructive: false,
+      async execute(input) {
+        const url = String(input.url ?? "").trim();
+        if (!/^https?:\/\//i.test(url)) throw new Error("web_fetch requires an absolute http(s) URL");
+        const maxChars = Math.min(Number(input.max_chars ?? MAX_CHARS) || MAX_CHARS, 6e4);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS2);
+        try {
+          const res = await fetch(url, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; CyberCoder/1.0)" },
+            signal: controller.signal,
+            redirect: "follow"
+          });
+          if (!res.ok) return `web_fetch failed: HTTP ${res.status} ${res.statusText}`;
+          const contentType = res.headers.get("content-type") || "";
+          const raw = await res.text();
+          let text;
+          if (contentType.includes("html")) {
+            text = htmlToText(raw);
+          } else {
+            text = raw;
+          }
+          if (text.length > maxChars) {
+            return `${text.slice(0, maxChars)}
+
+[truncated at ${maxChars} chars]`;
+          }
+          return text || "[empty response]";
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return `web_fetch error: ${msg}`;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }
+});
+
+// ../tools/src/registry.ts
+function builtinTools() {
+  return [
+    readFileTool,
+    readManyTool,
+    writeFileTool,
+    editTool,
+    listDirTool,
+    grepTool,
+    repoMapTool,
+    runCommandTool,
+    webSearchTool,
+    webFetchTool,
+    projectMemoryTool
+  ];
+}
+var init_registry = __esm({
+  "../tools/src/registry.ts"() {
+    "use strict";
+    init_read_file();
+    init_read_many();
+    init_write_file();
+    init_edit();
+    init_list_dir();
+    init_grep();
+    init_repo_map();
+    init_run_command();
+    init_web_search();
+    init_web_fetch();
+    init_project_memory_tool();
+  }
+});
+
+// ../tools/src/index.ts
+var init_src4 = __esm({
+  "../tools/src/index.ts"() {
+    "use strict";
+    init_approval();
+    init_secrets();
+    init_workspace_checkpoint();
+    init_mcp_client();
+    init_read_file();
+    init_read_many();
+    init_write_file();
+    init_edit();
+    init_list_dir();
+    init_grep();
+    init_repo_map();
+    init_project_memory_tool();
+    init_run_command();
+    init_web_search();
+    init_web_fetch();
+    init_registry();
+  }
+});
+
+// ../skills/src/types.ts
+import { z as z9 } from "zod";
+var SkillIOSchema, SkillFrontmatterSchema;
+var init_types3 = __esm({
+  "../skills/src/types.ts"() {
+    "use strict";
+    SkillIOSchema = z9.object({
+      name: z9.string(),
+      type: z9.string(),
+      required: z9.boolean().optional(),
+      description: z9.string().optional()
+    });
+    SkillFrontmatterSchema = z9.object({
+      name: z9.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9-]*$/, "name must be kebab-case"),
+      description: z9.string().min(1),
+      version: z9.string().default("0.1.0"),
+      inputs: z9.array(SkillIOSchema).default([]),
+      outputs: z9.array(SkillIOSchema).default([]),
+      /** Capabilities the skill needs to run. */
+      requires: z9.object({
+        tools: z9.array(z9.string()).default([]),
+        /** Reserved for M13 — MCP servers the skill expects. */
+        mcp: z9.array(z9.string()).default([])
+      }).default({ tools: [], mcp: [] }),
+      /** Free-form trigger phrases shown in /help and used by skill discovery. */
+      triggers: z9.array(z9.string()).default([]),
+      license: z9.string().optional(),
+      author: z9.string().optional(),
+      category: z9.string().optional(),
+      /** Used by the marketplace to flag curated/official skills. */
+      official: z9.boolean().default(false)
+    });
+  }
+});
+
+// ../skills/src/parser.ts
+import { parse as parseYaml } from "yaml";
+function parseSkillSource(source) {
+  const match = source.match(FRONTMATTER_RE);
+  if (!match) {
+    throw new Error('SKILL.md must begin with a YAML frontmatter block delimited by "---" lines');
+  }
+  const [, yamlBlock, body] = match;
+  let raw;
+  try {
+    raw = parseYaml(yamlBlock ?? "");
+  } catch (err) {
+    throw new Error(`SKILL.md frontmatter is not valid YAML: ${err.message}`);
+  }
+  const parsed = SkillFrontmatterSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
+    throw new Error(`SKILL.md frontmatter failed validation:
+${issues}`);
+  }
+  return { frontmatter: parsed.data, body: (body ?? "").trim() };
+}
+var FRONTMATTER_RE;
+var init_parser = __esm({
+  "../skills/src/parser.ts"() {
+    "use strict";
+    init_types3();
+    FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+  }
+});
+
+// ../skills/src/loader.ts
+import { existsSync as existsSync15, readFileSync as readFileSync19, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
+import { dirname as dirname4, join as join15, resolve as resolve10 } from "path";
+import { fileURLToPath } from "url";
+function getBundledDir() {
+  const here = dirname4(fileURLToPath(import.meta.url));
+  let dir = here;
+  for (let i = 0; i < 8; i++) {
+    const candidate = resolve10(dir, "skills-bundled");
+    if (existsSync15(candidate)) return candidate;
+    const parent = resolve10(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return resolve10(here, "..", "..", "..", "skills-bundled");
+}
+function scanDir(root, source) {
+  if (!existsSync15(root)) return [];
+  const out = [];
+  let entries;
+  try {
+    entries = readdirSync8(root);
+  } catch (err) {
+    log17.warn("failed to read skills dir", { root, err: String(err) });
+    return [];
+  }
+  for (const name of entries) {
+    const folder = join15(root, name);
+    let stat;
+    try {
+      stat = statSync6(folder);
+    } catch {
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    const skillFile = join15(folder, "SKILL.md");
+    if (!existsSync15(skillFile)) continue;
+    try {
+      const raw = readFileSync19(skillFile, "utf8");
+      const { frontmatter, body } = parseSkillSource(raw);
+      const id = `${source}/${frontmatter.name}`;
+      out.push({ id, source, path: skillFile, frontmatter, body });
+    } catch (err) {
+      log17.warn("skipping malformed skill", { skillFile, err: String(err) });
+    }
+  }
+  return out;
+}
+function loadAllSkills(opts = {}) {
+  const cwd2 = opts.cwd ?? process.cwd();
+  const skip = new Set(opts.skip ?? []);
+  const sources = [];
+  if (!skip.has("project")) sources.push({ source: "project", dir: getProjectSkillsDir(cwd2) });
+  if (!skip.has("user")) sources.push({ source: "user", dir: getSkillsDir() });
+  if (!skip.has("bundled")) sources.push({ source: "bundled", dir: opts.bundledDir ?? getBundledDir() });
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const { source, dir } of sources) {
+    for (const skill of scanDir(dir, source)) {
+      if (seen.has(skill.frontmatter.name)) continue;
+      seen.add(skill.frontmatter.name);
+      out.push(skill);
+    }
+  }
+  return out;
+}
+var log17;
+var init_loader = __esm({
+  "../skills/src/loader.ts"() {
+    "use strict";
+    init_src();
+    init_parser();
+    log17 = createLogger("skills:loader");
+  }
+});
+
+// ../skills/src/registry.ts
+var SkillRegistry;
+var init_registry2 = __esm({
+  "../skills/src/registry.ts"() {
+    "use strict";
+    init_loader();
+    SkillRegistry = class {
+      constructor(opts = {}) {
+        this.opts = opts;
+        this.reload();
+      }
+      opts;
+      skills = [];
+      byName = /* @__PURE__ */ new Map();
+      reload() {
+        this.skills = loadAllSkills(this.opts);
+        this.byName.clear();
+        for (const s of this.skills) this.byName.set(s.frontmatter.name, s);
+      }
+      list() {
+        return [...this.skills];
+      }
+      get(name) {
+        return this.byName.get(name);
+      }
+      has(name) {
+        return this.byName.has(name);
+      }
+      /** Group skills by source for /skills UI output. */
+      bySource() {
+        const out = {
+          bundled: [],
+          user: [],
+          project: [],
+          marketplace: []
+        };
+        for (const s of this.skills) out[s.source].push(s);
+        return out;
+      }
+    };
+  }
+});
+
+// ../skills/src/runner.ts
+function buildSubagentSystemPrompt(skill) {
+  return [
+    `You are the "${skill.frontmatter.name}" sub-agent inside CyberMind CLI.`,
+    skill.frontmatter.description,
+    "",
+    skill.body,
+    "",
+    "Rules:",
+    "- You run in an isolated context; the user only sees your final summary.",
+    "- Be concise. Prefer code/path references over prose.",
+    "- When you have completed the task, stop calling tools and emit one final",
+    "  message summarising what you found / did."
+  ].join("\n");
+}
+function selectTools(skill, pool) {
+  const allowed = new Set(skill.frontmatter.requires.tools);
+  if (allowed.size === 0) return [];
+  return pool.filter((t) => allowed.has(t.schema.name));
+}
+async function spawnSubagent(opts) {
+  const { skill, prompt, provider, toolPool } = opts;
+  const tools = selectTools(skill, toolPool);
+  const systemPrompt = buildSubagentSystemPrompt(skill);
+  const messages = [{ role: "user", content: prompt }];
+  let summary = "";
+  let toolCalls = 0;
+  let usage = { inputTokens: 0, outputTokens: 0 };
+  let reason = "end_turn";
+  let error;
+  log18.debug("spawning subagent", {
+    skill: skill.frontmatter.name,
+    tools: tools.map((t) => t.schema.name)
+  });
+  for await (const evt of runAgentLoop(messages, {
+    provider,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    tools,
+    maxIterations: opts.maxIterations ?? 6,
+    signal: opts.signal
+  })) {
+    opts.onEvent?.(evt);
+    if (evt.type === "text") summary += evt.text;
+    else if (evt.type === "tool_call") toolCalls++;
+    else if (evt.type === "usage") {
+      usage.inputTokens += evt.inputTokens;
+      usage.outputTokens += evt.outputTokens;
+    } else if (evt.type === "done") {
+      reason = evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
+      error = evt.error;
+    }
+  }
+  return { summary: summary.trim(), toolCalls, usage, reason, error };
+}
+var log18;
+var init_runner = __esm({
+  "../skills/src/runner.ts"() {
+    "use strict";
+    init_src2();
+    init_src();
+    log18 = createLogger("skills:runner");
+  }
+});
+
+// ../skills/src/spawn-tool.ts
+function buildSpawnSubagentTool(deps) {
+  return {
+    schema: {
+      name: "spawn_subagent",
+      description: "Spawn an isolated sub-agent that runs the named skill against the given prompt. Use this for read-only exploration (research), planning (plan), code review (code-review), or any other installed skill. Returns the sub-agent's final summary as the tool result.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          skill: {
+            type: "string",
+            description: "Name of the skill to invoke. Must match an installed SKILL.md name."
+          },
+          prompt: {
+            type: "string",
+            description: "The task description / user prompt to give the sub-agent."
+          }
+        },
+        required: ["skill", "prompt"]
+      }
+    },
+    async execute(input, _ctx) {
+      const name = String(input.skill ?? "").trim();
+      const prompt = String(input.prompt ?? "").trim();
+      if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
+      if (!prompt) return 'Error: spawn_subagent requires a non-empty "prompt".';
+      const skill = deps.registry.get(name);
+      if (!skill) {
+        const available = deps.registry.list().map((s) => s.frontmatter.name).join(", ");
+        return `Error: skill "${name}" is not installed. Available skills: ${available || "(none)"}`;
+      }
+      const result = await spawnSubagent({
+        skill,
+        prompt,
+        provider: deps.provider,
+        toolPool: deps.toolPool
+      });
+      if (result.reason === "error") {
+        return `[sub-agent ${name} failed: ${result.error ?? "unknown"}]`;
+      }
+      if (result.reason === "max_iterations") {
+        return `[sub-agent ${name} hit iteration cap]
+
+${result.summary}`;
+      }
+      return result.summary || `[sub-agent ${name} completed with no output]`;
+    }
+  };
+}
+var init_spawn_tool = __esm({
+  "../skills/src/spawn-tool.ts"() {
+    "use strict";
+    init_runner();
+  }
+});
+
+// ../skills/src/orchestrator.ts
+async function orchestrate(tasks, opts) {
+  const concurrency = Math.max(1, opts.concurrency ?? 3);
+  const results = new Array(tasks.length);
+  let cursor = 0;
+  log19.debug("orchestrating tasks", { count: tasks.length, concurrency });
+  async function worker() {
+    while (true) {
+      if (opts.signal?.aborted) return;
+      const index = cursor++;
+      if (index >= tasks.length) return;
+      const task = tasks[index];
+      const skill = opts.registry.get(task.skill);
+      const start = Date.now();
+      opts.onTaskStart?.(task, index);
+      if (!skill) {
+        const available = opts.registry.list().map((s) => s.frontmatter.name).join(", ");
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: `skill "${task.skill}" not installed. Available: ${available || "(none)"}`,
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      let sub;
+      try {
+        sub = await spawnSubagent({
+          skill,
+          prompt: task.prompt,
+          provider: opts.provider,
+          toolPool: opts.toolPool,
+          model: opts.model,
+          signal: opts.signal
+        });
+      } catch (err) {
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      results[index] = {
+        task,
+        summary: sub.summary,
+        ok: sub.reason !== "error",
+        error: sub.error,
+        toolCalls: sub.toolCalls,
+        durationMs: Date.now() - start
+      };
+      opts.onTaskDone?.(task, index, results[index]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+function routeTaskToSkill(task, registry) {
+  const t = task.toLowerCase();
+  const has = (name) => registry.has(name);
+  const rules = [
+    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"],
+    [/\b(plan|design|architect|break down|roadmap)\b/, "plan"],
+    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
+    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
+    [/\b(test|spec|coverage|unit test|jest|vitest)\b/, "test-writer"],
+    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
+    [/\b(security|vulnerab|exploit|recon|pentest)\b/, "cyber-recon"],
+    [/\b(database|schema|migration|sql|index)\b/, "db-architect"],
+    [/\b(document|docs|readme|comment|explain)\b/, "doc-writer"],
+    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
+    [/\b(dependency|deps|package|upgrade|npm|version)\b/, "dep-doctor"],
+    [/\b(frontend|ui|css|component|design)\b/, "frontend-design"],
+    [/\b(api|endpoint|rest|graphql|openapi)\b/, "api-designer"],
+    [/\b(infra|terraform|kubernetes|docker|cloud)\b/, "infra-as-code"],
+    [/\b(git|commit|branch|merge|rebase)\b/, "git-master"],
+    [/\b(migrate|migration|port|convert)\b/, "migrate"]
+  ];
+  for (const [re, skill] of rules) {
+    if (re.test(t) && has(skill)) return skill;
+  }
+  for (const fallback of ["research", "plan"]) {
+    if (has(fallback)) return fallback;
+  }
+  return registry.list()[0]?.frontmatter.name;
+}
+var log19;
+var init_orchestrator = __esm({
+  "../skills/src/orchestrator.ts"() {
+    "use strict";
+    init_src();
+    init_runner();
+    log19 = createLogger("skills:orchestrator");
+  }
+});
+
+// ../skills/src/team-tool.ts
+function buildSpawnTeamTool(deps) {
+  return {
+    schema: {
+      name: "spawn_team",
+      description: "Run multiple sub-agent tasks IN PARALLEL and get a combined summary. Use when a goal splits into independent pieces (e.g. research + review + plan). Each task names a skill (or omit it to auto-route) and a prompt. Returns every sub-agent's result, labelled.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            description: "Independent tasks to run concurrently.",
+            items: {
+              type: "object",
+              properties: {
+                skill: { type: "string", description: "Skill to run. Omit to auto-route from the prompt." },
+                prompt: { type: "string", description: "Task description for the sub-agent." },
+                label: { type: "string", description: "Short label for this task." }
+              },
+              required: ["prompt"]
+            }
+          }
+        },
+        required: ["tasks"]
+      }
+    },
+    async execute(input, _ctx) {
+      const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
+      if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
+      const tasks = [];
+      for (const rt of rawTasks) {
+        const obj = rt;
+        const prompt = String(obj.prompt ?? "").trim();
+        if (!prompt) continue;
+        const skill = obj.skill ? String(obj.skill).trim() : routeTaskToSkill(prompt, deps.registry) ?? "";
+        if (!skill) return "Error: no skills installed to run the team.";
+        tasks.push({ skill, prompt, label: obj.label ? String(obj.label) : void 0 });
+      }
+      if (tasks.length === 0) return "Error: spawn_team received no valid tasks.";
+      const results = await orchestrate(tasks, {
+        registry: deps.registry,
+        provider: deps.provider,
+        toolPool: deps.toolPool,
+        concurrency: deps.concurrency ?? 3
+      });
+      const lines = [`# Team results (${results.length} agents)`];
+      results.forEach((r, i) => {
+        const label = r.task.label || r.task.skill;
+        lines.push(`
+## ${i + 1}. ${label} (${r.task.skill}) \u2014 ${r.ok ? "ok" : "failed"} \xB7 ${r.durationMs}ms`);
+        if (r.ok) lines.push(r.summary || "(no output)");
+        else lines.push(`Error: ${r.error ?? "unknown"}`);
+      });
+      return lines.join("\n");
+    }
+  };
+}
+var init_team_tool = __esm({
+  "../skills/src/team-tool.ts"() {
+    "use strict";
+    init_orchestrator();
+  }
+});
+
+// ../skills/src/index.ts
+var init_src5 = __esm({
+  "../skills/src/index.ts"() {
+    "use strict";
+    init_types3();
+    init_parser();
+    init_loader();
+    init_registry2();
+    init_runner();
+    init_spawn_tool();
+    init_orchestrator();
+    init_team_tool();
+  }
+});
+
+// src/utils/git-context.ts
+import { execSync } from "child_process";
+function git(args, cwd2) {
+  return execSync(`git ${args}`, {
+    cwd: cwd2,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    windowsHide: true,
+    timeout: 4e3
+  }).trim();
+}
+function getGitContext(cwd2 = process.cwd()) {
+  const empty = {
+    isRepo: false,
+    staged: 0,
+    unstaged: 0,
+    untracked: 0,
+    lastCommits: []
+  };
+  try {
+    const inside = git("rev-parse --is-inside-work-tree", cwd2);
+    if (inside !== "true") return empty;
+  } catch {
+    return empty;
+  }
+  const ctx = { ...empty, isRepo: true };
+  try {
+    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd2);
+  } catch {
+  }
+  try {
+    const status = git("status --porcelain", cwd2);
+    if (status) {
+      for (const line of status.split("\n")) {
+        const x = line[0];
+        const y = line[1];
+        if (x === "?" && y === "?") ctx.untracked++;
+        else {
+          if (x && x !== " ") ctx.staged++;
+          if (y && y !== " ") ctx.unstaged++;
+        }
+      }
+    }
+  } catch {
+  }
+  try {
+    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd2);
+    const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
+    ctx.behind = behind;
+    ctx.ahead = ahead;
+  } catch {
+  }
+  try {
+    const log22 = git("log --oneline -5", cwd2);
+    ctx.lastCommits = log22 ? log22.split("\n") : [];
+  } catch {
+  }
+  try {
+    ctx.remoteUrl = git("remote get-url origin", cwd2) || void 0;
+  } catch {
+  }
+  return ctx;
+}
+function gitContextPrompt(ctx) {
+  if (!ctx.isRepo) return "";
+  const parts = ["[Git context]"];
+  parts.push(`branch: ${ctx.branch ?? "(detached)"}`);
+  const dirty = [];
+  if (ctx.staged) dirty.push(`${ctx.staged} staged`);
+  if (ctx.unstaged) dirty.push(`${ctx.unstaged} modified`);
+  if (ctx.untracked) dirty.push(`${ctx.untracked} untracked`);
+  parts.push(`working tree: ${dirty.length ? dirty.join(", ") : "clean"}`);
+  if (ctx.ahead || ctx.behind) parts.push(`vs upstream: ${ctx.ahead ?? 0} ahead, ${ctx.behind ?? 0} behind`);
+  if (ctx.lastCommits.length) parts.push(`recent: ${ctx.lastCommits.slice(0, 3).join(" / ")}`);
+  return parts.join("\n");
+}
+var init_git_context = __esm({
+  "src/utils/git-context.ts"() {
+    "use strict";
+  }
+});
+
+// src/utils/project-memory.ts
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync7 } from "fs";
+import { join as join16 } from "path";
+function cyberPath(cwd2, ...parts) {
+  return join16(cwd2, CYBER_DIR2, ...parts);
+}
+function cyberDirExists(cwd2 = process.cwd()) {
+  try {
+    return statSync7(join16(cwd2, CYBER_DIR2)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function readProjectMemory(cwd2 = process.cwd()) {
+  const file = cyberPath(cwd2, "project.json");
+  if (!existsSync16(file)) return null;
+  try {
+    const raw = readFileSync20(file, "utf8");
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_MEMORY, ...parsed };
+  } catch {
+    return null;
+  }
+}
+function readProjectMemoryNotes(cwd2 = process.cwd()) {
+  const file = cyberPath(cwd2, "memory.md");
+  if (!existsSync16(file)) return "";
+  try {
+    return readFileSync20(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+function ensureCyberDir(cwd2) {
+  const dir = join16(cwd2, CYBER_DIR2);
+  if (!existsSync16(dir)) mkdirSync13(dir, { recursive: true });
+}
+function initProjectMemory(cwd2 = process.cwd(), seed) {
+  ensureCyberDir(cwd2);
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const existing = readProjectMemory(cwd2);
+  const memory = {
+    ...DEFAULT_MEMORY,
+    ...existing,
+    ...seed,
+    version: 1,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now
+  };
+  writeFileSync14(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
+  if (!existsSync16(cyberPath(cwd2, "README.md"))) {
+    writeFileSync14(cyberPath(cwd2, "README.md"), README, "utf8");
+  }
+  if (!existsSync16(cyberPath(cwd2, "memory.md"))) {
+    writeFileSync14(cyberPath(cwd2, "memory.md"), `# Project Memory Log
+
+_CyberCoder records learnings and decisions here as it works._
+`, "utf8");
+  }
+  return memory;
+}
+function projectMemoryPrompt(cwd2 = process.cwd()) {
+  const mem = readProjectMemory(cwd2);
+  const notes = readProjectMemoryNotes(cwd2);
+  if (!mem && !notes) return "";
+  const parts = ["[Project memory \u2014 .cyber/ (read this to understand the project)]"];
+  if (mem?.name) parts.push(`name: ${mem.name}`);
+  if (mem?.summary) parts.push(`summary: ${mem.summary}`);
+  if (mem?.stack?.length) parts.push(`stack: ${mem.stack.join(", ")}`);
+  if (mem?.entryPoints?.length) parts.push(`entry points: ${mem.entryPoints.join(", ")}`);
+  if (mem?.commands && Object.keys(mem.commands).length) {
+    parts.push(`commands: ${Object.entries(mem.commands).map(([k, v]) => `${k}=\`${v}\``).join(", ")}`);
+  }
+  if (mem?.conventions?.length) parts.push(`conventions: ${mem.conventions.slice(0, 8).join("; ")}`);
+  if (mem?.importantPaths?.length) {
+    parts.push(`key paths: ${mem.importantPaths.slice(0, 8).map((p2) => `${p2.path} (${p2.note})`).join("; ")}`);
+  }
+  if (mem?.glossary?.length) {
+    parts.push(`glossary: ${mem.glossary.slice(0, 8).map((g) => `${g.term}=${g.meaning}`).join("; ")}`);
+  }
+  if (mem?.decisions?.length) parts.push(`decisions: ${mem.decisions.slice(0, 6).join("; ")}`);
+  let block = parts.join("\n");
+  if (notes) {
+    const trimmedNotes = notes.length > 2e3 ? notes.slice(notes.length - 2e3) : notes;
+    block += `
+
+[Recent learnings \u2014 .cyber/memory.md]
+${trimmedNotes.trim()}`;
+  }
+  return block.length > 6e3 ? block.slice(0, 6e3) + "\n\u2026[memory truncated]" : block;
+}
+var CYBER_DIR2, DEFAULT_MEMORY, README;
+var init_project_memory = __esm({
+  "src/utils/project-memory.ts"() {
+    "use strict";
+    CYBER_DIR2 = ".cyber";
+    DEFAULT_MEMORY = {
+      version: 1,
+      stack: [],
+      entryPoints: [],
+      commands: {},
+      conventions: [],
+      importantPaths: [],
+      glossary: [],
+      decisions: []
+    };
+    README = `# .cyber \u2014 Project Memory
+
+This folder is CyberCoder's self-learning memory for **this** project.
+
+**Contract:** To understand this project, an AI agent should read THIS folder
+first. \`project.json\` holds structured facts (stack, entry points, commands,
+conventions). \`memory.md\` is a running log of learnings and decisions.
+
+CyberCoder maintains these files automatically as it works. You can edit them
+by hand too \u2014 they're plain JSON/Markdown. Safe to commit to version control so
+the whole team (and future sessions) share the same understanding.
+`;
+  }
+});
+
+// src/runtime/hooks.ts
+import { execSync as execSync2 } from "child_process";
+import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
+import { join as join17 } from "path";
+import { homedir as homedir5 } from "os";
+function readHooksFile(path2) {
+  try {
+    if (existsSync17(path2)) return JSON.parse(readFileSync21(path2, "utf8"));
+  } catch {
+  }
+  return {};
+}
+function loadHooks(cwd2 = process.cwd()) {
+  if (cached) return cached;
+  const global = readHooksFile(join17(homedir5(), ".codeva", "hooks.json"));
+  const project = readHooksFile(join17(cwd2, ".codeva", "hooks.json"));
+  const merged = { ...global };
+  for (const key of Object.keys(project)) {
+    merged[key] = project[key];
+  }
+  cached = merged;
+  return merged;
+}
+function reloadHooks() {
+  cached = null;
+}
+function runHooks(event2, subject = "", cwd2 = process.cwd()) {
+  const rules = loadHooks(cwd2)[event2] ?? [];
+  if (rules.length === 0) return { ran: false, blocked: false, output: "" };
+  const outputs = [];
+  let blocked = false;
+  for (const rule of rules) {
+    if (rule.match) {
+      let re;
+      try {
+        re = new RegExp(rule.match);
+      } catch {
+        continue;
+      }
+      if (!re.test(subject)) continue;
+    }
+    if (rule.block) {
+      blocked = true;
+      outputs.push(`[hook] blocked by rule (match: ${rule.match ?? "*"})`);
+      continue;
+    }
+    const command = rule.command.replace(/\{file\}/g, subject);
+    try {
+      const out = execSync2(command, {
+        cwd: cwd2,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        timeout: rule.timeoutMs ?? 3e4
+      });
+      outputs.push(`[hook ${event2}] ${command}
+${out.trim().slice(0, 2e3)}`);
+    } catch (err) {
+      const e = err;
+      outputs.push(`[hook ${event2}] ${command} (failed)
+${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
+    }
+  }
+  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
+}
+var cached;
+var init_hooks = __esm({
+  "src/runtime/hooks.ts"() {
+    "use strict";
+    cached = null;
+  }
+});
+
+// src/runtime/chat.ts
+function getCheckpoints() {
+  if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
+  return singletonCheckpoints;
+}
+function getRouter() {
+  const config = loadConfig();
+  const configKeys = config.apiKeys ?? {};
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
+  if (!singletonRouter) {
+    singletonRouter = new ProviderRouter({
+      preferred: defaultProviderOrder(config, configKeys),
+      anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
+      cloud: {
+        apiKey: cloudApiKey,
+        baseURL: process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com"
+      },
+      openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
+      groq: { apiKey: process.env.GROQ_API_KEY ?? configKeys.groq },
+      google: { apiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? configKeys.google ?? configKeys.gemini },
+      openrouter: { apiKey: process.env.OPENROUTER_API_KEY ?? configKeys.openrouter },
+      ollama: {
+        defaultModel: config.lastModel || "auto"
+      }
+    });
+  }
+  return singletonRouter;
+}
+function getSkillRegistry() {
+  if (!singletonRegistry) singletonRegistry = new SkillRegistry();
+  return singletonRegistry;
+}
+function defaultProviderOrder(config, configKeys) {
+  const order = [];
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
+  if (cloudApiKey) {
+    order.push("cybermind-cloud");
+  }
+  if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
+    order.push("anthropic");
+  }
+  if (process.env.OPENAI_API_KEY || configKeys.openai) {
+    order.push("openai");
+  }
+  if (process.env.GROQ_API_KEY || configKeys.groq) {
+    order.push("groq");
+  }
+  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || configKeys.google || configKeys.gemini) {
+    order.push("gemini");
+  }
+  if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
+    order.push("openrouter");
+  }
+  order.push("ollama");
+  return order;
+}
+function toProviderMessages(messages) {
+  return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
+}
+async function getMcpTools() {
+  if (mcpToolsCache) return mcpToolsCache;
+  try {
+    const { tools } = await loadMcpTools();
+    mcpToolsCache = tools;
+  } catch {
+    mcpToolsCache = [];
+  }
+  return mcpToolsCache;
+}
+async function buildAgentTools(approvalUI) {
+  const router = getRouter();
+  const registry = getSkillRegistry();
+  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
+  const builtins = builtinTools();
+  const wrappedBuiltins = builtins.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    verify: t.verify,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: summarizeCall(t.schema.name, input)
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      if (t.schema.name === "run_command") {
+        const cmd = typeof input.command === "string" ? input.command : "";
+        const pre = runHooks("preCommand", cmd);
+        if (pre.blocked) return `[blocked by preCommand hook]
+${pre.output}`;
+      }
+      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
+        const target = input.path;
+        if (typeof target === "string" && target) {
+          try {
+            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
+          } catch {
+          }
+        }
+      }
+      const result = await t.execute(input, { cwd: ctx.cwd });
+      try {
+        if (t.schema.name === "edit") {
+          const h = runHooks("postEdit", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "write_file") {
+          const h = runHooks("postWrite", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "run_command") {
+          const h = runHooks("postCommand", String(input.command ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        }
+      } catch {
+      }
+      return result;
+    }
+  }));
+  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
+  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
+  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
+  const mcpRaw = await getMcpTools();
+  const mcpWrapped = mcpRaw.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: `MCP: ${t.schema.name}`
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      return t.execute(input, ctx);
+    }
+  }));
+  const gitBlock = gitContextPrompt(getGitContext());
+  const memoryBlock = projectMemoryPrompt();
+  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
+  return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
+}
+async function runChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runAgentLoop(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools
+  })) {
+    opts.onEvent(evt);
+  }
+}
+async function runGoalChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runGoal(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools,
+    maxRounds: opts.maxRounds ?? 8,
+    onEvent: opts.onEvent
+  })) {
+    opts.onEvent(evt);
+  }
+}
+function summarizeCall(name, input) {
+  if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
+  if (name === "write_file") return `Create file: ${String(input.path ?? "")}`;
+  if (name === "edit") return `Edit file: ${String(input.path ?? "")}`;
+  if (name === "read_file") return `Read: ${String(input.path ?? "")}`;
+  if (name === "list_dir") return `List: ${String(input.path ?? "")}`;
+  if (name === "grep") return `Grep: /${String(input.pattern ?? "")}/`;
+  return `${name}(${Object.keys(input).join(", ")})`;
+}
+var singletonRouter, singletonRegistry, singletonCheckpoints, SESSION_ID, SYSTEM_PROMPT, mcpToolsCache;
+var init_chat = __esm({
+  "src/runtime/chat.ts"() {
+    "use strict";
+    init_src2();
+    init_src2();
+    init_src3();
+    init_src4();
+    init_src5();
+    init_config();
+    init_git_context();
+    init_project_memory();
+    init_hooks();
+    singletonRouter = null;
+    singletonRegistry = null;
+    singletonCheckpoints = null;
+    SESSION_ID = `sess-${Date.now().toString(36)}`;
+    SYSTEM_PROMPT = `You are CyberMind, a fullstack agentic coding assistant running inside a terminal.
+You help with reading, editing, and running code across the user's project. Be concise,
+prefer code over prose, and never invent file paths. You have access to these tools:
+- read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
+- read_many(paths[]) \u2014 read SEVERAL files in one call (use to grok a feature fast)
+- list_dir(path) \u2014 lists a directory
+- grep(pattern, path?, include?) \u2014 ripgrep-style search
+- repo_map(path?) \u2014 compact map of the project (dirs + key symbols per file);
+  call this FIRST on an unfamiliar repo to navigate efficiently
+- write_file(path, content) \u2014 create a NEW file (fails on overwrite)
+- edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
+- run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
+- web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
+- web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
+- project_memory(action, \u2026) \u2014 self-learning project memory in .cyber/: action='read'
+  to recall what's known, 'update' to save durable facts (stack, entry points,
+  commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
+  Update it whenever you discover something durable so future sessions (or any AI)
+  understand this project from .cyber/ alone.
+- spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
+  code-review, \u2026) which runs in an isolated context and returns a summary
+- spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
+  pieces of work (e.g. research + review + plan at once), returns all results
+Destructive tools (write_file, edit, run_command) require user approval each turn
+unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
+broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
+\u2014 it produces tighter summaries and keeps your main context clean. When a goal has
+several independent parts, prefer spawn_team to do them concurrently.`;
+    mcpToolsCache = null;
+  }
+});
+
+// src/rpc-server.ts
+var rpc_server_exports = {};
+__export(rpc_server_exports, {
+  startRpcServer: () => startRpcServer
+});
+import { createInterface } from "readline";
+import { readFileSync as readFileSync24, writeFileSync as writeFileSync17, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync15 } from "fs";
+import { join as join22, resolve as resolve12 } from "path";
+import { execSync as execSync3 } from "child_process";
+function send(msg) {
+  process.stdout.write(JSON.stringify(msg) + "\n");
+}
+function event(name, data) {
+  send({ event: name, data });
+}
+function respond(id, result) {
+  send({ id, result });
+}
+function respondError(id, message) {
+  send({ id, error: { message } });
+}
+async function handleMethod(id, method, params = {}) {
+  try {
+    switch (method) {
+      case "ping":
+        respond(id, { pong: true, version: "0.1.22", cwd });
+        break;
+      case "read_file": {
+        const path2 = resolve12(cwd, String(params.path || ""));
+        const text = readFileSync24(path2, "utf8");
+        const lines = text.split("\n").slice(0, Number(params.limit || 2e3));
+        respond(id, { content: lines.map((l, i) => `${i + 1}	${l}`).join("\n") });
+        break;
+      }
+      case "write_file": {
+        const path2 = resolve12(cwd, String(params.path || ""));
+        const dir = join22(path2, "..");
+        if (!existsSync21(dir)) mkdirSync15(dir, { recursive: true });
+        writeFileSync17(path2, String(params.content || ""), "utf8");
+        respond(id, { written: path2 });
+        break;
+      }
+      case "list_dir": {
+        const path2 = resolve12(cwd, String(params.path || "."));
+        const entries = readdirSync10(path2, { withFileTypes: true });
+        respond(id, { entries: entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "dir" : "file" })) });
+        break;
+      }
+      case "grep": {
+        const pattern = String(params.pattern || "");
+        const include = String(params.include || ".");
+        try {
+          const out = execSync3(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
+          respond(id, { matches: out });
+        } catch (e) {
+          respond(id, { matches: e.stdout?.slice(0, 16e3) || "" });
+        }
+        break;
+      }
+      case "run_command": {
+        const command = String(params.command || "");
+        event("tool_start", { name: "run_command", summary: `Run: ${command}` });
+        try {
+          const out = execSync3(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
+          event("tool_end", { name: "run_command", ok: true });
+          respond(id, { output: out.slice(0, 2e4), exitCode: 0 });
+        } catch (e) {
+          event("tool_end", { name: "run_command", ok: false });
+          respond(id, { output: (e.stdout || "") + (e.stderr || ""), exitCode: e.status || 1 });
+        }
+        break;
+      }
+      case "git": {
+        const op = String(params.operation || "status");
+        try {
+          const out = execSync3(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
+          respond(id, { output: out.slice(0, 12e3) });
+        } catch (e) {
+          respond(id, { output: (e.stdout || "") + (e.stderr || ""), error: e.message });
+        }
+        break;
+      }
+      case "git_context": {
+        const ctx = getGitContext(cwd);
+        respond(id, ctx);
+        break;
+      }
+      case "project_memory": {
+        const mem = projectMemoryPrompt(cwd);
+        respond(id, { memory: mem });
+        break;
+      }
+      case "complete": {
+        const messages = params.messages || [];
+        const model = String(params.model || "auto");
+        const system = String(params.system || "");
+        let fullText = "";
+        await runChat(
+          messages.map((m) => ({ id: `rpc-${Date.now()}`, role: m.role, content: m.content, createdAt: Date.now() })),
+          {
+            model,
+            onEvent: (evt) => {
+              if (evt.type === "text") {
+                fullText += evt.text;
+                event("token", { content: evt.text });
+              } else if (evt.type === "tool_start") {
+                event("tool_start", { name: evt.name, input: evt.input });
+              } else if (evt.type === "tool_end") {
+                event("tool_end", { name: evt.name, output: evt.output?.slice(0, 4e3) });
+              } else if (evt.type === "error") {
+                event("error", { message: evt.message });
+              }
+            }
+          }
+        );
+        event("done", {});
+        respond(id, { content: fullText });
+        break;
+      }
+      case "shutdown":
+        respond(id, { ok: true });
+        setTimeout(() => process.exit(0), 100);
+        break;
+      default:
+        respondError(id, `Unknown method: ${method}`);
+    }
+  } catch (err) {
+    respondError(id, err.message || "Internal error");
+  }
+}
+function startRpcServer() {
+  event("ready", { version: "0.1.22", cwd, tools: builtinTools().map((t) => t.schema.name) });
+  const rl = createInterface({ input: process.stdin, terminal: false });
+  rl.on("line", (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    try {
+      const msg = JSON.parse(trimmed);
+      if (typeof msg.id === "number" && typeof msg.method === "string") {
+        handleMethod(msg.id, msg.method, msg.params || {});
+      }
+    } catch {
+    }
+  });
+  rl.on("close", () => process.exit(0));
+}
+var cwd;
+var init_rpc_server = __esm({
+  "src/rpc-server.ts"() {
+    "use strict";
+    init_chat();
+    init_src4();
+    init_git_context();
+    init_project_memory();
+    cwd = process.cwd();
+  }
+});
+
+// src/index.tsx
+init_src();
+import { Command } from "commander";
+import { render } from "ink";
+
+// src/app.tsx
+import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
+import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState9 } from "react";
+
+// src/components/Welcome.tsx
+init_src();
+import { Box as Box2, Text as Text2, useStdout } from "ink";
+
+// src/components/Mascot.tsx
+import { Box, Text } from "ink";
+
+// src/theme/theme.ts
+var ACCENT = "#D97757";
+var ACCENT_LIGHT = "#C2410C";
+var DARK = {
+  accent: ACCENT,
+  accentAlt: "#E0915F",
+  text: "#ECECEC",
+  muted: "#9CA3AF",
+  dim: "#6B7280",
+  success: "#4ADE80",
+  warning: "#FBBF24",
+  error: "#F87171",
+  info: "#60A5FA",
+  user: "#7DD3FC",
+  assistant: "#ECECEC",
+  border: ACCENT,
+  isLight: false,
+  ansiOnly: false
+};
+var LIGHT = {
+  accent: ACCENT_LIGHT,
+  accentAlt: "#9A3412",
+  text: "#1F2937",
+  muted: "#4B5563",
+  dim: "#9CA3AF",
+  success: "#15803D",
+  warning: "#B45309",
+  error: "#B91C1C",
+  info: "#1D4ED8",
+  user: "#0369A1",
+  assistant: "#1F2937",
+  border: ACCENT_LIGHT,
+  isLight: true,
+  ansiOnly: false
+};
+var DARK_CB = {
+  ...DARK,
+  success: "#38BDF8",
+  // blue stands in for "good"
+  error: "#FB923C",
+  // orange stands in for "bad"
+  warning: "#FACC15",
+  user: "#38BDF8"
+};
+var LIGHT_CB = {
+  ...LIGHT,
+  success: "#0284C7",
+  error: "#C2410C",
+  warning: "#A16207",
+  user: "#0284C7"
+};
+var DARK_ANSI = {
+  accent: "red",
+  accentAlt: "redBright",
+  text: "white",
+  muted: "gray",
+  dim: "gray",
+  success: "green",
+  warning: "yellow",
+  error: "red",
+  info: "blue",
+  user: "cyan",
+  assistant: "white",
+  border: "red",
+  isLight: false,
+  ansiOnly: true
+};
+var LIGHT_ANSI = {
+  accent: "red",
+  accentAlt: "magenta",
+  text: "black",
+  muted: "gray",
+  dim: "gray",
+  success: "green",
+  warning: "yellow",
+  error: "red",
+  info: "blue",
+  user: "blue",
+  assistant: "black",
+  border: "red",
+  isLight: true,
+  ansiOnly: true
+};
+var PALETTES = {
+  dark: DARK,
+  light: LIGHT,
+  "dark-colorblind": DARK_CB,
+  "light-colorblind": LIGHT_CB,
+  "dark-ansi": DARK_ANSI,
+  "light-ansi": LIGHT_ANSI
+};
+function detectTerminalIsLight() {
+  const fgbg = process.env.COLORFGBG;
+  if (fgbg) {
+    const parts = fgbg.split(";");
+    const bg = Number(parts[parts.length - 1]);
+    if (!Number.isNaN(bg)) return bg >= 7 || bg === 15;
+  }
+  return false;
+}
+function resolvePalette(mode) {
+  if (mode === "auto") {
+    return detectTerminalIsLight() ? LIGHT : DARK;
+  }
+  return PALETTES[mode] ?? DARK;
+}
+var activeTheme = DARK;
+var activeMode = "dark";
+var listeners = /* @__PURE__ */ new Set();
+function setActiveTheme(mode) {
+  activeMode = mode;
+  activeTheme = resolvePalette(mode);
+  for (const fn of listeners) fn();
+  return activeTheme;
+}
+function onThemeChange(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+var THEME_OPTIONS = [
+  { id: "auto", label: "Auto (match terminal)" },
+  { id: "dark", label: "Dark mode" },
+  { id: "light", label: "Light mode" },
+  { id: "dark-colorblind", label: "Dark mode (colorblind-friendly)" },
+  { id: "light-colorblind", label: "Light mode (colorblind-friendly)" },
+  { id: "dark-ansi", label: "Dark mode (ANSI colors only)" },
+  { id: "light-ansi", label: "Light mode (ANSI colors only)" }
+];
+
+// src/components/Mascot.tsx
+import { jsx, jsxs } from "react/jsx-runtime";
+var Mascot = () => {
+  const c = activeTheme.accent;
+  const eye = activeTheme.isLight ? "#FFFFFF" : "#1A1A1A";
+  void eye;
+  return /* @__PURE__ */ jsxs(Box, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx(Text, { color: c, children: "  \u259F\u2588\u2599   \u259F\u2588\u2599  " }),
+    /* @__PURE__ */ jsx(Text, { color: c, children: " \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 " }),
+    /* @__PURE__ */ jsxs(Text, { color: c, children: [
+      "\u2588\u2588",
+      /* @__PURE__ */ jsx(Text, { color: activeTheme.text, backgroundColor: c, children: "\u2588\u2588" }),
+      "\u2588\u2588\u2588",
+      /* @__PURE__ */ jsx(Text, { color: activeTheme.text, backgroundColor: c, children: "\u2588\u2588" }),
+      "\u2588\u2588"
+    ] }),
+    /* @__PURE__ */ jsx(Text, { color: c, children: " \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 " }),
+    /* @__PURE__ */ jsx(Text, { color: c, children: "  \u2588\u2588     \u2588\u2588  " })
+  ] });
+};
+var SkyScene = () => {
+  const dim = activeTheme.dim;
+  const cloud = activeTheme.muted;
+  const star = activeTheme.accentAlt;
+  return /* @__PURE__ */ jsxs(Box, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsx(Text, { color: dim, children: "\xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7" }),
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: star, children: "    \u2736        " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2591\u2591\u2592\u2592        " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "  \u2592\u2592\u2593\u2593\u2593\u2592\u2591" })
+    ] }),
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "  \u2591\u2591\u2592\u2592\u2593\u2592\u2591     " }),
+      /* @__PURE__ */ jsx(Text, { color: star, children: "\u2736   " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2592\u2593\u2593    \u2593\u2593" })
+    ] }),
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2591\u2592\u2592\u2593\u2593\u2593\u2592\u2591  " }),
+      /* @__PURE__ */ jsx(Text, { color: star, children: "\u2736      " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2593\u2593     \u2592\u2592" })
+    ] }),
+    /* @__PURE__ */ jsxs(Text, { children: [
+      /* @__PURE__ */ jsx(Text, { color: star, children: " \u2736          " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2591\u2592\u2593\u2592\u2591   " }),
+      /* @__PURE__ */ jsx(Text, { color: cloud, children: "\u2592\u2593\u2593\u2593\u2592\u2592\u2591" })
+    ] }),
+    /* @__PURE__ */ jsx(Text, { color: dim, children: "\xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7 \xB7" })
+  ] });
+};
+
+// src/components/Welcome.tsx
+init_config();
+
+// src/theme/useTheme.ts
+import { useSyncExternalStore } from "react";
+function useTheme() {
+  return useSyncExternalStore(
+    (cb) => onThemeChange(cb),
+    () => activeTheme,
+    () => activeTheme
+  );
+}
+
+// src/components/Welcome.tsx
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+var Welcome = ({ model = "auto", provider = "auto" }) => {
+  const t = useTheme();
+  const cwd2 = process.cwd();
+  const profile = getUserProfile();
+  const userName = profile.name || process.env.USER || process.env.USERNAME || "Coder";
+  const userPlan = profile.plan || "Free";
+  const { stdout } = useStdout();
+  const termWidth = stdout.columns ?? 80;
+  const contentWidth = Math.min(termWidth - 4, 84);
+  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", children: [
+    /* @__PURE__ */ jsxs2(
+      Box2,
+      {
+        flexDirection: "row",
+        borderStyle: "round",
+        borderColor: t.accent,
+        paddingX: 1,
+        width: contentWidth + 4,
+        children: [
+          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "42%", paddingRight: 1, alignItems: "center", children: [
+            /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.accent, children: [
+              CYBERCODER_NAME,
+              " v",
+              CYBERCODER_VERSION
+            ] }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.text, children: [
+              "Welcome back, ",
+              userName,
+              "!"
+            ] }) }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
+            /* @__PURE__ */ jsxs2(Box2, { marginTop: 1, flexDirection: "column", alignItems: "center", children: [
+              /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+                /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: model }),
+                " \xB7 ",
+                userPlan,
+                " Plan"
+              ] }),
+              /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd2 })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsx2(Box2, { flexDirection: "column", paddingX: 1, children: /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: "\u2502\n".repeat(8) }) }),
+          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "52%", children: [
+            /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "Tips for getting started" }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "Run ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: "/init" }),
+              " to create a CYBER.md with project instructions"
+            ] }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "What's new" }) }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "\u2022 Real ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/theme" }),
+              " switching repaints the whole UI"
+            ] }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "\u2022 Multi-model ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/consensus" }),
+              " mode for hard problems"
+            ] }),
+            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+              "\u2022 Working web OAuth sign-in \xB7 ",
+              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/release-notes" }),
+              " for more"
+            ] })
+          ] })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxs2(Box2, { paddingX: 1, marginTop: 1, children: [
+      /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, bold: true, children: model }),
+      /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: " is ready \xB7 " }),
+      /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+        "type ",
+        /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/model" }),
+        " to switch"
+      ] })
+    ] })
+  ] });
+};
+
+// src/components/Onboarding.tsx
+init_src();
+import { useState as useState2, useEffect as useEffect2, useRef } from "react";
+import { Box as Box4, Text as Text4, useInput, useApp, useStdout as useStdout2 } from "ink";
+import TextInput from "ink-text-input";
+import { exec } from "child_process";
+import http from "http";
+
+// src/components/LoadingSpinner.tsx
+import { useEffect, useState } from "react";
+import { Box as Box3, Text as Text3 } from "ink";
+import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+var LoadingSpinner = ({ text = "Thinking", showTimer = false }) => {
+  const [frame, setFrame] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const frames = ["\u28FE", "\u28FD", "\u28FB", "\u28BF", "\u287F", "\u28DF", "\u28EF", "\u28F7"];
+  useEffect(() => {
+    const frameInterval = setInterval(() => {
+      setFrame((f) => (f + 1) % frames.length);
+    }, 80);
+    return () => clearInterval(frameInterval);
+  }, []);
+  useEffect(() => {
+    if (!showTimer) return;
+    const timerInterval = setInterval(() => {
+      setElapsed((e) => e + 1);
+    }, 1e3);
+    return () => clearInterval(timerInterval);
+  }, [showTimer]);
+  const formatElapsed = (seconds) => {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  };
+  return /* @__PURE__ */ jsxs3(Box3, { flexDirection: "row", alignItems: "center", children: [
+    /* @__PURE__ */ jsxs3(Text3, { color: "#D97757", children: [
+      frames[frame],
+      " "
+    ] }),
+    /* @__PURE__ */ jsx3(Text3, { color: "white", bold: true, children: text }),
+    showTimer && /* @__PURE__ */ jsxs3(Text3, { color: "gray", children: [
+      " (",
+      formatElapsed(elapsed),
+      ")"
+    ] })
+  ] });
+};
+
+// src/components/Onboarding.tsx
+init_config();
+
+// src/utils/api-client.ts
+init_config();
+import { hostname } from "os";
+var BACKEND_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com/api/v1";
+var ApiClient = class {
+  getHeaders() {
+    const token = getAuthToken();
+    const sessionId = getSessionId();
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (sessionId) {
+      headers["x-cli-session"] = sessionId;
+    }
+    return headers;
+  }
+  async authenticate(apiKey) {
+    const machineId = process.env.COMPUTERNAME || process.env.HOSTNAME || hostname() || "unknown-mac";
+    const osType = process.platform;
+    const shellType = process.env.SHELL || process.env.COMSPEC || "unknown-shell";
+    const currentCwd = process.cwd();
+    const response = await fetch(`${BACKEND_URL}/cli/auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        api_key: apiKey,
+        machine_id: machineId,
+        machine_name: hostname(),
+        os: osType,
+        shell: shellType,
+        cwd: currentCwd
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: "Authentication failed" }));
+      throw new Error(err.error || "Authentication failed");
+    }
+    return response.json();
+  }
+  async refreshSession() {
+    const response = await fetch(`${BACKEND_URL}/cli/auth/refresh`, {
+      method: "POST",
+      headers: this.getHeaders()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to refresh session");
+    }
+    return response.json();
+  }
+  async logout() {
+    const response = await fetch(`${BACKEND_URL}/cli/auth/logout`, {
+      method: "POST",
+      headers: this.getHeaders()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to logout");
+    }
+    return response.json();
+  }
+  async getModels() {
+    const response = await fetch(`${BACKEND_URL}/cli/models`, {
+      method: "GET",
+      headers: this.getHeaders()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch models");
+    }
+    return response.json();
+  }
+  async getStats() {
+    const response = await fetch(`${BACKEND_URL}/cli/stats`, {
+      method: "GET",
+      headers: this.getHeaders()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch stats");
+    }
+    return response.json();
+  }
+  async getContext(prompt) {
+    const response = await fetch(`${BACKEND_URL}/cli/context?prompt=${encodeURIComponent(prompt)}`, {
+      method: "GET",
+      headers: this.getHeaders()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch context");
+    }
+    return response.json();
+  }
+  async updateContext(technologies, codeQuality, patternsDetected) {
+    const response = await fetch(`${BACKEND_URL}/cli/context/update`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        technologies,
+        code_quality: codeQuality,
+        patterns_detected: patternsDetected
+      })
+    });
+    if (!response.ok) {
+      throw new Error("Failed to update context");
+    }
+    return response.json();
+  }
+  async trackCommand(command, args, cwd2, exitCode, outputPreview, durationMs) {
+    const response = await fetch(`${BACKEND_URL}/cli/track/command`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        command,
+        args,
+        cwd: cwd2,
+        exit_code: exitCode,
+        output_preview: outputPreview,
+        duration_ms: durationMs
+      })
+    });
+    if (!response.ok) {
+      throw new Error("Failed to track command");
+    }
+    return response.json();
+  }
+  async *streamCompletion(payload) {
+    const response = await fetch(`${BACKEND_URL}/cli/complete`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        ...payload,
+        stream: true
+      })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Streaming failed: ${response.status} ${errText}`);
+    }
+    if (!response.body) {
+      throw new Error("No response body for streaming");
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          const dataStr = trimmed.slice(6).trim();
+          if (dataStr === "[DONE]") {
+            return;
+          }
+          try {
+            const parsed = JSON.parse(dataStr);
+            yield parsed;
+          } catch {
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+};
+var apiClient = new ApiClient();
 
 // src/components/Onboarding.tsx
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var LOGIN_METHODS = [
   {
-    id: "cybercli",
-    label: "CyberCli account with subscription",
-    desc: "Pro, Max, Team, or Enterprise"
+    id: "codeva",
+    label: "Codeva account (Pro, Max, Team)",
+    desc: "Automated OAuth browser sign-in"
   },
   {
     id: "apikey",
-    label: "API key (BYOK)",
-    desc: "Bring Your Own Key \u2014 API usage billing"
+    label: "API Key (Bring Your Own Key)",
+    desc: "Billed based on API usage"
   },
   {
     id: "thirdparty",
-    label: "3rd-party platform",
-    desc: "OpenRouter, Groq, or local Ollama"
+    label: "3rd-party platform (Ollama, Groq, etc.)",
+    desc: "Local setup and config"
   }
 ];
 var THIRDPARTY_PLATFORMS = [
-  { id: "openrouter", label: "OpenRouter", desc: "interactive setup" },
-  { id: "groq", label: "Groq", desc: "interactive setup" },
-  { id: "ollama", label: "Ollama (local)", desc: "interactive setup" },
+  { id: "openrouter", label: "OpenRouter", desc: "Get OpenRouter API keys" },
+  { id: "groq", label: "Groq", desc: "Get Groq API keys" },
+  { id: "ollama", label: "Ollama (local)", desc: "Run locally" },
   { id: "back", label: "Go back", desc: "" }
 ];
 var API_PROVIDERS = [
-  { id: "cybermind", label: "CyberMind (built-in)" },
+  { id: "codeva", label: "Codeva Cloud" },
   { id: "openai", label: "OpenAI" },
   { id: "anthropic", label: "Anthropic" },
   { id: "groq", label: "Groq" },
@@ -2021,16 +5981,79 @@ function openBrowser(url) {
 }
 var Onboarding = ({ onComplete }) => {
   const { exit } = useApp();
-  const { stdout } = useStdout();
-  const [screen, setScreen] = useState("main");
-  const [selected, setSelected] = useState(0);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [apiKeyProvider, setApiKeyProvider] = useState("cybermind");
-  const [apiKeyStage, setApiKeyStage] = useState("provider");
-  const [tpSelected, setTpSelected] = useState(0);
+  const { stdout } = useStdout2();
+  const [screen, setScreen] = useState2("main");
+  const [selected, setSelected] = useState2(0);
+  const [port, setPort] = useState2(null);
+  const [authError, setAuthError] = useState2(null);
+  const [waitingForAuth, setWaitingForAuth] = useState2(false);
+  const serverRef = useRef(null);
+  const [apiKeyInput, setApiKeyInput] = useState2("");
+  const [apiKeyProvider, setApiKeyProvider] = useState2("codeva");
+  const [apiKeyStage, setApiKeyStage] = useState2("provider");
+  const [tpSelected, setTpSelected] = useState2(0);
   const termWidth = stdout.columns ?? 80;
-  const isWide = termWidth >= 100;
-  const contentWidth = Math.min(termWidth - 4, 78);
+  const contentWidth = Math.min(termWidth - 4, 76);
+  useEffect2(() => {
+    if (screen === "codeva-login") {
+      setWaitingForAuth(true);
+      setAuthError(null);
+      const server = http.createServer((req, res) => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+        if (req.method === "OPTIONS") {
+          res.writeHead(200);
+          res.end();
+          return;
+        }
+        const urlObj = new URL(req.url || "", `http://${req.headers.host}`);
+        if (urlObj.pathname === "/auth") {
+          const token = urlObj.searchParams.get("token");
+          if (token) {
+            res.writeHead(200, { "Content-Type": "text/html" });
+            res.end("<h1>Authentication Successful!</h1><p>You can close this tab and return to the terminal.</p>");
+            setAuthToken(token);
+            apiClient.authenticate(token).then((authInfo) => {
+              setSessionId(authInfo.session_id);
+              setUserProfile(authInfo.user);
+              markOnboardingComplete("codeva");
+              onComplete("codeva");
+            }).catch((err) => {
+              setAuthError(err.message || "Token verification failed");
+              setWaitingForAuth(false);
+            });
+            setTimeout(() => {
+              server.close();
+            }, 1e3);
+          } else {
+            res.writeHead(400, { "Content-Type": "text/plain" });
+            res.end("Missing token");
+          }
+        } else {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          res.end("Not Found");
+        }
+      });
+      server.listen(0, "127.0.0.1", () => {
+        const addr = server.address();
+        const allocatedPort = typeof addr === "string" ? 0 : addr?.port || 0;
+        setPort(allocatedPort);
+        const frontendUrl = process.env.FRONTEND_URL || "https://cybermindcli.info";
+        openBrowser(`${frontendUrl}/login?redirect=cli&port=${allocatedPort}`);
+      });
+      serverRef.current = server;
+      const timeout = setTimeout(() => {
+        setAuthError("Authentication timed out. Please try again.");
+        setWaitingForAuth(false);
+        server.close();
+      }, 5 * 60 * 1e3);
+      return () => {
+        clearTimeout(timeout);
+        server.close();
+      };
+    }
+  }, [screen, onComplete]);
   useInput((input, key) => {
     if (key.ctrl && input === "c") {
       exit();
@@ -2047,12 +6070,12 @@ var Onboarding = ({ onComplete }) => {
         setSelected((s) => Math.min(LOGIN_METHODS.length - 1, s + 1));
       } else if (key.return) {
         const method = LOGIN_METHODS[selected];
-        if (method?.id === "cybercli") {
-          setScreen("cybercli-login");
+        if (method?.id === "codeva") {
+          setScreen("codeva-login");
         } else if (method?.id === "apikey") {
           setScreen("apikey-input");
           setApiKeyStage("provider");
-          setApiKeyProvider("cybermind");
+          setApiKeyProvider("codeva");
           setSelected(0);
         } else if (method?.id === "thirdparty") {
           setScreen("thirdparty-platforms");
@@ -2061,17 +6084,11 @@ var Onboarding = ({ onComplete }) => {
       }
       return;
     }
-    if (screen === "cybercli-login") {
+    if (screen === "codeva-login") {
       if (key.escape) {
         setScreen("main");
         setSelected(0);
         return;
-      }
-      if (key.return) {
-        const url = "https://cybermindcli.info/subscribe?redirect=cli";
-        openBrowser(url);
-        markOnboardingComplete("cybercli");
-        onComplete("cybercli");
       }
       return;
     }
@@ -2135,127 +6152,109 @@ var Onboarding = ({ onComplete }) => {
       return;
     }
   });
+  const renderBorderTop = (title) => {
+    const titleText = ` ${title} `;
+    const dashLength = Math.max(2, contentWidth - titleText.length - 2);
+    return /* @__PURE__ */ jsxs4(Text4, { color: "#D97757", children: [
+      "\u256D",
+      titleText,
+      "\u2500".repeat(dashLength),
+      "\u256E"
+    ] });
+  };
+  const renderBorderBottom = () => {
+    return /* @__PURE__ */ jsxs4(Text4, { color: "#D97757", children: [
+      "\u2570",
+      "\u2500".repeat(contentWidth),
+      "\u256F"
+    ] });
+  };
   if (screen === "main") {
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
-      /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
+    const t = activeTheme;
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+      /* @__PURE__ */ jsxs4(Text4, { bold: true, color: t.accent, children: [
         "Welcome to ",
-        CYBERMIND_NAME,
-        " Code v",
-        CYBERMIND_VERSION
+        CYBERCODER_NAME,
+        " v",
+        CYBERCODER_VERSION
       ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(SkyScene, {}),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsxs4(Box2, { flexDirection: isWide ? "row" : "column", marginTop: 1, children: [
-        /* @__PURE__ */ jsx4(Box2, { flexDirection: "column", width: isWide ? 18 : contentWidth, paddingLeft: 2, children: /* @__PURE__ */ jsx4(Mascot, {}) }),
-        /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", flexGrow: 1, paddingRight: 2, paddingLeft: isWide ? 0 : 2, children: [
-          /* @__PURE__ */ jsxs4(Text4, { bold: true, color: "white", children: [
-            CYBERMIND_NAME,
-            " Code can be used with your CyberCli subscription or billed based on API usage through your own keys."
+      /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(SkyScene, {}) }),
+      /* @__PURE__ */ jsx4(Box4, { marginTop: 1, marginLeft: 1, children: /* @__PURE__ */ jsx4(Mascot, {}) }),
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", marginTop: 1, paddingX: 1, children: [
+        /* @__PURE__ */ jsxs4(Text4, { color: t.muted, children: [
+          CYBERCODER_NAME,
+          " can be used with your Codeva subscription or billed"
+        ] }),
+        /* @__PURE__ */ jsx4(Text4, { color: t.muted, children: "based on API usage through your provider account." }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: t.text, bold: true, children: "Select login method:" }) }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, flexDirection: "column", children: LOGIN_METHODS.map((method, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "row", children: /* @__PURE__ */ jsxs4(Text4, { children: [
+          i === selected ? /* @__PURE__ */ jsx4(Text4, { color: t.accent, children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: t.dim, children: "  " }),
+          /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? t.text : t.muted, bold: i === selected, children: [
+            i + 1,
+            ". ",
+            method.label
           ] }),
-          /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-          /* @__PURE__ */ jsx4(Text4, { bold: true, color: "#D97736", children: "Select login method:" }),
-          /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-          LOGIN_METHODS.map((method, i) => /* @__PURE__ */ jsx4(Box2, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
-            i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
-            /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
-              i + 1,
-              ". ",
-              method.label
-            ] }),
-            /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
-              " \xB7 ",
-              method.desc
-            ] })
-          ] }) }, method.id)),
-          /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-          /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to exit" })
-        ] })
+          /* @__PURE__ */ jsxs4(Text4, { color: t.dim, children: [
+            " \xB7 ",
+            method.desc
+          ] })
+        ] }) }, method.id)) }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: t.dim, children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC exit" }) })
       ] })
     ] });
   }
-  if (screen === "cybercli-login") {
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
-      /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
-        "Welcome to ",
-        CYBERMIND_NAME,
-        " Code v",
-        CYBERMIND_VERSION
+  if (screen === "codeva-login") {
+    const frontendUrl = process.env.FRONTEND_URL || "https://cybermindcli.info";
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+      renderBorderTop("Waiting for Authentication"),
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+        waitingForAuth ? /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", marginBottom: 1, children: [
+          /* @__PURE__ */ jsx4(LoadingSpinner, { text: "Waiting for browser authentication..." }),
+          /* @__PURE__ */ jsxs4(Box4, { marginTop: 1, children: [
+            /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "A browser window should have opened. If not, open:" }),
+            /* @__PURE__ */ jsxs4(Text4, { color: "cyan", children: [
+              frontendUrl,
+              "/login?redirect=cli&port=",
+              port || "..."
+            ] })
+          ] })
+        ] }) : /* @__PURE__ */ jsx4(Box4, { flexDirection: "column", marginBottom: 1, children: authError ? /* @__PURE__ */ jsxs4(Text4, { color: "red", bold: true, children: [
+          "\u2715 ",
+          authError
+        ] }) : /* @__PURE__ */ jsx4(Text4, { color: "green", bold: true, children: "\u2713 Authenticated successfully!" }) }),
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "ESC to go back to main menu" }) })
       ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(SkyScene, {}),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
-        /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "CyberCli subscription required" }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "A Pro, Max, or Team subscription is required to use CyberCli Code." }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Browser didn't open? Use the url below:" }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "cyan", children: "https://cybermindcli.info/subscribe?redirect=cli" }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Press Enter to choose a plan, ESC to go back" })
-      ] })
+      renderBorderBottom()
     ] });
   }
   if (screen === "apikey-input") {
     if (apiKeyStage === "provider") {
-      return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
-        /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
-          "Welcome to ",
-          CYBERMIND_NAME,
-          " Code v",
-          CYBERMIND_VERSION
-        ] }),
-        /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(SkyScene, {}),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-        /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
-          /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Enter your API key" }),
-          /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-          /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Select a provider:" }),
-          /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-          API_PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx4(Box2, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
-            i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
+      return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+        renderBorderTop("Select API Provider"),
+        /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+          /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Select an API provider:" }),
+          API_PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
+            i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
             /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
               i + 1,
               ". ",
               prov.label
             ] })
           ] }) }, prov.id)),
-          /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-          /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to go back" })
-        ] })
+          /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC go back" }) })
+        ] }),
+        renderBorderBottom()
       ] });
     }
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
-      /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
-        "Welcome to ",
-        CYBERMIND_NAME,
-        " Code v",
-        CYBERMIND_VERSION
-      ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(SkyScene, {}),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
-        /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Enter your API key" }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+      renderBorderTop("Enter API Key"),
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+        /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Paste your API key below:" }),
+        /* @__PURE__ */ jsxs4(Text4, { color: "gray", marginBottom: 1, children: [
           "Provider: ",
-          /* @__PURE__ */ jsx4(Text4, { color: "cyan", children: apiKeyProvider })
+          /* @__PURE__ */ jsx4(Text4, { color: "cyan", bold: true, children: apiKeyProvider })
         ] }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Paste your API key here:" }),
-        /* @__PURE__ */ jsxs4(Box2, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsxs4(Box4, { flexDirection: "row", marginBottom: 1, children: [
           /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
             ">",
             " "
@@ -2266,39 +6265,42 @@ var Onboarding = ({ onComplete }) => {
               value: apiKeyInput,
               onChange: setApiKeyInput,
               onSubmit: () => {
-                if (apiKeyInput.trim()) {
-                  setApiKey(apiKeyProvider, apiKeyInput.trim());
-                  markOnboardingComplete("apikey");
-                  onComplete("apikey");
+                const trimmed = apiKeyInput.trim();
+                if (trimmed) {
+                  setApiKey(apiKeyProvider, trimmed);
+                  if (apiKeyProvider === "codeva") {
+                    setAuthToken(trimmed);
+                    apiClient.authenticate(trimmed).then((authInfo) => {
+                      setSessionId(authInfo.session_id);
+                      setUserProfile(authInfo.user);
+                      markOnboardingComplete("apikey");
+                      onComplete("apikey");
+                    }).catch((err) => {
+                      markOnboardingComplete("apikey");
+                      onComplete("apikey");
+                    });
+                  } else {
+                    markOnboardingComplete("apikey");
+                    onComplete("apikey");
+                  }
                 }
               },
               mask: "*"
             }
           )
         ] }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Press Enter to submit, ESC to go back" })
-      ] })
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Enter submit \xB7 ESC go back" }) })
+      ] }),
+      renderBorderBottom()
     ] });
   }
   if (screen === "thirdparty-platforms") {
-    return /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
-      /* @__PURE__ */ jsxs4(Text4, { color: "#D97736", children: [
-        "Welcome to ",
-        CYBERMIND_NAME,
-        " Code v",
-        CYBERMIND_VERSION
-      ] }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(SkyScene, {}),
-      /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-      /* @__PURE__ */ jsx4(DottedBorder, { width: contentWidth - 2 }),
-      /* @__PURE__ */ jsxs4(Box2, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, children: [
-        /* @__PURE__ */ jsx4(Text4, { bold: true, color: "white", children: "Using 3rd-party platforms" }),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        THIRDPARTY_PLATFORMS.map((plat, i) => /* @__PURE__ */ jsx4(Box2, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
-          i === tpSelected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
+    return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
+      renderBorderTop("3rd-Party Platforms"),
+      /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
+        /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Select a local or 3rd-party platform to set up:" }),
+        THIRDPARTY_PLATFORMS.map((plat, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
+          i === tpSelected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
           /* @__PURE__ */ jsxs4(Text4, { color: i === tpSelected ? "white" : "gray", bold: i === tpSelected, children: [
             i + 1,
             ". ",
@@ -2309,29 +6311,19 @@ var Onboarding = ({ onComplete }) => {
             plat.desc
           ] })
         ] }) }, plat.id)),
-        /* @__PURE__ */ jsx4(Box2, { marginTop: 1 }),
-        /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to go back" })
-      ] })
+        /* @__PURE__ */ jsx4(Box4, { marginTop: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC go back" }) })
+      ] }),
+      renderBorderBottom()
     ] });
   }
   return null;
 };
 
 // src/components/ThemePicker.tsx
-import { useState as useState2 } from "react";
-import { Box as Box3, Text as Text5, useInput as useInput2 } from "ink";
-import gradient from "gradient-string";
+import { useState as useState3 } from "react";
+import { Box as Box5, Text as Text5, useInput as useInput2 } from "ink";
+init_src();
 import { Fragment, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-var cyber = gradient(["#00e5ff", "#7b5cff", "#ff5c8a"]);
-var THEMES = [
-  { id: "auto", label: "Auto (match terminal)" },
-  { id: "dark", label: "Dark mode" },
-  { id: "light", label: "Light mode" },
-  { id: "dark-colorblind", label: "Dark mode (colorblind-friendly)" },
-  { id: "light-colorblind", label: "Light mode (colorblind-friendly)" },
-  { id: "dark-ansi", label: "Dark mode (ANSI colors only)" },
-  { id: "light-ansi", label: "Light mode (ANSI colors only)" }
-];
 var SYNTAX_THEMES = [
   "Monokai Extended",
   "Dracula",
@@ -2340,15 +6332,25 @@ var SYNTAX_THEMES = [
   "GitHub Light"
 ];
 var ThemePicker = ({ onComplete }) => {
-  const [selected, setSelected] = useState2(1);
-  const [syntaxIdx, setSyntaxIdx] = useState2(0);
-  const [stage, setStage] = useState2("theme");
+  const [selected, setSelected] = useState3(1);
+  const [syntaxIdx, setSyntaxIdx] = useState3(0);
+  const [stage, setStage] = useState3("theme");
+  const previewMode = THEME_OPTIONS[stage === "theme" ? selected : selected]?.id ?? "dark";
+  const preview = resolvePalette(previewMode);
   useInput2((_, key) => {
     if (stage === "theme") {
       if (key.upArrow) {
-        setSelected((s) => Math.max(0, s - 1));
+        setSelected((s) => {
+          const next = Math.max(0, s - 1);
+          setActiveTheme(THEME_OPTIONS[next].id);
+          return next;
+        });
       } else if (key.downArrow) {
-        setSelected((s) => Math.min(THEMES.length - 1, s + 1));
+        setSelected((s) => {
+          const next = Math.min(THEME_OPTIONS.length - 1, s + 1);
+          setActiveTheme(THEME_OPTIONS[next].id);
+          return next;
+        });
       } else if (key.return) {
         setStage("syntax");
       }
@@ -2358,136 +6360,165 @@ var ThemePicker = ({ onComplete }) => {
       } else if (key.downArrow) {
         setSyntaxIdx((s) => Math.min(SYNTAX_THEMES.length - 1, s + 1));
       } else if (key.return) {
-        const theme = THEMES[selected];
+        const theme = THEME_OPTIONS[selected];
         const syntax = SYNTAX_THEMES[syntaxIdx];
         if (theme && syntax) {
-          onComplete({
-            mode: theme.id,
-            syntaxTheme: syntax
-          });
+          onComplete({ mode: theme.id, syntaxTheme: syntax });
         }
       }
     }
   });
-  const previewLines = [
-    { line: 1, text: "function greet() {", color: "cyan" },
-    { line: 2, text: '  console.log("Hello, World!");', old: true },
-    { line: 2, text: '  console.log("Hello, CyberCoder!");', new: true },
-    { line: 3, text: "}", color: "cyan" }
-  ];
-  return /* @__PURE__ */ jsxs5(Box3, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx5(Text5, { children: cyber("\u256D\u2500 Theme Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
-    /* @__PURE__ */ jsxs5(Box3, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      /* @__PURE__ */ jsx5(Text5, { bold: true, color: "white", children: "Let's get started." }),
-      /* @__PURE__ */ jsx5(Box3, { marginTop: 1 }),
-      /* @__PURE__ */ jsx5(Text5, { bold: true, color: "#D97736", children: "Choose the text style that looks best with your terminal" }),
-      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "To change this later, run /theme" }),
-      /* @__PURE__ */ jsx5(Box3, { marginTop: 1 }),
+  return /* @__PURE__ */ jsxs5(Box5, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsxs5(Text5, { bold: true, color: preview.accent, children: [
+      "Welcome to ",
+      CYBERCODER_NAME,
+      " v",
+      CYBERCODER_VERSION
+    ] }),
+    /* @__PURE__ */ jsx5(Box5, { marginTop: 1, children: /* @__PURE__ */ jsx5(SkyScene, {}) }),
+    /* @__PURE__ */ jsx5(Box5, { marginTop: 1, marginLeft: 1, children: /* @__PURE__ */ jsx5(Mascot, {}) }),
+    /* @__PURE__ */ jsxs5(Box5, { flexDirection: "column", marginTop: 1, paddingLeft: 1, children: [
+      /* @__PURE__ */ jsx5(Text5, { bold: true, color: preview.text, children: "Let's get started." }),
+      /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
       stage === "theme" && /* @__PURE__ */ jsxs5(Fragment, { children: [
-        THEMES.map((t, i) => /* @__PURE__ */ jsx5(Box3, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
-          i === selected ? /* @__PURE__ */ jsx5(Text5, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsxs5(Text5, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
+        /* @__PURE__ */ jsx5(Text5, { bold: true, color: preview.accent, children: "Choose the text style that looks best with your terminal" }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.muted, children: "To change this later, run /theme" }),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        THEME_OPTIONS.map((opt, i) => /* @__PURE__ */ jsx5(Box5, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
+          i === selected ? /* @__PURE__ */ jsx5(Text5, { color: preview.accent, children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "  " }),
+          /* @__PURE__ */ jsxs5(Text5, { color: i === selected ? preview.text : preview.muted, bold: i === selected, children: [
             i + 1,
             ". ",
-            t.label
+            opt.label
           ] }),
-          i === selected && /* @__PURE__ */ jsx5(Text5, { color: "green", children: "  \u2713" })
-        ] }) }, t.id)),
-        /* @__PURE__ */ jsx5(Box3, { marginTop: 1 }),
-        /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "Use arrow keys, Enter to confirm" })
+          i === selected && /* @__PURE__ */ jsx5(Text5, { color: preview.success, children: "  \u2713" })
+        ] }) }, opt.id)),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2191\u2193 to preview \xB7 Enter to confirm" })
       ] }),
       stage === "syntax" && /* @__PURE__ */ jsxs5(Fragment, { children: [
-        /* @__PURE__ */ jsx5(Text5, { bold: true, color: "#D97736", children: "Choose syntax highlighting theme:" }),
-        /* @__PURE__ */ jsx5(Box3, { marginTop: 1 }),
-        SYNTAX_THEMES.map((t, i) => /* @__PURE__ */ jsx5(Box3, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
-          i === syntaxIdx ? /* @__PURE__ */ jsx5(Text5, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsxs5(Text5, { color: i === syntaxIdx ? "white" : "gray", bold: i === syntaxIdx, children: [
+        /* @__PURE__ */ jsx5(Text5, { bold: true, color: preview.accent, children: "Choose syntax highlighting theme:" }),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        SYNTAX_THEMES.map((name, i) => /* @__PURE__ */ jsx5(Box5, { flexDirection: "row", children: /* @__PURE__ */ jsxs5(Text5, { children: [
+          i === syntaxIdx ? /* @__PURE__ */ jsx5(Text5, { color: preview.accent, children: "\u203A " }) : /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "  " }),
+          /* @__PURE__ */ jsxs5(Text5, { color: i === syntaxIdx ? preview.text : preview.muted, bold: i === syntaxIdx, children: [
             i + 1,
             ". ",
-            t
+            name
           ] })
-        ] }) }, t)),
-        /* @__PURE__ */ jsx5(Box3, { marginTop: 1 }),
-        /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "Use arrow keys, Enter to confirm" })
+        ] }) }, name)),
+        /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2191\u2193 navigate \xB7 Enter to confirm" })
       ] }),
-      /* @__PURE__ */ jsx5(Box3, { marginTop: 1 }),
-      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500" }),
-      previewLines.map((p, idx) => /* @__PURE__ */ jsxs5(Box3, { flexDirection: "row", children: [
-        /* @__PURE__ */ jsxs5(Text5, { color: "gray", children: [
-          p.line.toString().padStart(2),
-          " "
-        ] }),
-        "old" in p && p.old && /* @__PURE__ */ jsxs5(Text5, { color: "red", children: [
-          "- ",
-          p.text
-        ] }),
-        "new" in p && p.new && /* @__PURE__ */ jsxs5(Text5, { color: "green", children: [
-          "+ ",
-          p.text
-        ] }),
-        "color" in p && /* @__PURE__ */ jsxs5(Text5, { color: p.color, children: [
-          "  ",
-          p.text
+      /* @__PURE__ */ jsx5(Box5, { marginTop: 1 }),
+      /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2500".repeat(48) }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "1 " }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.info, children: "function " }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.warning, children: "greet" }),
+        /* @__PURE__ */ jsxs5(Text5, { color: preview.text, children: [
+          "() ",
+          "{"
         ] })
-      ] }, idx)),
-      /* @__PURE__ */ jsx5(Text5, { color: "gray", children: "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500" }),
-      /* @__PURE__ */ jsxs5(Text5, { color: "gray", children: [
-        "Syntax theme: ",
-        SYNTAX_THEMES[syntaxIdx],
-        " (ctrl+t to disable)"
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx5(Text5, { children: cyber("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+      ] }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "2 " }),
+        /* @__PURE__ */ jsxs5(Text5, { color: preview.error, children: [
+          "- ",
+          'console.log("Hello, World!");'
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "2 " }),
+        /* @__PURE__ */ jsxs5(Text5, { color: preview.success, children: [
+          "+ ",
+          'console.log("Hello, CyberCoder!");'
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs5(Box5, { flexDirection: "row", children: [
+        /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "3 " }),
+        /* @__PURE__ */ jsx5(Text5, { color: preview.text, children: "}" })
+      ] }),
+      /* @__PURE__ */ jsx5(Text5, { color: preview.dim, children: "\u2500".repeat(48) })
+    ] })
   ] });
 };
 
 // src/components/Settings.tsx
-import { useState as useState3 } from "react";
-import { Box as Box4, Text as Text6, useInput as useInput3 } from "ink";
-import gradient2 from "gradient-string";
+init_config();
+import { useState as useState4 } from "react";
+import { Box as Box6, Text as Text6, useInput as useInput3 } from "ink";
+import gradient from "gradient-string";
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
-var cyber2 = gradient2(["#00e5ff", "#7b5cff", "#ff5c8a"]);
+var cyber = gradient(["#00e5ff", "#7b5cff", "#ff5c8a"]);
 var SETTINGS_CATEGORIES = [
   {
     id: "general",
     label: "General",
     items: [
-      { key: "welcome", label: "Show welcome screen on startup", value: true },
-      { key: "auto_approve", label: "Auto-approve non-destructive changes", value: false },
-      { key: "telemetry", label: "Enable telemetry", value: true }
+      { key: "welcome", label: "Show welcome screen on startup", isBool: true },
+      { key: "telemetry", label: "Enable telemetry", isBool: true }
     ]
   },
   {
     id: "appearance",
     label: "Appearance",
     items: [
-      { key: "theme", label: "Theme", value: "Dark mode" },
-      { key: "syntax", label: "Syntax highlighting", value: "Monokai Extended" },
-      { key: "mascot", label: "Show mascot", value: true }
+      { key: "theme", label: "Theme Mode", isBool: false },
+      { key: "syntax", label: "Syntax highlighting", isBool: false }
     ]
   },
   {
     id: "ai",
     label: "AI & Providers",
     items: [
-      { key: "default_provider", label: "Default provider", value: "auto" },
-      { key: "default_model", label: "Default model", value: "auto" },
-      { key: "council_mode", label: "Council Mode default", value: false }
-    ]
-  },
-  {
-    id: "safety",
-    label: "Safety",
-    items: [
-      { key: "confirm_destructive", label: "Confirm destructive operations", value: true },
-      { key: "max_tokens", label: "Max tokens per request", value: "4096" }
+      { key: "default_provider", label: "Default provider", isBool: false },
+      { key: "default_model", label: "Default model", isBool: false }
     ]
   }
 ];
 var Settings = ({ onClose }) => {
-  const [catIdx, setCatIdx] = useState3(0);
-  const [itemIdx, setItemIdx] = useState3(0);
+  const [catIdx, setCatIdx] = useState4(0);
+  const [itemIdx, setItemIdx] = useState4(0);
+  const [config, setConfig] = useState4(() => loadConfig());
   const currentCat = SETTINGS_CATEGORIES[catIdx];
+  const getSettingValue = (key) => {
+    switch (key) {
+      case "welcome":
+        return config.showWelcome ?? true;
+      case "telemetry":
+        return config.telemetry ?? true;
+      case "theme":
+        return config.theme?.mode ?? "dark";
+      case "syntax":
+        return config.theme?.syntaxTheme ?? "Monokai Extended";
+      case "default_provider":
+        return config.lastProvider ?? "auto";
+      case "default_model":
+        return config.lastModel ?? "auto";
+      default:
+        return config[key] ?? false;
+    }
+  };
+  const toggleSetting = (key) => {
+    const currentValue = getSettingValue(key);
+    let updatedPartial = {};
+    if (key === "welcome") {
+      updatedPartial = { showWelcome: !currentValue };
+    } else if (key === "telemetry") {
+      updatedPartial = { telemetry: !currentValue };
+    } else if (key === "theme") {
+      const modes = ["dark", "light", "auto", "dark-ansi", "light-ansi"];
+      const nextMode = modes[(modes.indexOf(currentValue) + 1) % modes.length];
+      updatedPartial = { theme: { ...config.theme, mode: nextMode, syntaxTheme: config.theme?.syntaxTheme || "Monokai Extended" } };
+    } else if (key === "default_provider") {
+      const providers = ["auto", "cybermind", "openai", "anthropic", "groq", "google", "openrouter", "ollama"];
+      const nextProvider = providers[(providers.indexOf(currentValue) + 1) % providers.length];
+      updatedPartial = { lastProvider: nextProvider };
+    }
+    const newConfig = updateConfig(updatedPartial);
+    setConfig(newConfig);
+  };
   useInput3((_, key) => {
     if (key.escape || key.ctrl && _ === "c") {
       onClose();
@@ -2506,16 +6537,15 @@ var Settings = ({ onClose }) => {
       setItemIdx(0);
     } else if (key.return) {
       const item = currentCat.items[itemIdx];
-      if (item && typeof item.value === "boolean") {
-        item.value = !item.value;
-        setItemIdx((i) => i);
+      if (item) {
+        toggleSetting(item.key);
       }
     }
   });
-  return /* @__PURE__ */ jsxs6(Box4, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx6(Text6, { children: cyber2("\u256D\u2500 Settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
-    /* @__PURE__ */ jsxs6(Box4, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      /* @__PURE__ */ jsx6(Box4, { flexDirection: "row", marginBottom: 1, children: SETTINGS_CATEGORIES.map((cat, i) => /* @__PURE__ */ jsxs6(Text6, { children: [
+  return /* @__PURE__ */ jsxs6(Box6, { flexDirection: "column", marginBottom: 1, children: [
+    /* @__PURE__ */ jsx6(Text6, { children: cyber("\u256D\u2500 Settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E") }),
+    /* @__PURE__ */ jsxs6(Box6, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx6(Box6, { flexDirection: "row", marginBottom: 1, children: SETTINGS_CATEGORIES.map((cat, i) => /* @__PURE__ */ jsxs6(Text6, { children: [
         /* @__PURE__ */ jsxs6(Text6, { color: i === catIdx ? "#D97736" : "gray", bold: i === catIdx, children: [
           " ",
           cat.label,
@@ -2523,25 +6553,28 @@ var Settings = ({ onClose }) => {
         ] }),
         i < SETTINGS_CATEGORIES.length - 1 && /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "\u2502" })
       ] }, cat.id)) }),
-      /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "\u2500".repeat(50) }),
-      currentCat && currentCat.items.map((item, i) => /* @__PURE__ */ jsxs6(Box4, { flexDirection: "row", marginY: 1, children: [
-        /* @__PURE__ */ jsxs6(Text6, { children: [
-          i === itemIdx ? /* @__PURE__ */ jsx6(Text6, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsx6(Text6, { color: i === itemIdx ? "white" : "gray", bold: i === itemIdx, children: item.label })
-        ] }),
-        /* @__PURE__ */ jsx6(Box4, { flexGrow: 1 }),
-        /* @__PURE__ */ jsx6(Text6, { color: typeof item.value === "boolean" ? item.value ? "green" : "red" : "cyan", children: typeof item.value === "boolean" ? item.value ? "\u2713 enabled" : "\u2717 disabled" : item.value })
-      ] }, item.key)),
-      /* @__PURE__ */ jsx6(Box4, { marginTop: 1 }),
-      /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "Arrow keys to navigate, Enter to toggle, ESC to close" })
+      /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "\u2500".repeat(66) }),
+      currentCat && currentCat.items.map((item, i) => {
+        const val = getSettingValue(item.key);
+        return /* @__PURE__ */ jsxs6(Box6, { flexDirection: "row", marginY: 1, children: [
+          /* @__PURE__ */ jsxs6(Text6, { children: [
+            i === itemIdx ? /* @__PURE__ */ jsx6(Text6, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "  " }),
+            /* @__PURE__ */ jsx6(Text6, { color: i === itemIdx ? "white" : "gray", bold: i === itemIdx, children: item.label })
+          ] }),
+          /* @__PURE__ */ jsx6(Box6, { flexGrow: 1 }),
+          /* @__PURE__ */ jsx6(Text6, { color: typeof val === "boolean" ? val ? "green" : "red" : "cyan", children: typeof val === "boolean" ? val ? "\u2713 enabled" : "\u2717 disabled" : val })
+        ] }, item.key);
+      }),
+      /* @__PURE__ */ jsx6(Box6, { marginTop: 1 }),
+      /* @__PURE__ */ jsx6(Text6, { color: "gray", children: "Arrow keys to navigate \xB7 Enter to toggle/cycle \xB7 ESC to close" })
     ] }),
-    /* @__PURE__ */ jsx6(Text6, { children: cyber2("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
+    /* @__PURE__ */ jsx6(Text6, { children: cyber("\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F") })
   ] });
 };
 
 // src/components/ModelPicker.tsx
-import { useState as useState4 } from "react";
-import { Box as Box5, Text as Text7, useInput as useInput4 } from "ink";
+import { useState as useState5 } from "react";
+import { Box as Box7, Text as Text7, useInput as useInput4 } from "ink";
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var PROVIDERS = [
   {
@@ -2596,9 +6629,9 @@ var PROVIDERS = [
   }
 ];
 var ModelPicker = ({ currentModel, onSelect, onClose }) => {
-  const [providerIdx, setProviderIdx] = useState4(0);
-  const [modelIdx, setModelIdx] = useState4(0);
-  const [stage, setStage] = useState4("provider");
+  const [providerIdx, setProviderIdx] = useState5(0);
+  const [modelIdx, setModelIdx] = useState5(0);
+  const [stage, setStage] = useState5("provider");
   useInput4((_, key) => {
     if (key.escape) {
       if (stage === "model") {
@@ -2636,13 +6669,13 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
     }
   });
   const currentProv = PROVIDERS[providerIdx];
-  return /* @__PURE__ */ jsxs7(Box5, { flexDirection: "column", marginBottom: 1, children: [
+  return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
     /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u256D\u2500 Model Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
-    /* @__PURE__ */ jsxs7(Box5, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+    /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
       stage === "provider" && /* @__PURE__ */ jsxs7(Fragment2, { children: [
         /* @__PURE__ */ jsx7(Text7, { bold: true, color: "white", children: "Select a provider:" }),
-        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
-        PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx7(Box5, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
+        PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
           i === providerIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
           /* @__PURE__ */ jsx7(Text7, { color: i === providerIdx ? "white" : "gray", bold: i === providerIdx, children: prov.label }),
           /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
@@ -2651,7 +6684,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
             " models)"
           ] })
         ] }) }, prov.id)),
-        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
         /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to close" })
       ] }),
       stage === "model" && currentProv && /* @__PURE__ */ jsxs7(Fragment2, { children: [
@@ -2659,8 +6692,8 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
           currentProv.label,
           " \u2014 Select model:"
         ] }),
-        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
-        currentProv.models.map((m, i) => /* @__PURE__ */ jsxs7(Box5, { flexDirection: "column", marginBottom: 1, children: [
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
+        currentProv.models.map((m, i) => /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
           /* @__PURE__ */ jsxs7(Text7, { children: [
             i === modelIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
             /* @__PURE__ */ jsx7(Text7, { color: i === modelIdx ? "white" : "gray", bold: i === modelIdx, children: m.name }),
@@ -2673,7 +6706,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
             m.desc
           ] })
         ] }, m.id)),
-        /* @__PURE__ */ jsx7(Box5, { marginTop: 1 }),
+        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
         /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to go back" })
       ] })
     ] }),
@@ -2682,8 +6715,8 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
 };
 
 // src/components/ReleaseNotes.tsx
-import { useState as useState5 } from "react";
-import { Box as Box6, Text as Text8, useInput as useInput5 } from "ink";
+import { useState as useState6 } from "react";
+import { Box as Box8, Text as Text8, useInput as useInput5 } from "ink";
 import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 var RELEASES = [
   {
@@ -2732,7 +6765,7 @@ var RELEASES = [
   }
 ];
 var ReleaseNotes = ({ onClose }) => {
-  const [selected, setSelected] = useState5(0);
+  const [selected, setSelected] = useState6(0);
   useInput5((_, key) => {
     if (key.escape || key.ctrl && _ === "c") {
       onClose();
@@ -2745,10 +6778,10 @@ var ReleaseNotes = ({ onClose }) => {
     }
   });
   const rel = RELEASES[selected];
-  return /* @__PURE__ */ jsxs8(Box6, { flexDirection: "column", marginBottom: 1, children: [
+  return /* @__PURE__ */ jsxs8(Box8, { flexDirection: "column", marginBottom: 1, children: [
     /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u256D\u2500 Release Notes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
-    /* @__PURE__ */ jsxs8(Box6, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      /* @__PURE__ */ jsx8(Box6, { flexDirection: "row", marginBottom: 1, children: RELEASES.map((r, i) => /* @__PURE__ */ jsxs8(Text8, { children: [
+    /* @__PURE__ */ jsxs8(Box8, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
+      /* @__PURE__ */ jsx8(Box8, { flexDirection: "row", marginBottom: 1, children: RELEASES.map((r, i) => /* @__PURE__ */ jsxs8(Text8, { children: [
         /* @__PURE__ */ jsxs8(Text8, { color: i === selected ? "#D97736" : "gray", bold: i === selected, children: [
           " ",
           r.version,
@@ -2763,13 +6796,13 @@ var ReleaseNotes = ({ onClose }) => {
           " \u2014 ",
           rel.date
         ] }),
-        /* @__PURE__ */ jsx8(Box6, { marginTop: 1 }),
-        rel.highlights.map((h, i) => /* @__PURE__ */ jsxs8(Box6, { flexDirection: "row", marginBottom: 1, children: [
+        /* @__PURE__ */ jsx8(Box8, { marginTop: 1 }),
+        rel.highlights.map((h, i) => /* @__PURE__ */ jsxs8(Box8, { flexDirection: "row", marginBottom: 1, children: [
           /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u2022 " }),
           /* @__PURE__ */ jsx8(Text8, { color: "gray", children: h })
         ] }, i))
       ] }),
-      /* @__PURE__ */ jsx8(Box6, { marginTop: 1 }),
+      /* @__PURE__ */ jsx8(Box8, { marginTop: 1 }),
       /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "Arrow keys to switch version, ESC to close" })
     ] }),
     /* @__PURE__ */ jsx8(Text8, { color: "#D97736", children: "\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F" })
@@ -2777,67 +6810,213 @@ var ReleaseNotes = ({ onClose }) => {
 };
 
 // src/components/Prompt.tsx
-import { useState as useState6 } from "react";
-import { Box as Box7, Text as Text9 } from "ink";
+import { useState as useState7 } from "react";
+import { Box as Box9, Text as Text9, useInput as useInput6 } from "ink";
 import TextInput2 from "ink-text-input";
 import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
+var promptHistory = [];
 var Prompt = ({ onSubmit, disabled }) => {
-  const [value, setValue] = useState6("");
-  const handleSubmit = (text) => {
-    onSubmit(text);
-    setValue("");
-  };
-  if (disabled) {
-    return /* @__PURE__ */ jsxs9(Box7, { flexDirection: "row", children: [
-      /* @__PURE__ */ jsxs9(Text9, { color: "gray", children: [
-        ">",
-        " "
-      ] }),
-      /* @__PURE__ */ jsx9(Text9, { color: "gray", children: "(thinking\u2026)" })
-    ] });
-  }
-  return /* @__PURE__ */ jsxs9(Box7, { flexDirection: "row", children: [
-    /* @__PURE__ */ jsxs9(Text9, { color: "cyan", children: [
-      ">",
-      " "
-    ] }),
-    /* @__PURE__ */ jsx9(
-      TextInput2,
-      {
-        value,
-        onChange: setValue,
-        onSubmit: handleSubmit,
-        placeholder: "write a test for <filepath>"
+  const [value, setValue] = useState7("");
+  const [historyIndex, setHistoryIndex] = useState7(-1);
+  const t = useTheme();
+  useInput6((_input, key) => {
+    if (disabled) return;
+    if (key.upArrow) {
+      if (promptHistory.length > 0) {
+        const nextIndex = historyIndex === -1 ? promptHistory.length - 1 : Math.max(0, historyIndex - 1);
+        setHistoryIndex(nextIndex);
+        setValue(promptHistory[nextIndex] || "");
       }
-    )
-  ] });
+    } else if (key.downArrow) {
+      if (historyIndex !== -1) {
+        const nextIndex = historyIndex + 1;
+        if (nextIndex >= promptHistory.length) {
+          setHistoryIndex(-1);
+          setValue("");
+        } else {
+          setHistoryIndex(nextIndex);
+          setValue(promptHistory[nextIndex] || "");
+        }
+      }
+    }
+  });
+  const handleSubmit = (text) => {
+    if (text.endsWith("\\")) {
+      setValue(text.slice(0, -1) + "\n");
+      return;
+    }
+    const trimmed = text.trim();
+    if (trimmed) {
+      if (promptHistory.length === 0 || promptHistory[promptHistory.length - 1] !== trimmed) {
+        promptHistory.push(trimmed);
+      }
+      setHistoryIndex(-1);
+      onSubmit(trimmed);
+      setValue("");
+    }
+  };
+  return /* @__PURE__ */ jsxs9(
+    Box9,
+    {
+      flexDirection: "row",
+      marginTop: 1,
+      borderStyle: "round",
+      borderColor: disabled ? t.dim : t.accent,
+      paddingX: 1,
+      children: [
+        /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "> " }),
+        disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
+          TextInput2,
+          {
+            value,
+            onChange: setValue,
+            onSubmit: handleSubmit,
+            placeholder: 'Try "refactor <filepath>" \xB7 / for commands \xB7 \\ for multi-line'
+          }
+        )
+      ]
+    }
+  );
 };
 
 // src/components/MessageList.tsx
-import { Box as Box8, Text as Text10 } from "ink";
+import { Box as Box10, Text as Text10 } from "ink";
 import { jsx as jsx10, jsxs as jsxs10 } from "react/jsx-runtime";
-var ROLE_COLOR = {
-  user: "cyan",
-  assistant: "white",
-  system: "gray",
-  tool: "magenta"
-};
 var ROLE_LABEL = {
   user: "you",
-  assistant: "cybermind",
+  assistant: "cybercoder",
   system: "info",
   tool: "tool"
 };
+function renderFormattedText(text, key) {
+  const parts = [];
+  let currentText = "";
+  let i = 0;
+  while (i < text.length) {
+    if (text.startsWith("**", i)) {
+      if (currentText) {
+        parts.push(/* @__PURE__ */ jsx10(Text10, { children: currentText }, `txt-${i}`));
+        currentText = "";
+      }
+      i += 2;
+      const endIdx = text.indexOf("**", i);
+      if (endIdx !== -1) {
+        const boldContent = text.substring(i, endIdx);
+        parts.push(/* @__PURE__ */ jsx10(Text10, { bold: true, color: "white", children: boldContent }, `bold-${i}`));
+        i = endIdx + 2;
+      } else {
+        currentText += "**";
+      }
+    } else if (text.startsWith("`", i)) {
+      if (currentText) {
+        parts.push(/* @__PURE__ */ jsx10(Text10, { children: currentText }, `txt-${i}`));
+        currentText = "";
+      }
+      i += 1;
+      const endIdx = text.indexOf("`", i);
+      if (endIdx !== -1) {
+        const codeContent = text.substring(i, endIdx);
+        parts.push(/* @__PURE__ */ jsx10(Text10, { color: "cyan", bold: true, children: codeContent }, `inline-code-${i}`));
+        i = endIdx + 1;
+      } else {
+        currentText += "`";
+      }
+    } else {
+      currentText += text[i];
+      i++;
+    }
+  }
+  if (currentText) {
+    parts.push(/* @__PURE__ */ jsx10(Text10, { children: currentText }, `txt-end`));
+  }
+  if (text.startsWith("# ")) {
+    return /* @__PURE__ */ jsx10(Box10, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "#D97757", bold: true, underline: true, children: text.slice(2) }) }, key);
+  }
+  if (text.startsWith("## ")) {
+    return /* @__PURE__ */ jsx10(Box10, { marginTop: 1, children: /* @__PURE__ */ jsx10(Text10, { color: "#D97757", bold: true, children: text.slice(3) }) }, key);
+  }
+  return /* @__PURE__ */ jsx10(Box10, { flexDirection: "row", children: /* @__PURE__ */ jsx10(Text10, { children: parts }) }, key);
+}
+function parseContent(content) {
+  const lines = content.split("\n");
+  const elements = [];
+  let inCodeBlock = false;
+  let codeBlockLang = "";
+  let codeBlockLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("```")) {
+      if (inCodeBlock) {
+        inCodeBlock = false;
+        const langHeader = codeBlockLang ? ` ${codeBlockLang.toUpperCase()} ` : " CODE ";
+        elements.push(
+          /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginY: 1, borderStyle: "round", borderColor: "gray", children: [
+            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, backgroundColor: "gray", children: /* @__PURE__ */ jsx10(Text10, { color: "black", bold: true, children: langHeader }) }),
+            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, flexDirection: "column", children: codeBlockLines.map((l, idx) => /* @__PURE__ */ jsx10(Text10, { color: "white", children: l }, idx)) })
+          ] }, `code-${i}`)
+        );
+        codeBlockLines = [];
+        codeBlockLang = "";
+      } else {
+        inCodeBlock = true;
+        codeBlockLang = line.slice(3).trim();
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      continue;
+    }
+    if (line.startsWith("[\u2192 ") && line.includes("]")) {
+      const match = line.match(/^\[→ ([^\]]+)\](.*)$/);
+      if (match) {
+        const toolName = match[1]?.trim() || "";
+        const toolArgs = match[2]?.trim() || "";
+        elements.push(
+          /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", paddingX: 1, marginY: 1, borderStyle: "single", borderColor: "yellow", children: [
+            /* @__PURE__ */ jsxs10(Text10, { color: "yellow", bold: true, children: [
+              "\u26A1 Tool Call: ",
+              toolName
+            ] }),
+            /* @__PURE__ */ jsx10(Text10, { color: "gray", children: toolArgs })
+          ] }, `tool-${i}`)
+        );
+        continue;
+      }
+    }
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      elements.push(/* @__PURE__ */ jsx10(Text10, { color: "green", children: line }, i));
+      continue;
+    } else if (line.startsWith("-") && !line.startsWith("---")) {
+      elements.push(/* @__PURE__ */ jsx10(Text10, { color: "red", children: line }, i));
+      continue;
+    } else if (line.startsWith("@@")) {
+      elements.push(/* @__PURE__ */ jsx10(Text10, { color: "cyan", children: line }, i));
+      continue;
+    }
+    elements.push(renderFormattedText(line, i));
+  }
+  return elements;
+}
 var MessageList = ({ messages }) => {
   if (messages.length === 0) return null;
-  return /* @__PURE__ */ jsx10(Box8, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => /* @__PURE__ */ jsxs10(Box8, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx10(Text10, { color: ROLE_COLOR[m.role], bold: true, children: ROLE_LABEL[m.role] }),
-    /* @__PURE__ */ jsx10(Text10, { color: m.role === "system" ? "gray" : void 0, children: m.content })
-  ] }, m.id)) });
+  const roleColor = {
+    user: activeTheme.user,
+    assistant: activeTheme.assistant,
+    system: activeTheme.muted,
+    tool: activeTheme.accentAlt
+  };
+  return /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => {
+    if (m.role === "system" && !m.content.trim()) return null;
+    return /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginBottom: 1, children: [
+      /* @__PURE__ */ jsx10(Text10, { color: roleColor[m.role], bold: true, children: ROLE_LABEL[m.role] }),
+      /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", paddingLeft: 1, children: parseContent(m.content) })
+    ] }, m.id);
+  }) });
 };
 
 // src/components/StatusBar.tsx
-import { Box as Box9, Text as Text11 } from "ink";
+import { Box as Box11, Text as Text11 } from "ink";
 import { jsx as jsx11, jsxs as jsxs11 } from "react/jsx-runtime";
 var STATUS_LABEL = {
   idle: "ready",
@@ -2845,83 +7024,204 @@ var STATUS_LABEL = {
   "awaiting-approval": "awaiting approval",
   error: "error"
 };
-var STATUS_COLOR = {
-  idle: "green",
-  thinking: "yellow",
-  "awaiting-approval": "magenta",
-  error: "red"
-};
-var StatusBar = ({ status, model, provider }) => {
-  return /* @__PURE__ */ jsxs11(Box9, { marginTop: 1, children: [
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "[" }),
-    /* @__PURE__ */ jsx11(Text11, { color: STATUS_COLOR[status], bold: true, children: STATUS_LABEL[status] }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "] " }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "provider=" }),
-    /* @__PURE__ */ jsx11(Text11, { color: "cyan", children: provider }),
-    /* @__PURE__ */ jsxs11(Text11, { color: "gray", children: [
-      "  ",
-      "model="
+var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
+  const t = useTheme();
+  const statusColor = {
+    idle: t.success,
+    thinking: t.warning,
+    "awaiting-approval": t.accentAlt,
+    error: t.error
+  };
+  const formatTokens2 = (num) => {
+    if (num >= 1e3) {
+      return `${(num / 1e3).toFixed(1)}k`;
+    }
+    return num.toString();
+  };
+  return /* @__PURE__ */ jsxs11(Box11, { marginTop: 1, paddingLeft: 1, children: [
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "[" }),
+    /* @__PURE__ */ jsx11(Text11, { color: statusColor[status], bold: true, children: STATUS_LABEL[status] }),
+    /* @__PURE__ */ jsxs11(Text11, { color: t.dim, children: [
+      "] ",
+      " "
     ] }),
-    /* @__PURE__ */ jsx11(Text11, { color: "cyan", children: model }),
-    /* @__PURE__ */ jsx11(Text11, { color: "gray", children: "  \xB7 \xB7 for shortcuts" })
+    /* @__PURE__ */ jsx11(Text11, { color: t.text, bold: true, children: model }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.text, children: provider }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "tokens: " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.info, bold: true, children: formatTokens2(tokens) }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "cost: " }),
+    /* @__PURE__ */ jsxs11(Text11, { color: t.success, bold: true, children: [
+      "$",
+      cost.toFixed(2)
+    ] }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "? shortcuts" })
   ] });
 };
+
+// src/components/ThinkingIndicator.tsx
+import { useEffect as useEffect3, useState as useState8 } from "react";
+import { Box as Box12, Text as Text12 } from "ink";
+import { jsx as jsx12, jsxs as jsxs12 } from "react/jsx-runtime";
+var WORDS = [
+  "Thinking",
+  "Pondering",
+  "Conjuring",
+  "Reasoning",
+  "Computing",
+  "Synthesizing",
+  "Architecting",
+  "Untangling",
+  "Investigating",
+  "Cooking",
+  "Crunching",
+  "Composing",
+  "Deliberating",
+  "Strategizing",
+  "Assembling",
+  "Tinkering",
+  "Wrangling",
+  "Noodling"
+];
+var FRAMES = ["\u28FE", "\u28FD", "\u28FB", "\u28BF", "\u287F", "\u28DF", "\u28EF", "\u28F7"];
+var ThinkingIndicator = ({ tokens = 0, label }) => {
+  const t = activeTheme;
+  const [frame, setFrame] = useState8(0);
+  const [wordIdx, setWordIdx] = useState8(() => Math.floor(Math.random() * WORDS.length));
+  const [elapsed, setElapsed] = useState8(0);
+  useEffect3(() => {
+    const f = setInterval(() => setFrame((x) => (x + 1) % FRAMES.length), 80);
+    const w = setInterval(() => setWordIdx((x) => (x + 1) % WORDS.length), 3200);
+    const e = setInterval(() => setElapsed((x) => x + 1), 1e3);
+    return () => {
+      clearInterval(f);
+      clearInterval(w);
+      clearInterval(e);
+    };
+  }, []);
+  const word = label || WORDS[wordIdx];
+  return /* @__PURE__ */ jsxs12(Box12, { marginTop: 1, paddingLeft: 1, children: [
+    /* @__PURE__ */ jsxs12(Text12, { color: t.accent, children: [
+      FRAMES[frame],
+      " "
+    ] }),
+    /* @__PURE__ */ jsxs12(Text12, { color: t.accent, bold: true, children: [
+      word,
+      "\u2026"
+    ] }),
+    /* @__PURE__ */ jsxs12(Text12, { color: t.dim, children: [
+      "  (",
+      elapsed,
+      "s"
+    ] }),
+    tokens > 0 && /* @__PURE__ */ jsxs12(Text12, { color: t.dim, children: [
+      " \xB7 ",
+      formatTokens(tokens),
+      " tokens"
+    ] }),
+    /* @__PURE__ */ jsx12(Text12, { color: t.dim, children: " \xB7 esc to interrupt)" })
+  ] });
+};
+function formatTokens(n) {
+  return n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n);
+}
 
 // src/components/ExitConfirm.tsx
-import { Box as Box10, Text as Text12 } from "ink";
-import { jsx as jsx12 } from "react/jsx-runtime";
-var ExitConfirm = () => /* @__PURE__ */ jsx12(Box10, { marginTop: 1, children: /* @__PURE__ */ jsx12(Text12, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
+import { Box as Box13, Text as Text13 } from "ink";
+import { jsx as jsx13 } from "react/jsx-runtime";
+var ExitConfirm = () => /* @__PURE__ */ jsx13(Box13, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
 
 // src/components/ApprovalDialog.tsx
-import { Box as Box11, Text as Text13, useInput as useInput6 } from "ink";
-import { jsx as jsx13, jsxs as jsxs12 } from "react/jsx-runtime";
+import { Box as Box14, Text as Text14, useInput as useInput7 } from "ink";
+import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
 var ApprovalDialog = ({ pending }) => {
-  useInput6((input) => {
-    const key = input.toLowerCase();
-    if (key === "y") pending.resolve("allow");
-    else if (key === "s") pending.resolve("allow-session");
-    else if (key === "t") pending.resolve("allow-persistent");
-    else if (key === "n") pending.resolve("deny");
+  useInput7((input, key) => {
+    const char = input.toLowerCase();
+    if (char === "y") {
+      pending.resolve("allow");
+    } else if (char === "n" || key.escape) {
+      pending.resolve("deny");
+    } else if (char === "a") {
+      pending.resolve("allow-persistent");
+    }
   });
-  return /* @__PURE__ */ jsxs12(Box11, { flexDirection: "column", borderStyle: "round", borderColor: pending.destructive ? "red" : "yellow", paddingX: 1, children: [
-    /* @__PURE__ */ jsxs12(Text13, { bold: true, children: [
-      pending.destructive ? "\u26A0 " : "",
-      "Approve tool: ",
-      /* @__PURE__ */ jsx13(Text13, { color: "cyan", children: pending.toolName })
-    ] }),
-    /* @__PURE__ */ jsx13(Text13, { children: pending.summary }),
-    /* @__PURE__ */ jsx13(Box11, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { dimColor: true, children: "[y] allow once \xB7 [s] allow this session \xB7 [t] trust persistently \xB7 [n] deny" }) })
-  ] });
+  return /* @__PURE__ */ jsxs13(
+    Box14,
+    {
+      flexDirection: "column",
+      borderStyle: "double",
+      borderColor: pending.destructive ? "red" : "yellow",
+      paddingX: 1,
+      marginY: 1,
+      children: [
+        /* @__PURE__ */ jsx14(Text14, { bold: true, color: pending.destructive ? "red" : "yellow", children: pending.destructive ? "\u26A0 Critical Tool Approval Required" : "\u26A1 Tool Approval Required" }),
+        /* @__PURE__ */ jsxs13(Box14, { marginTop: 1, flexDirection: "column", children: [
+          /* @__PURE__ */ jsxs13(Text14, { children: [
+            "Tool: ",
+            /* @__PURE__ */ jsx14(Text14, { color: "cyan", bold: true, children: pending.toolName })
+          ] }),
+          /* @__PURE__ */ jsx14(Text14, { color: "gray", children: pending.summary })
+        ] }),
+        /* @__PURE__ */ jsx14(Box14, { marginTop: 1, children: /* @__PURE__ */ jsxs13(Text14, { children: [
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "green", children: "[y] Allow" }),
+          " \xB7 ",
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "red", children: "[n] Deny" }),
+          " \xB7 ",
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "yellow", children: "[a] Always allow" }),
+          " \xB7 ",
+          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "gray", children: "[ESC] Cancel" })
+        ] }) })
+      ]
+    }
+  );
 };
 
 // src/components/HintBar.tsx
-import { Box as Box12, Text as Text14 } from "ink";
-import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
+import { Box as Box15, Text as Text15, useStdout as useStdout3 } from "ink";
+import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
-  if (status === "thinking") {
-    return /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "\u2500".repeat(58) }),
-      /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
-        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "? for shortcuts \xB7 " }),
-        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "Esc to interrupt" })
-      ] })
-    ] });
-  }
-  if (status === "awaiting-approval") {
-    return /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "\u2500".repeat(58) }),
-      /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
-        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "? for shortcuts \xB7 " }),
-        /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "y/n to approve" })
-      ] })
-    ] });
-  }
-  return /* @__PURE__ */ jsxs13(Box12, { flexDirection: "column", marginTop: 1, children: [
-    /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "\u2500".repeat(58) }),
-    /* @__PURE__ */ jsxs13(Box12, { flexDirection: "row", marginTop: 1, children: [
-      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "? for shortcuts \xB7 " }),
-      /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "/ for commands" })
-    ] })
+  const { stdout } = useStdout3();
+  const t = useTheme();
+  const termWidth = stdout.columns ?? 80;
+  const contentWidth = Math.min(termWidth - 4, 76);
+  const getHints = () => {
+    switch (status) {
+      case "thinking":
+        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "Esc" }),
+          " to interrupt \xB7 ",
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
+          " for shortcuts"
+        ] });
+      case "awaiting-approval":
+        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.success, children: "y" }),
+          " allow \xB7 ",
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.error, children: "n" }),
+          " deny \xB7 ",
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.warning, children: "a" }),
+          " always \xB7 ",
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.dim, children: "ESC" }),
+          " cancel"
+        ] });
+      case "idle":
+      default:
+        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
+          " for shortcuts \xB7 ",
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "/" }),
+          " for commands \xB7 ",
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.error, children: "Ctrl+C" }),
+          " to exit"
+        ] });
+    }
+  };
+  return /* @__PURE__ */ jsxs14(Box15, { flexDirection: "column", marginTop: 1, children: [
+    /* @__PURE__ */ jsx15(Text15, { color: t.dim, dimColor: true, children: "\u2500".repeat(contentWidth + 2) }),
+    /* @__PURE__ */ jsx15(Box15, { paddingLeft: 1, marginTop: 0, children: getHints() })
   ] });
 };
 
@@ -3046,49 +7346,18 @@ function buildExitCommand(ctx) {
 
 // src/commands/stubs.ts
 var STUBS = [
-  // Session / context
-  { name: "compact", category: "session", milestone: "M5", description: "Compact conversation history to free context." },
-  { name: "branch", category: "session", milestone: "M5", description: "Fork the conversation at this point." },
-  { name: "background", category: "session", milestone: "M5", description: "Send this session to the background and free the terminal." },
-  { name: "btw", category: "session", milestone: "M5", description: "Ask a quick side question without interrupting the main thread." },
-  // /color, /model, /provider, /consensus wired in M5.
-  // Agent / model
-  { name: "fallback", category: "agent", milestone: "M10", description: "Manually switch to local Ollama as fallback." },
-  { name: "agents", category: "agent", milestone: "M11", description: "Manage parallel agent worktree configurations." },
-  { name: "advisor", category: "agent", milestone: "M10", description: "Consult a stronger advisor model at key moments." },
-  // /research, /plan, /code-review wired in M4 (see commands/skills.ts).
-  // Skills
-  // /skills wired in M4 (see commands/skills.ts).
-  { name: "skill-creator", category: "skills", milestone: "M13", description: "Author a new skill interactively." },
-  { name: "agent-browser", category: "skills", milestone: "M7", description: "Run the Playwright browser-automation skill." },
-  // Auth / sync
-  { name: "login", category: "auth", milestone: "M6", description: "Log in via OAuth or with an API key." },
-  { name: "logout", category: "auth", milestone: "M6", description: "Log out and clear credentials." },
-  { name: "team", category: "auth", milestone: "M6", description: "Switch the active team workspace." },
-  { name: "sync", category: "auth", milestone: "M6", description: "Push/pull skills and settings to/from the backend." },
-  { name: "usage", category: "auth", milestone: "M6", description: "Show current API usage and quota." },
-  { name: "cost", category: "auth", milestone: "M12", description: "Show pinned $/token meter. Use /cost limit <usd>." },
-  // Config / project
-  { name: "init", category: "config", milestone: "M7", description: "Initialize the project with an AGENTS.md." },
-  { name: "add-dir", category: "config", milestone: "M5", description: "Add another working directory to this session." },
-  { name: "profile", category: "config", milestone: "M10", description: "Switch the project profile (strict-ts, hobby, paranoid\u2026)." },
-  { name: "release-notes", category: "config", milestone: "M14", description: "Show release notes for the current version." },
-  // Safety
-  // /trust, /secret wired in M5.
-  { name: "sandbox", category: "safety", milestone: "M10", description: "Toggle Docker/Podman sandbox for risky commands." },
-  { name: "rewind", category: "safety", milestone: "M10", description: "Time-travel: undo the last N turns including file changes." },
-  { name: "replay", category: "safety", milestone: "M10", description: "Deterministically rerun a recorded session." },
-  // Collab
-  { name: "mirror", category: "collab", milestone: "M11", description: "Open the web UI mirror at http://localhost:7777." },
-  { name: "pair", category: "collab", milestone: "M11", description: "Start or join a live pair session over LAN/tunnel." },
-  { name: "worktree", category: "collab", milestone: "M11", description: "Toggle git-worktree-per-task isolation." },
-  // Workflows / palette
-  // /workflow wired in M5.
-  { name: "palette", category: "utility", milestone: "M12", description: "Open the fuzzy command palette (Ctrl+K)." },
-  { name: "diff", category: "utility", milestone: "M10", description: "Show pending file changes from the agent (lands with time-travel)." },
-  { name: "mcp", category: "utility", milestone: "M13", description: "Manage MCP servers and the MCP marketplace." },
-  // Cyber
-  { name: "cyber", category: "cyber", milestone: "Phase 2", description: "Reserved for the autonomous bug-bounty mode. Coming soon." }
+  // Session / context (planned)
+  { name: "background", category: "session", milestone: "planned", description: "Send this session to the background and free the terminal." },
+  { name: "btw", category: "session", milestone: "planned", description: "Ask a quick side question without interrupting the main thread." },
+  // Agent / model (planned)
+  { name: "advisor", category: "agent", milestone: "planned", description: "Consult a stronger advisor model at key moments." },
+  // Auth / sync (planned)
+  { name: "team-workspace", category: "auth", milestone: "planned", description: "Switch the active team workspace." },
+  { name: "sync", category: "auth", milestone: "planned", description: "Push/pull skills and settings to/from the backend." },
+  // Safety (planned)
+  { name: "sandbox", category: "safety", milestone: "planned", description: "Toggle Docker/Podman sandbox for risky commands." },
+  // Collab (planned)
+  { name: "pair", category: "collab", milestone: "planned", description: "Start or join a live pair session over LAN/tunnel." }
 ];
 function buildStubCommands(ctx) {
   return STUBS.map((spec) => ({
@@ -3101,1362 +7370,34 @@ function buildStubCommands(ctx) {
       ctx.appendMessage({
         id: `${spec.name}-${Date.now()}`,
         role: "system",
-        content: `/${spec.name} is registered but its implementation lands in ${spec.milestone}.`,
+        content: `/${spec.name} is planned and not yet available. Use /help to see active commands.`,
         createdAt: Date.now()
       });
     }
   }));
 }
 
-// ../core/src/agent-loop.ts
-var log10 = createLogger("core:agent");
-async function* runAgentLoop(messages, opts) {
-  const tools = opts.tools ?? [];
-  const toolMap = new Map(tools.map((t) => [t.schema.name, t]));
-  const toolSchemas = tools.map((t) => t.schema);
-  const max = opts.maxIterations ?? 10;
-  const ctx = { cwd: process.cwd() };
-  const buffer = [...messages];
-  for (let iter = 0; iter < max; iter++) {
-    if (opts.signal?.aborted) {
-      yield { type: "done", reason: "error", error: "aborted" };
-      return;
-    }
-    yield { type: "iteration", index: iter, max };
-    const req = {
-      model: opts.model ?? "auto",
-      messages: buffer,
-      systemPrompt: opts.systemPrompt,
-      tools: toolSchemas.length > 0 ? toolSchemas : void 0,
-      signal: opts.signal
-    };
-    let assistantText = "";
-    const assistantToolCalls = [];
-    let stopReason = { type: "done", reason: "end_turn" };
-    for await (const chunk of opts.provider.chat(req)) {
-      if (chunk.type === "text") {
-        assistantText += chunk.text;
-        yield { type: "text", text: chunk.text };
-      } else if (chunk.type === "tool_call") {
-        assistantToolCalls.push(chunk.toolCall);
-        yield {
-          type: "tool_call",
-          name: chunk.toolCall.name,
-          input: chunk.toolCall.input,
-          id: chunk.toolCall.id
-        };
-      } else if (chunk.type === "usage") {
-        yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
-      } else if (chunk.type === "done") {
-        stopReason = chunk;
-      }
-    }
-    buffer.push({
-      role: "assistant",
-      content: assistantText,
-      toolCalls: assistantToolCalls.length ? assistantToolCalls : void 0
-    });
-    if (stopReason.reason === "error") {
-      yield { type: "done", reason: "error", error: stopReason.error };
-      return;
-    }
-    if (assistantToolCalls.length === 0) {
-      yield { type: "done", reason: "end_turn" };
-      return;
-    }
-    for (const tc of assistantToolCalls) {
-      const tool = toolMap.get(tc.name);
-      if (!tool) {
-        const errOut = `Tool '${tc.name}' is not registered.`;
-        yield { type: "tool_result", name: tc.name, id: tc.id, output: errOut, ok: false };
-        buffer.push({ role: "tool", content: errOut, toolCallId: tc.id });
-        continue;
-      }
-      try {
-        if (ctx.approve) {
-          const ok = await ctx.approve(tc.name, tc.input);
-          if (!ok) {
-            const denied = `[user denied tool '${tc.name}']`;
-            yield { type: "tool_result", name: tc.name, id: tc.id, output: denied, ok: false };
-            buffer.push({ role: "tool", content: denied, toolCallId: tc.id });
-            continue;
-          }
-        }
-        const output = await tool.execute(tc.input, ctx);
-        yield { type: "tool_result", name: tc.name, id: tc.id, output, ok: true };
-        buffer.push({ role: "tool", content: output, toolCallId: tc.id });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        log10.error("tool execution failed", { tool: tc.name, err: msg });
-        yield { type: "tool_result", name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
-        buffer.push({ role: "tool", content: `Error: ${msg}`, toolCallId: tc.id });
-      }
-    }
-  }
-  yield { type: "done", reason: "max_iterations" };
-}
-
-// ../core/src/consensus.ts
-async function runConsensus(messages, opts) {
-  const timeout = opts.timeoutMs ?? 6e4;
-  const tasks = opts.providers.map(async (p, i) => {
-    const req = {
-      model: opts.models?.[i] ?? "auto",
-      messages,
-      systemPrompt: opts.systemPrompt
-    };
-    const out = { text: "" };
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), timeout);
-    try {
-      for await (const chunk of p.chat({ ...req, signal: ac.signal })) {
-        if (chunk.type === "text") out.text += chunk.text;
-        else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
-      }
-    } catch (err) {
-      out.error = err instanceof Error ? err.message : String(err);
-    } finally {
-      clearTimeout(timer);
-    }
-    return { provider: p.info.id, model: req.model, text: out.text, error: out.error };
-  });
-  const perProvider = await Promise.all(tasks);
-  const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
-  return { perProvider, merged };
-}
-function mergeAnswers(answers) {
-  if (answers.length === 0) return "";
-  if (answers.length === 1) return answers[0] ?? "";
-  const sorted = [...answers].sort((a, b) => b.length - a.length);
-  const spine = sorted[0] ?? "";
-  const seen = new Set(spine.split("\n").map((l) => l.trim()));
-  const extras = [];
-  for (let i = 1; i < sorted.length; i++) {
-    const lines = (sorted[i] ?? "").split("\n");
-    for (const line of lines) {
-      const t = line.trim();
-      if (t.length > 0 && !seen.has(t)) {
-        seen.add(t);
-        extras.push(line);
-      }
-    }
-  }
-  return extras.length > 0 ? `${spine}
-
---- additional perspectives ---
-${extras.join("\n")}` : spine;
-}
-
-// ../providers/src/types.ts
-import { z as z8 } from "zod";
-var ProviderRoleSchema = z8.enum(["system", "user", "assistant", "tool"]);
-
-// ../providers/src/anthropic.ts
-import Anthropic from "@anthropic-ai/sdk";
-var log11 = createLogger("providers:anthropic");
-var AnthropicProvider = class {
-  info;
-  client;
-  defaultModel;
-  constructor(opts = {}) {
-    const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY ?? process.env.ANTHROPIC_API_KEY;
-    this.client = new Anthropic({
-      apiKey: apiKey ?? "",
-      baseURL: opts.baseURL
-    });
-    this.defaultModel = opts.defaultModel ?? "claude-3-5-sonnet-latest";
-    this.info = {
-      id: "anthropic",
-      displayName: "Anthropic",
-      requiresNetwork: true,
-      ready: Boolean(apiKey)
-    };
-  }
-  async listModels() {
-    return [
-      "claude-3-5-sonnet-latest",
-      "claude-3-5-haiku-latest",
-      "claude-3-opus-latest",
-      "claude-sonnet-4-5",
-      "claude-opus-4"
-    ];
-  }
-  async *chat(req) {
-    const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-    const { system, messages } = splitSystem(req.messages, req.systemPrompt);
-    log11.debug("anthropic chat", { model, messages: messages.length, tools: req.tools?.length ?? 0 });
-    try {
-      const stream = this.client.messages.stream({
-        model,
-        max_tokens: req.maxTokens ?? 4096,
-        temperature: req.temperature,
-        system: system || void 0,
-        messages: messages.map(toAnthropicMessage),
-        tools: req.tools?.map(toAnthropicTool)
-      });
-      const inflightToolCalls = /* @__PURE__ */ new Map();
-      for await (const event of stream) {
-        if (event.type === "content_block_start") {
-          if (event.content_block.type === "tool_use") {
-            inflightToolCalls.set(event.index, {
-              id: event.content_block.id,
-              name: event.content_block.name,
-              input: {}
-            });
-          }
-        } else if (event.type === "content_block_delta") {
-          if (event.delta.type === "text_delta") {
-            yield { type: "text", text: event.delta.text };
-          } else if (event.delta.type === "input_json_delta") {
-            const tc = inflightToolCalls.get(event.index);
-            if (tc) {
-              tc._raw = (tc._raw ?? "") + event.delta.partial_json;
-            }
-          }
-        } else if (event.type === "content_block_stop") {
-          const tc = inflightToolCalls.get(event.index);
-          if (tc) {
-            const raw = tc._raw ?? "{}";
-            try {
-              tc.input = raw.length > 0 ? JSON.parse(raw) : {};
-            } catch (err) {
-              log11.warn("failed to parse tool input json", { raw, err: String(err) });
-              tc.input = {};
-            }
-            yield { type: "tool_call", toolCall: { id: tc.id, name: tc.name, input: tc.input } };
-            inflightToolCalls.delete(event.index);
-          }
-        } else if (event.type === "message_delta") {
-          if (event.usage) {
-            yield { type: "usage", inputTokens: 0, outputTokens: event.usage.output_tokens ?? 0 };
-          }
-        } else if (event.type === "message_stop") {
-        }
-      }
-      const final = await stream.finalMessage();
-      yield {
-        type: "done",
-        reason: final.stop_reason === "tool_use" ? "tool_use" : final.stop_reason === "max_tokens" ? "max_tokens" : final.stop_reason === "end_turn" ? "end_turn" : "stop"
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log11.error("anthropic chat failed", msg);
-      yield { type: "done", reason: "error", error: msg };
-    }
-  }
-};
-function splitSystem(messages, systemPrompt) {
-  const sysFromMessages = messages.filter((m) => m.role === "system").map((m) => m.content);
-  const rest = messages.filter((m) => m.role !== "system");
-  const system = [systemPrompt ?? "", ...sysFromMessages].filter(Boolean).join("\n\n");
-  return { system, messages: rest };
-}
-function toAnthropicMessage(m) {
-  if (m.role === "tool") {
-    return {
-      role: "user",
-      content: [
-        {
-          type: "tool_result",
-          tool_use_id: m.toolCallId ?? "",
-          content: m.content
-        }
-      ]
-    };
-  }
-  if (m.role === "assistant" && m.toolCalls?.length) {
-    const blocks = [];
-    if (m.content) blocks.push({ type: "text", text: m.content });
-    for (const tc of m.toolCalls) {
-      blocks.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.input });
-    }
-    return { role: "assistant", content: blocks };
-  }
-  return {
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: m.content
-  };
-}
-function toAnthropicTool(t) {
-  return {
-    name: t.name,
-    description: t.description,
-    input_schema: t.inputSchema
-  };
-}
-
-// ../providers/src/cybermind-cloud.ts
-var DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybermindcli.info/v1";
-var CybermindCloudProvider = class extends AnthropicProvider {
-  info;
-  constructor(opts = {}) {
-    const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY;
-    super({
-      apiKey,
-      baseURL: opts.baseURL ?? DEFAULT_BASE_URL,
-      defaultModel: opts.defaultModel ?? "cybermind-default"
-    });
-    this.info = {
-      id: "cybermind-cloud",
-      displayName: "CyberMind Cloud",
-      requiresNetwork: true,
-      ready: Boolean(apiKey)
-    };
-  }
-};
-
-// ../providers/src/ollama.ts
-var log12 = createLogger("providers:ollama");
-var OllamaProvider = class {
-  info;
-  baseURL;
-  defaultModel;
-  constructor(opts = {}) {
-    this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
-    this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? "llama3.1";
-    this.info = {
-      id: "ollama",
-      displayName: "Ollama (local)",
-      requiresNetwork: false,
-      ready: true
-      // Optimistic; reachability is checked lazily on first call.
-    };
-  }
-  async listModels() {
-    try {
-      const res = await fetch(`${this.baseURL}/api/tags`, { method: "GET" });
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json.models?.map((m) => m.name) ?? [];
-    } catch (err) {
-      log12.warn("ollama listModels failed", String(err));
-      return [];
-    }
-  }
-  async *chat(req) {
-    const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-    log12.debug("ollama chat", { model, messages: req.messages.length });
-    const body = {
-      model,
-      messages: [
-        ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
-        ...req.messages.map(toOllamaMessage)
-      ],
-      stream: true,
-      options: {
-        temperature: req.temperature,
-        num_predict: req.maxTokens
-      },
-      tools: req.tools?.map((t) => ({
-        type: "function",
-        function: { name: t.name, description: t.description, parameters: t.inputSchema }
-      }))
-    };
-    try {
-      const res = await fetch(`${this.baseURL}/api/chat`, {
-        method: "POST",
-        body: JSON.stringify(body),
-        headers: { "Content-Type": "application/json" },
-        signal: req.signal
-      });
-      if (!res.ok || !res.body) {
-        yield {
-          type: "done",
-          reason: "error",
-          error: `ollama HTTP ${res.status}: ${await res.text().catch(() => res.statusText)}`
-        };
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let done = false;
-      let stopReason = { type: "done", reason: "stop" };
-      while (!done) {
-        const { value, done: chunkDone } = await reader.read();
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            try {
-              const evt = JSON.parse(trimmed);
-              if (evt.message?.content) {
-                yield { type: "text", text: evt.message.content };
-              }
-              if (evt.message?.tool_calls?.length) {
-                for (const raw of evt.message.tool_calls) {
-                  const tc = {
-                    id: raw.id ?? `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    name: raw.function.name,
-                    input: raw.function.arguments ?? {}
-                  };
-                  yield { type: "tool_call", toolCall: tc };
-                }
-              }
-              if (evt.done) {
-                if (evt.eval_count != null && evt.prompt_eval_count != null) {
-                  yield {
-                    type: "usage",
-                    inputTokens: evt.prompt_eval_count,
-                    outputTokens: evt.eval_count
-                  };
-                }
-                stopReason = {
-                  type: "done",
-                  reason: evt.done_reason === "length" ? "max_tokens" : evt.message?.tool_calls?.length ? "tool_use" : "end_turn"
-                };
-                done = true;
-                break;
-              }
-            } catch (err) {
-              log12.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
-            }
-          }
-        }
-        if (chunkDone) done = true;
-      }
-      yield stopReason;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log12.error("ollama chat failed", msg);
-      yield { type: "done", reason: "error", error: msg };
-    }
-  }
-};
-function toOllamaMessage(m) {
-  if (m.role === "tool") {
-    return { role: "tool", content: m.content, tool_call_id: m.toolCallId };
-  }
-  return { role: m.role, content: m.content };
-}
-
-// ../providers/src/router.ts
-var log13 = createLogger("providers:router");
-var ProviderRouter = class {
-  info;
-  providers = /* @__PURE__ */ new Map();
-  preferred;
-  fallback;
-  constructor(opts = {}) {
-    this.providers.set("anthropic", new AnthropicProvider(opts.anthropic));
-    this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
-    const ollama = new OllamaProvider(opts.ollama);
-    this.providers.set("ollama", ollama);
-    this.fallback = opts.fallback ?? ollama;
-    this.preferred = opts.preferred ?? ["cybermind-cloud", "anthropic", "ollama"];
-    const active = this.activeProvider();
-    this.info = {
-      id: active.info.id,
-      displayName: `Router (${active.info.displayName})`,
-      requiresNetwork: active.info.requiresNetwork,
-      ready: active.info.ready
-    };
-  }
-  /** First preferred-and-ready provider, or the fallback. */
-  activeProvider() {
-    for (const id of this.preferred) {
-      const p = this.providers.get(id);
-      if (p?.info.ready) return p;
-    }
-    return this.fallback;
-  }
-  get(id) {
-    return this.providers.get(id);
-  }
-  async listModels() {
-    return this.activeProvider().listModels();
-  }
-  async *chat(req) {
-    const primary = this.activeProvider();
-    log13.debug("routing chat", { primary: primary.info.id });
-    let primaryYieldedSomething = false;
-    let primaryError;
-    for await (const chunk of primary.chat(req)) {
-      if (chunk.type === "done" && chunk.reason === "error" && !primaryYieldedSomething) {
-        primaryError = chunk.error;
-        break;
-      }
-      primaryYieldedSomething = true;
-      yield chunk;
-    }
-    if (primaryError !== void 0 && primary !== this.fallback) {
-      log13.warn("primary provider failed; falling back", {
-        primary: primary.info.id,
-        fallback: this.fallback.info.id,
-        error: primaryError
-      });
-      yield {
-        type: "text",
-        text: `
-[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.
-`
-      };
-      yield* this.fallback.chat(req);
-    } else if (primaryError !== void 0) {
-      yield { type: "done", reason: "error", error: primaryError };
-    }
-  }
-};
-
-// ../tools/src/approval.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8 } from "fs";
-import { dirname } from "path";
-var log14 = createLogger("tools:approval");
-function loadTrustStore() {
-  const path = getTrustPath();
-  if (!existsSync9(path)) return { tools: [] };
-  try {
-    const raw = readFileSync8(path, "utf8");
-    const parsed = JSON.parse(raw);
-    return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
-  } catch (err) {
-    log14.warn("failed to load trust store", String(err));
-    return { tools: [] };
-  }
-}
-function saveTrustStore(store) {
-  const path = getTrustPath();
-  if (!existsSync9(dirname(path))) mkdirSync8(dirname(path), { recursive: true });
-  writeFileSync8(path, JSON.stringify(store, null, 2), "utf8");
-}
-var ApprovalGate = class {
-  constructor(ui) {
-    this.ui = ui;
-    this.persistent = new Set(loadTrustStore().tools);
-  }
-  ui;
-  persistent;
-  sessionAllow = /* @__PURE__ */ new Set();
-  mode = "always-ask";
-  setMode(mode) {
-    this.mode = mode;
-  }
-  /** True if the tool is already trusted (either persistently or for the session). */
-  isTrusted(toolName) {
-    return this.persistent.has(toolName) || this.sessionAllow.has(toolName);
-  }
-  /** Trust a tool persistently — written to ~/.cybermind/trust.json. */
-  trustPersistent(toolName) {
-    this.persistent.add(toolName);
-    saveTrustStore({ tools: [...this.persistent] });
-    log14.info("tool persistently trusted", { toolName });
-  }
-  /** Revoke persistent trust. */
-  revoke(toolName) {
-    this.persistent.delete(toolName);
-    this.sessionAllow.delete(toolName);
-    saveTrustStore({ tools: [...this.persistent] });
-  }
-  listTrusted() {
-    return { persistent: [...this.persistent], session: [...this.sessionAllow] };
-  }
-  /**
-   * Main entry point used by the agent loop. Returns true when the tool call
-   * may proceed; false when the user denied.
-   */
-  async request(prompt) {
-    if (this.mode === "persistent-bypass") return true;
-    if (this.isTrusted(prompt.toolName)) return true;
-    if (this.mode === "session-bypass" && !prompt.destructive) return true;
-    const decision = await this.ui.ask(prompt);
-    switch (decision) {
-      case "allow":
-        return true;
-      case "allow-session":
-        this.sessionAllow.add(prompt.toolName);
-        return true;
-      case "allow-persistent":
-        this.trustPersistent(prompt.toolName);
-        return true;
-      case "deny":
-      default:
-        return false;
-    }
-  }
-};
-var HeadlessApprovalUI = class {
-  async ask(prompt) {
-    return prompt.destructive ? "deny" : "allow";
-  }
-};
-
-// ../tools/src/secrets.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync9 } from "fs";
-import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
-var log15 = createLogger("tools:secrets");
-var ALGO = "aes-256-gcm";
-var IV_LEN = 12;
-var SALT_LEN = 16;
-var KEY_LEN = 32;
-var SecretsVault = class {
-  cache = null;
-  list() {
-    return Object.keys(this.load());
-  }
-  get(name) {
-    return this.load()[name];
-  }
-  set(name, value) {
-    const all = this.load();
-    all[name] = value;
-    this.save(all);
-  }
-  remove(name) {
-    const all = this.load();
-    if (!(name in all)) return false;
-    delete all[name];
-    this.save(all);
-    return true;
-  }
-  /** Merge the vault into a process env-like object for tool execution. */
-  injectInto(env) {
-    return { ...env, ...this.load() };
-  }
-  load() {
-    if (this.cache) return this.cache;
-    const path = getSecretsPath();
-    if (!existsSync10(path)) {
-      this.cache = {};
-      return this.cache;
-    }
-    try {
-      const buf = readFileSync9(path);
-      const salt = buf.subarray(0, SALT_LEN);
-      const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
-      const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
-      const ciphertext = buf.subarray(SALT_LEN + IV_LEN + 16);
-      const key = scryptSync(this.pepper(), salt, KEY_LEN);
-      const decipher = createDecipheriv(ALGO, key, iv);
-      decipher.setAuthTag(tag);
-      const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      this.cache = JSON.parse(plain.toString("utf8"));
-      return this.cache;
-    } catch (err) {
-      log15.error("failed to decrypt secrets vault; treating as empty", String(err));
-      this.cache = {};
-      return this.cache;
-    }
-  }
-  save(all) {
-    const path = getSecretsPath();
-    if (!existsSync10(getHomeDir())) mkdirSync9(getHomeDir(), { recursive: true });
-    const salt = randomBytes(SALT_LEN);
-    const iv = randomBytes(IV_LEN);
-    const key = scryptSync(this.pepper(), salt, KEY_LEN);
-    const cipher = createCipheriv(ALGO, key, iv);
-    const ciphertext = Buffer.concat([cipher.update(JSON.stringify(all), "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    writeFileSync9(path, Buffer.concat([salt, iv, tag, ciphertext]));
-    this.cache = { ...all };
-  }
-  /**
-   * Stable per-machine pepper. Not a secret — just makes the encrypted file
-   * non-portable between machines. M6 will swap this for an OS-keychain entry.
-   */
-  pepper() {
-    const host = (process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "cybermind") + ":cybermind-v1";
-    return createHash("sha256").update(host).digest();
-  }
-};
-
-// ../tools/src/builtin/read-file.ts
-import { readFileSync as readFileSync10 } from "fs";
-import { resolve as resolve2 } from "path";
-var MAX_BYTES = 1e6;
-var readFileTool = {
-  schema: {
-    name: "read_file",
-    description: "Read the contents of a file at the given path. Returns up to ~1MB of UTF-8 text with 1-indexed line numbers. Use an absolute path or one relative to the current working directory.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Absolute or relative file path." },
-        offset: { type: "integer", minimum: 1, description: "Optional 1-indexed line to start at." },
-        limit: { type: "integer", minimum: 1, description: "Optional number of lines to read." }
-      },
-      required: ["path"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const path = String(input.path ?? "");
-    if (!path) throw new Error("read_file requires a non-empty path");
-    const abs = resolve2(ctx.cwd, path);
-    const raw = readFileSync10(abs);
-    if (raw.byteLength > MAX_BYTES) {
-      const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
-      return numberLines(truncated, input.offset, input.limit) + `
-
-[truncated: file is ${raw.byteLength} bytes, only first ${MAX_BYTES} shown]`;
-    }
-    return numberLines(raw.toString("utf8"), input.offset, input.limit);
-  }
-};
-function numberLines(text, offset, limit) {
-  const lines = text.split("\n");
-  const start = Math.max(1, offset ?? 1);
-  const end = limit ? Math.min(lines.length, start + limit - 1) : lines.length;
-  const slice = lines.slice(start - 1, end);
-  const width = String(end).length;
-  return slice.map((l, i) => `${String(start + i).padStart(width, " ")}	${l}`).join("\n");
-}
-
-// ../tools/src/builtin/write-file.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync10, writeFileSync as writeFileSync10 } from "fs";
-import { dirname as dirname2, resolve as resolve3 } from "path";
-var writeFileTool = {
-  schema: {
-    name: "write_file",
-    description: "Create a new file at the given path with the given UTF-8 content. Fails if the file already exists \u2014 use edit for modifications. Parent directories are created.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Absolute or relative file path." },
-        content: { type: "string", description: "Full UTF-8 file content." }
-      },
-      required: ["path", "content"]
-    }
-  },
-  destructive: true,
-  async execute(input, ctx) {
-    const path = String(input.path ?? "");
-    const content = String(input.content ?? "");
-    if (!path) throw new Error("write_file requires a path");
-    const abs = resolve3(ctx.cwd, path);
-    if (existsSync11(abs)) {
-      throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
-    }
-    const dir = dirname2(abs);
-    if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
-    writeFileSync10(abs, content, "utf8");
-    return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
-  }
-};
-
-// ../tools/src/builtin/edit.ts
-import { readFileSync as readFileSync11, writeFileSync as writeFileSync11 } from "fs";
-import { resolve as resolve4 } from "path";
-var editTool = {
-  schema: {
-    name: "edit",
-    description: "Replace an exact string in a file with a new string. The old_string must appear exactly once unless replace_all is true. Use for surgical code edits; create new files with write_file instead.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string" },
-        old_string: { type: "string", description: "Exact text to replace, including indentation." },
-        new_string: { type: "string", description: "Replacement text." },
-        replace_all: { type: "boolean", default: false }
-      },
-      required: ["path", "old_string", "new_string"]
-    }
-  },
-  destructive: true,
-  async execute(input, ctx) {
-    const path = String(input.path ?? "");
-    const oldStr = String(input.old_string ?? "");
-    const newStr = String(input.new_string ?? "");
-    const replaceAll = Boolean(input.replace_all);
-    if (!path) throw new Error("edit requires a path");
-    if (!oldStr) throw new Error("edit requires a non-empty old_string");
-    if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
-    const abs = resolve4(ctx.cwd, path);
-    const original = readFileSync11(abs, "utf8");
-    if (replaceAll) {
-      const count = occurrenceCount(original, oldStr);
-      if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
-      const next2 = original.split(oldStr).join(newStr);
-      writeFileSync11(abs, next2, "utf8");
-      return `Replaced ${count} occurrence(s) in ${abs}.`;
-    }
-    const idx = original.indexOf(oldStr);
-    if (idx === -1) throw new Error(`old_string not found in ${abs}`);
-    if (original.indexOf(oldStr, idx + 1) !== -1) {
-      throw new Error(
-        `old_string is not unique in ${abs}; provide a longer surrounding snippet or set replace_all=true.`
-      );
-    }
-    const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
-    writeFileSync11(abs, next, "utf8");
-    return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
-  }
-};
-function occurrenceCount(haystack, needle) {
-  if (!needle) return 0;
-  let n = 0;
-  let i = 0;
-  while ((i = haystack.indexOf(needle, i)) !== -1) {
-    n++;
-    i += needle.length;
-  }
-  return n;
-}
-
-// ../tools/src/builtin/list-dir.ts
-import { readdirSync as readdirSync4, statSync } from "fs";
-import { join as join9, resolve as resolve5 } from "path";
-var MAX_ENTRIES = 200;
-var listDirTool = {
-  schema: {
-    name: "list_dir",
-    description: "List files and directories at the given absolute or relative path. Returns up to 200 entries with type and size.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Directory to list." }
-      },
-      required: ["path"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const path = String(input.path ?? ".");
-    const abs = resolve5(ctx.cwd, path);
-    const entries = readdirSync4(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
-    const lines = [];
-    for (const e of entries) {
-      const full = join9(abs, e.name);
-      let size = "";
-      try {
-        if (e.isFile()) size = `${statSync(full).size}b`;
-        else if (e.isDirectory()) size = "dir";
-        else if (e.isSymbolicLink()) size = "symlink";
-      } catch {
-        size = "?";
-      }
-      lines.push(`${size.padEnd(10)} ${e.name}`);
-    }
-    return lines.length === 0 ? "(empty directory)" : lines.join("\n");
-  }
-};
-
-// ../tools/src/builtin/grep.ts
-import { readdirSync as readdirSync5, readFileSync as readFileSync12, statSync as statSync2 } from "fs";
-import { join as join10, resolve as resolve6 } from "path";
-var MAX_MATCHES = 200;
-var MAX_FILE_BYTES = 2e6;
-var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".turbo", ".next", ".cache"]);
-var grepTool = {
-  schema: {
-    name: "grep",
-    description: "Search files for a regex pattern (case-insensitive by default). Returns up to 200 matching lines with file:line prefix. Skips node_modules and other build dirs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        pattern: { type: "string", description: "Regular expression to search for." },
-        path: { type: "string", description: "Directory or file to search. Defaults to cwd." },
-        case_sensitive: { type: "boolean", default: false },
-        include: { type: "string", description: 'Optional glob-like extension filter, e.g. "*.ts".' }
-      },
-      required: ["pattern"]
-    }
-  },
-  destructive: false,
-  async execute(input, ctx) {
-    const pattern = String(input.pattern ?? "");
-    if (!pattern) throw new Error("grep requires a pattern");
-    const flags = input.case_sensitive ? "g" : "gi";
-    const re = new RegExp(pattern, flags);
-    const root = resolve6(ctx.cwd, String(input.path ?? "."));
-    const include = typeof input.include === "string" ? extToRegex(input.include) : null;
-    const matches = [];
-    walk(root, (file) => {
-      if (matches.length >= MAX_MATCHES) return false;
-      if (include && !include.test(file)) return true;
-      try {
-        const stat = statSync2(file);
-        if (stat.size > MAX_FILE_BYTES) return true;
-        const text = readFileSync12(file, "utf8");
-        const lines = text.split("\n");
-        for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
-          const line = lines[i] ?? "";
-          if (re.test(line)) {
-            matches.push(`${file}:${i + 1}: ${line}`);
-          }
-        }
-      } catch {
-      }
-      return true;
-    });
-    if (matches.length === 0) return `(no matches for /${pattern}/${flags})`;
-    return matches.join("\n");
-  }
-};
-function extToRegex(glob) {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return new RegExp(`${escaped}$`, "i");
-}
-function walk(root, visit) {
-  const stack = [root];
-  while (stack.length > 0) {
-    const cur = stack.pop();
-    let stat;
-    try {
-      stat = statSync2(cur);
-    } catch {
-      continue;
-    }
-    if (stat.isFile()) {
-      if (!visit(cur)) return;
-      continue;
-    }
-    if (!stat.isDirectory()) continue;
-    let entries;
-    try {
-      entries = readdirSync5(cur, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e of entries) {
-      if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
-      stack.push(join10(cur, e.name));
-    }
-  }
-}
-
-// ../tools/src/builtin/run-command.ts
-import { spawn } from "child_process";
-var DEFAULT_TIMEOUT_MS = 6e4;
-var MAX_OUTPUT_BYTES = 2e5;
-var SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
-var SHELL_ARG = process.platform === "win32" ? "-NoProfile" : "-lc";
-var runCommandTool = {
-  schema: {
-    name: "run_command",
-    description: "Execute a shell command in the user's default shell (PowerShell on Windows, bash on Unix). Returns combined stdout/stderr (up to ~200KB) and the exit code. Always destructive \u2014 requires approval.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        command: { type: "string", description: "Command line to run." },
-        cwd: { type: "string", description: "Optional working directory." },
-        timeout_ms: { type: "integer", description: "Optional timeout (defaults 60s)." }
-      },
-      required: ["command"]
-    }
-  },
-  destructive: true,
-  async execute(input, ctx) {
-    const command = String(input.command ?? "");
-    if (!command) throw new Error("run_command requires a command");
-    const cwd = input.cwd ?? ctx.cwd;
-    const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
-    return await new Promise((resolveResult) => {
-      const child = spawn(SHELL, [SHELL_ARG, command], {
-        cwd,
-        env: process.env,
-        windowsHide: true
-      });
-      const chunks = [];
-      let totalBytes = 0;
-      let truncated = false;
-      const onData = (buf) => {
-        if (totalBytes >= MAX_OUTPUT_BYTES) {
-          truncated = true;
-          return;
-        }
-        const room = MAX_OUTPUT_BYTES - totalBytes;
-        const slice = buf.byteLength > room ? buf.subarray(0, room) : buf;
-        chunks.push(slice);
-        totalBytes += slice.byteLength;
-        if (totalBytes >= MAX_OUTPUT_BYTES) {
-          truncated = true;
-          child.kill();
-        }
-      };
-      child.stdout.on("data", onData);
-      child.stderr.on("data", onData);
-      const killer = setTimeout(() => {
-        truncated = true;
-        chunks.push(Buffer.from(`
-[timeout: killed after ${timeoutMs}ms]
-`));
-        child.kill();
-      }, timeoutMs);
-      child.on("close", (code) => {
-        clearTimeout(killer);
-        const out = Buffer.concat(chunks).toString("utf8");
-        const tail = truncated ? `
-[truncated at ${MAX_OUTPUT_BYTES} bytes]` : "";
-        resolveResult(`exit ${code ?? 0}
-${out}${tail}`);
-      });
-      child.on("error", (err) => {
-        clearTimeout(killer);
-        resolveResult(`exit -1
-[spawn error] ${err.message}`);
-      });
-    });
-  }
-};
-
-// ../tools/src/registry.ts
-function builtinTools() {
-  return [readFileTool, writeFileTool, editTool, listDirTool, grepTool, runCommandTool];
-}
-
-// ../skills/src/types.ts
-import { z as z9 } from "zod";
-var SkillIOSchema = z9.object({
-  name: z9.string(),
-  type: z9.string(),
-  required: z9.boolean().optional(),
-  description: z9.string().optional()
-});
-var SkillFrontmatterSchema = z9.object({
-  name: z9.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9-]*$/, "name must be kebab-case"),
-  description: z9.string().min(1),
-  version: z9.string().default("0.1.0"),
-  inputs: z9.array(SkillIOSchema).default([]),
-  outputs: z9.array(SkillIOSchema).default([]),
-  /** Capabilities the skill needs to run. */
-  requires: z9.object({
-    tools: z9.array(z9.string()).default([]),
-    /** Reserved for M13 — MCP servers the skill expects. */
-    mcp: z9.array(z9.string()).default([])
-  }).default({ tools: [], mcp: [] }),
-  /** Free-form trigger phrases shown in /help and used by skill discovery. */
-  triggers: z9.array(z9.string()).default([]),
-  license: z9.string().optional(),
-  author: z9.string().optional(),
-  category: z9.string().optional(),
-  /** Used by the marketplace to flag curated/official skills. */
-  official: z9.boolean().default(false)
-});
-
-// ../skills/src/parser.ts
-import { parse as parseYaml } from "yaml";
-var FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
-function parseSkillSource(source) {
-  const match = source.match(FRONTMATTER_RE);
-  if (!match) {
-    throw new Error('SKILL.md must begin with a YAML frontmatter block delimited by "---" lines');
-  }
-  const [, yamlBlock, body] = match;
-  let raw;
-  try {
-    raw = parseYaml(yamlBlock ?? "");
-  } catch (err) {
-    throw new Error(`SKILL.md frontmatter is not valid YAML: ${err.message}`);
-  }
-  const parsed = SkillFrontmatterSchema.safeParse(raw);
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
-    throw new Error(`SKILL.md frontmatter failed validation:
-${issues}`);
-  }
-  return { frontmatter: parsed.data, body: (body ?? "").trim() };
-}
-
-// ../skills/src/loader.ts
-import { existsSync as existsSync12, readFileSync as readFileSync13, readdirSync as readdirSync6, statSync as statSync3 } from "fs";
-import { dirname as dirname3, join as join11, resolve as resolve7 } from "path";
-import { fileURLToPath } from "url";
-var log16 = createLogger("skills:loader");
-function getBundledDir() {
-  const here = dirname3(fileURLToPath(import.meta.url));
-  let dir = here;
-  for (let i = 0; i < 6; i++) {
-    const candidate = resolve7(dir, "skills-bundled");
-    if (existsSync12(candidate)) return candidate;
-    const parent = resolve7(dir, "..");
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return resolve7(here, "..", "..", "..", "skills-bundled");
-}
-function scanDir(root, source) {
-  if (!existsSync12(root)) return [];
-  const out = [];
-  let entries;
-  try {
-    entries = readdirSync6(root);
-  } catch (err) {
-    log16.warn("failed to read skills dir", { root, err: String(err) });
-    return [];
-  }
-  for (const name of entries) {
-    const folder = join11(root, name);
-    let stat;
-    try {
-      stat = statSync3(folder);
-    } catch {
-      continue;
-    }
-    if (!stat.isDirectory()) continue;
-    const skillFile = join11(folder, "SKILL.md");
-    if (!existsSync12(skillFile)) continue;
-    try {
-      const raw = readFileSync13(skillFile, "utf8");
-      const { frontmatter, body } = parseSkillSource(raw);
-      const id = `${source}/${frontmatter.name}`;
-      out.push({ id, source, path: skillFile, frontmatter, body });
-    } catch (err) {
-      log16.warn("skipping malformed skill", { skillFile, err: String(err) });
-    }
-  }
-  return out;
-}
-function loadAllSkills(opts = {}) {
-  const cwd = opts.cwd ?? process.cwd();
-  const skip = new Set(opts.skip ?? []);
-  const sources = [];
-  if (!skip.has("project")) sources.push({ source: "project", dir: getProjectSkillsDir(cwd) });
-  if (!skip.has("user")) sources.push({ source: "user", dir: getSkillsDir() });
-  if (!skip.has("bundled")) sources.push({ source: "bundled", dir: opts.bundledDir ?? getBundledDir() });
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const { source, dir } of sources) {
-    for (const skill of scanDir(dir, source)) {
-      if (seen.has(skill.frontmatter.name)) continue;
-      seen.add(skill.frontmatter.name);
-      out.push(skill);
-    }
-  }
-  return out;
-}
-
-// ../skills/src/registry.ts
-var SkillRegistry = class {
-  constructor(opts = {}) {
-    this.opts = opts;
-    this.reload();
-  }
-  opts;
-  skills = [];
-  byName = /* @__PURE__ */ new Map();
-  reload() {
-    this.skills = loadAllSkills(this.opts);
-    this.byName.clear();
-    for (const s of this.skills) this.byName.set(s.frontmatter.name, s);
-  }
-  list() {
-    return [...this.skills];
-  }
-  get(name) {
-    return this.byName.get(name);
-  }
-  has(name) {
-    return this.byName.has(name);
-  }
-  /** Group skills by source for /skills UI output. */
-  bySource() {
-    const out = {
-      bundled: [],
-      user: [],
-      project: [],
-      marketplace: []
-    };
-    for (const s of this.skills) out[s.source].push(s);
-    return out;
-  }
-};
-
-// ../skills/src/runner.ts
-var log17 = createLogger("skills:runner");
-function buildSubagentSystemPrompt(skill) {
-  return [
-    `You are the "${skill.frontmatter.name}" sub-agent inside CyberMind CLI.`,
-    skill.frontmatter.description,
-    "",
-    skill.body,
-    "",
-    "Rules:",
-    "- You run in an isolated context; the user only sees your final summary.",
-    "- Be concise. Prefer code/path references over prose.",
-    "- When you have completed the task, stop calling tools and emit one final",
-    "  message summarising what you found / did."
-  ].join("\n");
-}
-function selectTools(skill, pool) {
-  const allowed = new Set(skill.frontmatter.requires.tools);
-  if (allowed.size === 0) return [];
-  return pool.filter((t) => allowed.has(t.schema.name));
-}
-async function spawnSubagent(opts) {
-  const { skill, prompt, provider, toolPool } = opts;
-  const tools = selectTools(skill, toolPool);
-  const systemPrompt = buildSubagentSystemPrompt(skill);
-  const messages = [{ role: "user", content: prompt }];
-  let summary = "";
-  let toolCalls = 0;
-  let usage = { inputTokens: 0, outputTokens: 0 };
-  let reason = "end_turn";
-  let error;
-  log17.debug("spawning subagent", {
-    skill: skill.frontmatter.name,
-    tools: tools.map((t) => t.schema.name)
-  });
-  for await (const evt of runAgentLoop(messages, {
-    provider,
-    systemPrompt,
-    model: opts.model ?? "auto",
-    tools,
-    maxIterations: opts.maxIterations ?? 6,
-    signal: opts.signal
-  })) {
-    opts.onEvent?.(evt);
-    if (evt.type === "text") summary += evt.text;
-    else if (evt.type === "tool_call") toolCalls++;
-    else if (evt.type === "usage") {
-      usage.inputTokens += evt.inputTokens;
-      usage.outputTokens += evt.outputTokens;
-    } else if (evt.type === "done") {
-      reason = evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
-      error = evt.error;
-    }
-  }
-  return { summary: summary.trim(), toolCalls, usage, reason, error };
-}
-
-// ../skills/src/spawn-tool.ts
-function buildSpawnSubagentTool(deps) {
-  return {
-    schema: {
-      name: "spawn_subagent",
-      description: "Spawn an isolated sub-agent that runs the named skill against the given prompt. Use this for read-only exploration (research), planning (plan), code review (code-review), or any other installed skill. Returns the sub-agent's final summary as the tool result.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          skill: {
-            type: "string",
-            description: "Name of the skill to invoke. Must match an installed SKILL.md name."
-          },
-          prompt: {
-            type: "string",
-            description: "The task description / user prompt to give the sub-agent."
-          }
-        },
-        required: ["skill", "prompt"]
-      }
-    },
-    async execute(input, _ctx) {
-      const name = String(input.skill ?? "").trim();
-      const prompt = String(input.prompt ?? "").trim();
-      if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
-      if (!prompt) return 'Error: spawn_subagent requires a non-empty "prompt".';
-      const skill = deps.registry.get(name);
-      if (!skill) {
-        const available = deps.registry.list().map((s) => s.frontmatter.name).join(", ");
-        return `Error: skill "${name}" is not installed. Available skills: ${available || "(none)"}`;
-      }
-      const result = await spawnSubagent({
-        skill,
-        prompt,
-        provider: deps.provider,
-        toolPool: deps.toolPool
-      });
-      if (result.reason === "error") {
-        return `[sub-agent ${name} failed: ${result.error ?? "unknown"}]`;
-      }
-      if (result.reason === "max_iterations") {
-        return `[sub-agent ${name} hit iteration cap]
-
-${result.summary}`;
-      }
-      return result.summary || `[sub-agent ${name} completed with no output]`;
-    }
-  };
-}
-
-// src/runtime/chat.ts
-var singletonRouter = null;
-var singletonRegistry = null;
-function getRouter() {
-  if (!singletonRouter) {
-    singletonRouter = new ProviderRouter({
-      preferred: defaultProviderOrder(),
-      anthropic: { apiKey: process.env.ANTHROPIC_API_KEY },
-      cloud: { apiKey: process.env.CYBERMIND_API_KEY }
-    });
-  }
-  return singletonRouter;
-}
-function getSkillRegistry() {
-  if (!singletonRegistry) singletonRegistry = new SkillRegistry();
-  return singletonRegistry;
-}
-function defaultProviderOrder() {
-  const order = [];
-  if (process.env.CYBERMIND_API_KEY) order.push("cybermind-cloud");
-  if (process.env.ANTHROPIC_API_KEY) order.push("anthropic");
-  order.push("ollama");
-  return order;
-}
-var SYSTEM_PROMPT = `You are CyberMind, a fullstack agentic coding assistant running inside a terminal.
-You help with reading, editing, and running code across the user's project. Be concise,
-prefer code over prose, and never invent file paths. You have access to these tools:
-- read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
-- list_dir(path) \u2014 lists a directory
-- grep(pattern, path?, include?) \u2014 ripgrep-style search
-- write_file(path, content) \u2014 create a NEW file (fails on overwrite)
-- edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
-- run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
-- spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
-  code-review, \u2026) which runs in an isolated context and returns a summary
-Destructive tools (write_file, edit, run_command) require user approval each turn
-unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
-broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
-\u2014 it produces tighter summaries and keeps your main context clean.`;
-function toProviderMessages(messages) {
-  return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
-}
-async function runChat(history, opts) {
-  const router = getRouter();
-  const registry = getSkillRegistry();
-  const providerMessages = toProviderMessages(history);
-  const gate = new ApprovalGate(opts.approvalUI ?? new HeadlessApprovalUI());
-  const builtins = builtinTools();
-  const wrappedBuiltins = builtins.map((t) => ({
-    schema: t.schema,
-    execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: summarizeCall(t.schema.name, input)
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      return t.execute(input, { cwd: ctx.cwd });
-    }
-  }));
-  const spawnTool = buildSpawnSubagentTool({
-    registry,
-    provider: router,
-    toolPool: builtins.map((t) => ({ schema: t.schema, execute: t.execute }))
-  });
-  const wrappedTools = [...wrappedBuiltins, spawnTool];
-  for await (const evt of runAgentLoop(providerMessages, {
-    provider: router,
-    systemPrompt: SYSTEM_PROMPT,
-    model: opts.model ?? "auto",
-    signal: opts.signal,
-    tools: wrappedTools
-  })) {
-    opts.onEvent(evt);
-  }
-}
-function summarizeCall(name, input) {
-  if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
-  if (name === "write_file") return `Create file: ${String(input.path ?? "")}`;
-  if (name === "edit") return `Edit file: ${String(input.path ?? "")}`;
-  if (name === "read_file") return `Read: ${String(input.path ?? "")}`;
-  if (name === "list_dir") return `List: ${String(input.path ?? "")}`;
-  if (name === "grep") return `Grep: /${String(input.pattern ?? "")}/`;
-  return `${name}(${Object.keys(input).join(", ")})`;
-}
-
 // src/commands/skills.ts
+init_chat();
 function buildSkillsCommand(ctx) {
   return {
     name: "skills",
-    description: "List installed skills (bundled, user, project). Install/publish ships in M13.",
+    description: 'List installed skills, or "/skills reload" to rescan after adding one.',
     category: "skills",
-    usage: "/skills [list]",
-    run: () => {
+    usage: "/skills [list|reload]",
+    run: (args) => {
       const registry = getSkillRegistry();
+      const sub = args.trim().toLowerCase();
+      if (sub === "reload") {
+        registry.reload();
+        ctx.appendMessage({
+          id: `skills-${Date.now()}`,
+          role: "system",
+          content: `Reloaded skills. ${registry.list().length} installed.`,
+          createdAt: Date.now()
+        });
+        return;
+      }
       const grouped = registry.bySource();
       const lines = ["Installed skills:"];
       for (const source of ["bundled", "user", "project", "marketplace"]) {
@@ -4470,10 +7411,10 @@ function buildSkillsCommand(ctx) {
       }
       const total = registry.list().length;
       if (total === 0) {
-        lines.push("  (none \u2014 bundled skills will appear once you build the project)");
+        lines.push("  (none found \u2014 add SKILL.md files under .codeva/skills/)");
       } else {
         lines.push("");
-        lines.push(`  Total: ${total} skill(s). Try /research, /plan, or /code-review.`);
+        lines.push(`  Total: ${total} skill(s). Shortcuts: /research /plan /code-review /debug /security /commit /web`);
       }
       ctx.appendMessage({
         id: `skills-${Date.now()}`,
@@ -4506,7 +7447,7 @@ function buildSkillShortcut(ctx, name, skill, description) {
         ctx.appendMessage({
           id: `${name}-${Date.now()}`,
           role: "system",
-          content: `Skill "${skill}" is not installed. Build the project (pnpm build) or copy skills-bundled/ into ~/.cybermind/skills/.`,
+          content: `Skill "${skill}" is not installed. Add it under .codeva/skills/<name>/SKILL.md (project) or ~/.codeva/skills/ (global), then run /skills reload.`,
           createdAt: Date.now()
         });
         return;
@@ -4545,8 +7486,35 @@ function buildCodeReviewCommand(ctx) {
     "Spawn the code-review sub-agent on a diff, file, or commit."
   );
 }
+function buildDebugCommand(ctx) {
+  return buildSkillShortcut(ctx, "debug", "debugger", "Spawn the systematic root-cause debugging sub-agent.");
+}
+function buildSecurityCommand(ctx) {
+  return buildSkillShortcut(ctx, "security", "security-audit", "Spawn the read-only security audit sub-agent.");
+}
+function buildCommitCommand(ctx) {
+  return buildSkillShortcut(ctx, "commit", "commit", "Stage and write Conventional Commits from the working tree.");
+}
+function buildWebCommand(ctx) {
+  return buildSkillShortcut(ctx, "web", "web-research", "Spawn the live web-research sub-agent (search + fetch + cite).");
+}
+function buildFixCommand(ctx) {
+  return buildSkillShortcut(ctx, "fix", "test-fixer", "Run tests and self-heal the code until green (bounded).");
+}
+function buildGoalCommand(ctx) {
+  return {
+    name: "goal",
+    description: "Work autonomously toward an objective until it is done (multi-round).",
+    category: "agent",
+    usage: "/goal <objective>",
+    run: (args) => {
+      ctx.submitUserPrompt?.(args.trim() ? `Work toward this goal until complete: ${args.trim()}` : "Usage: /goal <objective>");
+    }
+  };
+}
 
 // src/commands/trust.ts
+init_src4();
 function buildTrustCommand(ctx) {
   return {
     name: "trust",
@@ -4590,6 +7558,7 @@ function buildTrustCommand(ctx) {
 }
 
 // src/commands/secret.ts
+init_src4();
 function buildSecretCommand(ctx) {
   return {
     name: "secret",
@@ -4651,6 +7620,7 @@ function buildSecretCommand(ctx) {
 }
 
 // src/commands/model-provider.ts
+init_chat();
 function buildModelCommand(ctx) {
   return {
     name: "model",
@@ -4709,6 +7679,8 @@ Use /provider <id> to override.`
 }
 
 // src/commands/consensus.ts
+init_src2();
+init_chat();
 function buildConsensusCommand(ctx) {
   return {
     name: "consensus",
@@ -4739,14 +7711,14 @@ function buildConsensusCommand(ctx) {
       }
       const router = getRouter();
       const candidates = ["cybermind-cloud", "anthropic", "ollama"];
-      const providers = candidates.map((id) => router.get(id)).filter((p) => Boolean(p && p.info.ready)).slice(0, n);
+      const providers = candidates.map((id) => router.get(id)).filter((p2) => Boolean(p2 && p2.info.ready)).slice(0, n);
       if (providers.length === 0) {
         reply(
           "No ready providers found. Set CYBERMIND_API_KEY or ANTHROPIC_API_KEY, or make sure Ollama is running on 127.0.0.1:11434."
         );
         return;
       }
-      reply(`Running consensus across ${providers.length} provider(s): ${providers.map((p) => p.info.id).join(", ")}\u2026`);
+      reply(`Running consensus across ${providers.length} provider(s): ${providers.map((p2) => p2.info.id).join(", ")}\u2026`);
       try {
         const result = await runConsensus([{ role: "user", content: prompt }], { providers });
         const sections = [];
@@ -4864,9 +7836,57 @@ function buildReleaseNotesCommand(ctx) {
   };
 }
 
+// src/commands/hooks.ts
+init_hooks();
+import { homedir as homedir6 } from "os";
+import { join as join18 } from "path";
+function buildHooksCommand(ctx) {
+  return {
+    name: "hooks",
+    description: "View or reload event automation hooks (postEdit, postTask, preCommand\u2026).",
+    category: "config",
+    usage: "/hooks [reload]",
+    run: (args) => {
+      const reply = (content) => ctx.appendMessage({ id: `hooks-${Date.now()}`, role: "system", content, createdAt: Date.now() });
+      if (args.trim() === "reload") {
+        reloadHooks();
+        reply("Hooks reloaded.");
+        return;
+      }
+      const cfg = loadHooks();
+      const events = Object.keys(cfg);
+      if (events.length === 0) {
+        reply(
+          `No hooks configured.
+
+Create ${join18(process.cwd(), ".codeva", "hooks.json")} (project) or ${join18(homedir6(), ".codeva", "hooks.json")} (global). Example:
+
+{
+  "postEdit":  [{ "match": "\\\\.ts$", "command": "npx prettier --write {file}" }],
+  "postCommand": [{ "command": "echo done" }],
+  "preCommand": [{ "match": "rm -rf", "command": "echo blocked", "block": true }]
+}
+
+Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, sessionStart.`
+        );
+        return;
+      }
+      const lines = ["Configured hooks:"];
+      for (const ev of events) {
+        const rules = cfg[ev] ?? [];
+        lines.push(`  ${ev}:`);
+        for (const r of rules) {
+          lines.push(`    - ${r.block ? "[BLOCK] " : ""}${r.match ? `(${r.match}) ` : ""}${r.command}`);
+        }
+      }
+      reply(lines.join("\n"));
+    }
+  };
+}
+
 // src/commands/workflow.ts
-import { existsSync as existsSync13, readFileSync as readFileSync14, readdirSync as readdirSync7, statSync as statSync4 } from "fs";
-import { join as join12, resolve as resolve8 } from "path";
+import { existsSync as existsSync18, readFileSync as readFileSync22, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
+import { join as join19, resolve as resolve11 } from "path";
 import { parse as parseYaml2 } from "yaml";
 import { z as z10 } from "zod";
 var WORKFLOW_DIR = ".cybermind/workflows";
@@ -4889,13 +7909,13 @@ function buildWorkflowCommand(ctx) {
     run: async (args) => {
       const trimmed = args.trim();
       const reply = (content) => ctx.appendMessage({ id: `wf-${Date.now()}`, role: "system", content, createdAt: Date.now() });
-      const workflowsDir = resolve8(process.cwd(), WORKFLOW_DIR);
+      const workflowsDir = resolve11(process.cwd(), WORKFLOW_DIR);
       if (!trimmed || trimmed === "list") {
-        if (!existsSync13(workflowsDir)) {
+        if (!existsSync18(workflowsDir)) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
           return;
         }
-        const files = readdirSync7(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
+        const files = readdirSync9(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
         if (files.length === 0) {
           reply(`No workflows in ${workflowsDir}.`);
           return;
@@ -4911,21 +7931,21 @@ function buildWorkflowCommand(ctx) {
         reply("Usage: /workflow run <name>  (or /workflow to list)");
         return;
       }
-      let path = "";
+      let path2 = "";
       for (const ext of [".yml", ".yaml"]) {
-        const candidate = join12(workflowsDir, name + ext);
-        if (existsSync13(candidate) && statSync4(candidate).isFile()) {
-          path = candidate;
+        const candidate = join19(workflowsDir, name + ext);
+        if (existsSync18(candidate) && statSync8(candidate).isFile()) {
+          path2 = candidate;
           break;
         }
       }
-      if (!path) {
+      if (!path2) {
         reply(`Workflow '${name}' not found in ${workflowsDir}.`);
         return;
       }
       let parsed;
       try {
-        const raw = readFileSync14(path, "utf8");
+        const raw = readFileSync22(path2, "utf8");
         const doc = parseYaml2(raw);
         parsed = WorkflowSchema.parse(doc);
       } catch (err) {
@@ -4950,65 +7970,56 @@ Note: each step is dispatched sequentially as a synthesized user prompt; the age
 }
 
 // src/commands/rewind.ts
+init_chat();
 function buildRewindCommand(ctx) {
   return {
     name: "rewind",
-    description: "Time-travel: restore the session to a previous checkpoint.",
+    description: "Filesystem time-travel: undo agent file edits to an earlier checkpoint.",
     category: "safety",
-    usage: "/rewind [checkpoint-id|latest]",
+    usage: "/rewind [n|last]",
     run: (args) => {
       const trimmed = args.trim();
-      const reply = (content) => ctx.appendMessage({
-        id: `rewind-${Date.now()}`,
-        role: "system",
-        content,
-        createdAt: Date.now()
-      });
-      const manager = new CheckpointManager();
+      const reply = (content) => ctx.appendMessage({ id: `rewind-${Date.now()}`, role: "system", content, createdAt: Date.now() });
+      const cp = getCheckpoints();
+      const list = cp.list();
       if (!trimmed) {
-        const list = manager.list();
         if (list.length === 0) {
-          reply("No checkpoints available yet. Continue chatting to create one.");
+          reply("No file checkpoints yet. They are created automatically before each edit.");
           return;
         }
-        const lines = ["Checkpoints (newest first):"];
-        for (const cp of list) {
-          const date2 = new Date(cp.createdAt).toLocaleString();
-          lines.push(`  ${cp.id.slice(0, 8)}\u2026 ${date2} (${cp.messageCount} messages)`);
+        const lines = ["File checkpoints (newest first):"];
+        for (const e of list) {
+          const when = new Date(e.createdAt).toLocaleTimeString();
+          const files = e.files.map((f) => cp.rel(f.path)).join(", ");
+          lines.push(`  #${e.seq}  ${when}  ${e.label}  [${files}]`);
         }
         lines.push("");
-        lines.push("Restore with: /rewind <checkpoint-id> or /rewind latest");
+        lines.push("Restore with: /rewind <n>  \xB7  undo last edit: /rewind last");
         reply(lines.join("\n"));
         return;
       }
-      let checkpointId = trimmed;
-      if (trimmed === "latest") {
-        const latest = manager.loadLatest();
-        if (!latest) {
-          reply("No latest checkpoint found.");
+      let seq;
+      if (trimmed === "last") {
+        if (list.length === 0) {
+          reply("Nothing to undo.");
           return;
         }
-        checkpointId = latest.id;
+        seq = list[0].seq;
+      } else {
+        seq = parseInt(trimmed, 10);
+        if (Number.isNaN(seq)) {
+          reply(`Invalid checkpoint '${trimmed}'. Use /rewind to list, then /rewind <n>.`);
+          return;
+        }
       }
-      const checkpoint = manager.load(checkpointId);
-      if (!checkpoint) {
-        reply(`Checkpoint '${checkpointId}' not found or corrupted.`);
-        return;
-      }
-      const date = new Date(checkpoint.createdAt).toLocaleString();
-      reply(
-        `Restored to checkpoint ${checkpoint.id.slice(0, 8)}\u2026 (${date})
-- Messages: ${checkpoint.messages.length}
-- Model: ${checkpoint.model}
-- Provider: ${checkpoint.provider}
-
-Note: This is a demonstration. Full state restoration requires UI integration.`
-      );
+      const result = cp.restore(seq);
+      reply(`Rewound to checkpoint #${seq}. Restored ${result.restored} file(s), removed ${result.deleted} newly-created file(s).`);
     }
   };
 }
 
 // src/commands/diff.ts
+init_src();
 function buildDiffCommand(ctx) {
   return {
     name: "diff",
@@ -5146,6 +8157,7 @@ function formatDiff(id1, id2, diff) {
 }
 
 // src/commands/profile.ts
+init_src();
 function buildProfileCommand(ctx) {
   return {
     name: "profile",
@@ -5250,6 +8262,7 @@ Provider: ${profile.provider}`);
 }
 
 // src/commands/collaboration.ts
+init_src();
 function buildCollabCommand(ctx) {
   return {
     name: "collab",
@@ -5388,10 +8401,10 @@ Share this URL with other participants to enable live collaboration.`);
             `Web Mirror: ${sessionMirror ? `Running on port ${sessionMirror.port}` : "Not started"}`,
             "",
             "Participants:",
-            ...statusSession.participants.map((p) => `  - ${p}`),
+            ...statusSession.participants.map((p2) => `  - ${p2}`),
             "",
             "Worktrees:",
-            ...Object.entries(statusSession.worktrees).map(([agent, path]) => `  - ${agent}: ${path}`),
+            ...Object.entries(statusSession.worktrees).map(([agent, path2]) => `  - ${agent}: ${path2}`),
             "",
             "Shared Context:",
             ...Object.entries(statusSession.sharedContext).map(([key, value]) => `  - ${key}: ${JSON.stringify(value)}`)
@@ -5489,8 +8502,8 @@ Note: Actual git worktree creation would run \`git worktree add ${worktreePath} 
             return;
           }
           const worktreeLines = [`Worktrees for session "${sessionId}":`];
-          for (const [agentId, path] of Object.entries(session.worktrees)) {
-            worktreeLines.push(`  ${agentId}: ${path}`);
+          for (const [agentId, path2] of Object.entries(session.worktrees)) {
+            worktreeLines.push(`  ${agentId}: ${path2}`);
           }
           reply(worktreeLines.join("\n"));
           break;
@@ -5506,6 +8519,7 @@ Note: Actual git worktree creation would run \`git worktree add ${worktreePath} 
 }
 
 // src/commands/rich-io.ts
+init_src();
 function buildImageCommand(ctx) {
   return {
     name: "image",
@@ -5787,136 +8801,91 @@ File size: ${html.length} characters`);
 }
 
 // src/commands/ecosystem.ts
+init_src();
+import { existsSync as existsSync19, readFileSync as readFileSync23, writeFileSync as writeFileSync15, mkdirSync as mkdirSync14 } from "fs";
+import { homedir as homedir7 } from "os";
+import { join as join20, dirname as dirname5 } from "path";
+function mcpConfigPath() {
+  return join20(process.cwd(), ".codeva", "mcp.json");
+}
+function readMcp() {
+  for (const p2 of [mcpConfigPath(), join20(homedir7(), ".codeva", "mcp.json")]) {
+    try {
+      if (existsSync19(p2)) return JSON.parse(readFileSync23(p2, "utf8"));
+    } catch {
+    }
+  }
+  return { mcpServers: {} };
+}
+function writeMcp(cfg) {
+  const p2 = mcpConfigPath();
+  mkdirSync14(dirname5(p2), { recursive: true });
+  writeFileSync15(p2, JSON.stringify(cfg, null, 2), "utf8");
+}
 function buildMCPCommand(ctx) {
   return {
     name: "mcp",
-    description: "Manage MCP (Model Context Protocol) servers.",
+    description: "Manage MCP servers (.codeva/mcp.json). Tools appear as mcp__<server>__<tool>.",
     category: "utility",
-    usage: "/mcp <list|search|install|uninstall|info> [args...]",
+    usage: "/mcp [add <name> <command...> | remove <name>]",
     run: async (args) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
-      const reply = (content) => ctx.appendMessage({
-        id: `mcp-${Date.now()}`,
-        role: "system",
-        content,
-        createdAt: Date.now()
-      });
-      if (parts.length === 0) {
-        reply("Usage: /mcp <list|search|install|uninstall|info> [args...]");
+      const reply = (content) => ctx.appendMessage({ id: `mcp-${Date.now()}`, role: "system", content, createdAt: Date.now() });
+      const sub = parts[0];
+      if (!sub) {
+        const cfg = readMcp();
+        const names = Object.keys(cfg.mcpServers ?? {});
+        if (names.length === 0) {
+          reply(
+            `No MCP servers configured.
+
+Add one: /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem .
+Config file: ${mcpConfigPath()}
+Connected servers expose their tools to the agent as mcp__<server>__<tool>. Restart the session after changes.`
+          );
+          return;
+        }
+        const lines = ["Configured MCP servers:"];
+        for (const n of names) {
+          const s = cfg.mcpServers[n];
+          lines.push(`  \u2022 ${n}: ${s.command} ${(s.args ?? []).join(" ")}`);
+        }
+        lines.push("", `Config: ${mcpConfigPath()} \u2014 restart session to apply changes.`);
+        reply(lines.join("\n"));
         return;
       }
-      const command = parts[0];
-      const ecosystem = new EcosystemManager();
-      switch (command) {
-        case "list":
-          const servers = ecosystem.getAvailableMCPServers();
-          if (servers.length === 0) {
-            reply("No MCP servers available.");
-            return;
-          }
-          const lines = ["\u{1F50C} Available MCP Servers:"];
-          for (const server2 of servers) {
-            const status = server2.installed ? "\u2705" : "\u2B1C";
-            lines.push(`${status} ${server2.name} (${server2.id})`);
-            lines.push(`   ${server2.description}`);
-            lines.push(`   Version: ${server2.version} \u2022 Author: ${server2.author}`);
-            if (server2.tags.length > 0) {
-              lines.push(`   Tags: ${server2.tags.join(", ")}`);
-            }
-            lines.push("");
-          }
-          reply(lines.join("\n"));
-          break;
-        case "search":
-          if (parts.length < 2) {
-            reply("Usage: /mcp search <query>");
-            return;
-          }
-          const query = parts.slice(1).join(" ");
-          if (!query) {
-            reply("Query is required for search.");
-            return;
-          }
-          const searchResults = await ecosystem.searchMCPServers(query);
-          if (searchResults.length === 0) {
-            reply(`No MCP servers found for: ${query}`);
-            return;
-          }
-          const searchLines = [`\u{1F50D} MCP servers matching "${query}":`];
-          for (const server2 of searchResults) {
-            const status = server2.installed ? "\u2705" : "\u2B1C";
-            searchLines.push(`${status} ${server2.name} (${server2.id})`);
-            searchLines.push(`   ${server2.description}`);
-            searchLines.push("");
-          }
-          reply(searchLines.join("\n"));
-          break;
-        case "install":
-          if (parts.length < 2) {
-            reply("Usage: /mcp install <server-id>");
-            return;
-          }
-          const serverId = parts[1];
-          if (!serverId) {
-            reply("Server ID is required.");
-            return;
-          }
-          const installSuccess = await ecosystem.installMCPServer(serverId);
-          if (installSuccess) {
-            reply(`\u2705 MCP server "${serverId}" installed successfully.`);
-          } else {
-            reply(`\u274C Failed to install MCP server "${serverId}". Does it exist?`);
-          }
-          break;
-        case "uninstall":
-          if (parts.length < 2) {
-            reply("Usage: /mcp uninstall <server-id>");
-            return;
-          }
-          const uninstallServerId = parts[1];
-          if (!uninstallServerId) {
-            reply("Server ID is required.");
-            return;
-          }
-          const uninstallSuccess = await ecosystem.uninstallMCPServer(uninstallServerId);
-          if (uninstallSuccess) {
-            reply(`\u{1F5D1}\uFE0F MCP server "${uninstallServerId}" uninstalled successfully.`);
-          } else {
-            reply(`\u274C Failed to uninstall MCP server "${uninstallServerId}". Does it exist?`);
-          }
-          break;
-        case "info":
-          if (parts.length < 2) {
-            reply("Usage: /mcp info <server-id>");
-            return;
-          }
-          const infoServerId = parts[1];
-          const allServers = ecosystem.getAvailableMCPServers();
-          const server = allServers.find((s) => s.id === infoServerId);
-          if (!server) {
-            reply(`MCP server "${infoServerId}" not found.`);
-            return;
-          }
-          const infoLines = [
-            `\u{1F4CB} MCP Server Information`,
-            `Name: ${server.name}`,
-            `ID: ${server.id}`,
-            `Description: ${server.description}`,
-            `Version: ${server.version}`,
-            `Author: ${server.author}`,
-            `Status: ${server.installed ? "\u2705 Installed" : "\u2B1C Not installed"}`,
-            `Tags: ${server.tags.join(", ") || "None"}`
-          ];
-          if (server.repository) {
-            infoLines.push(`Repository: ${server.repository}`);
-          }
-          infoLines.push(`Last Updated: ${new Date(server.lastUpdated).toLocaleString()}`);
-          reply(infoLines.join("\n"));
-          break;
-        default:
-          reply(`Unknown command "${command}". Use: list, search, install, uninstall, info`);
-          break;
+      if (sub === "add") {
+        const name = parts[1];
+        const command = parts[2];
+        const cmdArgs = parts.slice(3);
+        if (!name || !command) {
+          reply("Usage: /mcp add <name> <command> [args...]\nExample: /mcp add github npx -y @modelcontextprotocol/server-github");
+          return;
+        }
+        const cfg = readMcp();
+        cfg.mcpServers = cfg.mcpServers ?? {};
+        cfg.mcpServers[name] = { command, args: cmdArgs };
+        writeMcp(cfg);
+        reply(`Added MCP server '${name}'. Restart the session to connect it.`);
+        return;
       }
+      if (sub === "remove") {
+        const name = parts[1];
+        if (!name) {
+          reply("Usage: /mcp remove <name>");
+          return;
+        }
+        const cfg = readMcp();
+        if (cfg.mcpServers?.[name]) {
+          delete cfg.mcpServers[name];
+          writeMcp(cfg);
+          reply(`Removed MCP server '${name}'. Restart the session to apply.`);
+        } else {
+          reply(`No MCP server named '${name}'.`);
+        }
+        return;
+      }
+      reply(`Unknown /mcp subcommand '${sub}'. Use: /mcp, /mcp add, /mcp remove.`);
     }
   };
 }
@@ -6593,6 +9562,7 @@ Creating:
 }
 
 // src/commands/custom-server.ts
+init_src();
 function buildCustomCommand(ctx) {
   return {
     name: "custom",
@@ -6786,20 +9756,21 @@ Cost: $${newModel.inputCost}/$${newModel.outputCost} per 1M tokens
 }
 function buildCyberMindCommand(ctx) {
   return {
-    name: "cybermind",
-    description: "Access CyberMind's exclusive features and models.",
+    name: "codeva",
+    description: "Access Codeva's exclusive features and models.",
     category: "utility",
-    usage: "/cybermind <models|ultra|pro|speed|code|creative> [prompt]",
+    usage: "/codeva <models|ultra|pro|speed|code|creative> [prompt]",
+    aliases: ["cybermind"],
     run: async (args) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       const reply = (content) => ctx.appendMessage({
-        id: `cybermind-${Date.now()}`,
+        id: `codeva-${Date.now()}`,
         role: "system",
         content,
         createdAt: Date.now()
       });
       if (parts.length === 0) {
-        reply("Usage: /cybermind <models|ultra|pro|speed|code|creative> [prompt]");
+        reply("Usage: /codeva <models|ultra|pro|speed|code|creative> [prompt]");
         return;
       }
       const command = parts[0];
@@ -6807,18 +9778,18 @@ function buildCyberMindCommand(ctx) {
       switch (command) {
         case "models":
           const cybermindModels = [
-            { id: "cybermind-ultra", name: "CyberMind Ultra", desc: "Most powerful for complex tasks", cost: "$5/$15 per 1M" },
-            { id: "cybermind-pro", name: "CyberMind Pro", desc: "Balanced for most tasks", cost: "$2/$6 per 1M" },
-            { id: "cybermind-speed", name: "CyberMind Speed", desc: "Fast for quick responses", cost: "$0.50/$1.50 per 1M" },
-            { id: "cybermind-code", name: "CyberMind Code", desc: "Specialized for coding", cost: "$1.50/$4.50 per 1M" },
-            { id: "cybermind-creative", name: "CyberMind Creative", desc: "Creative and design tasks", cost: "$1/$3 per 1M" }
+            { id: "codeva-ultra", name: "Codeva Ultra", desc: "Most powerful for complex tasks", cost: "$5/$15 per 1M" },
+            { id: "codeva-pro", name: "Codeva Pro", desc: "Balanced for most tasks", cost: "$2/$6 per 1M" },
+            { id: "codeva-speed", name: "Codeva Speed", desc: "Fast for quick responses", cost: "$0.50/$1.50 per 1M" },
+            { id: "codeva-code", name: "Codeva Code", desc: "Specialized for coding", cost: "$1.50/$4.50 per 1M" },
+            { id: "codeva-creative", name: "Codeva Creative", desc: "Creative and design tasks", cost: "$1/$3 per 1M" }
           ];
-          let modelInfo = ["\u{1F9E0} CyberMind Exclusive Models:", ""];
+          let modelInfo = ["\u{1F9E0} Codeva Exclusive Models:", ""];
           cybermindModels.forEach((model, index) => {
             modelInfo.push(`${index + 1}. \u{1F916} ${model.name}`);
             modelInfo.push(`   ${model.desc}`);
             modelInfo.push(`   \u{1F4B0} Cost: ${model.cost}`);
-            modelInfo.push(`   \u{1F527} Use: /cybermind ${model.id.split("-")[1]} <prompt>`);
+            modelInfo.push(`   \u{1F527} Use: /codeva ${model.id.split("-")[1]} <prompt>`);
             modelInfo.push("");
           });
           reply(modelInfo.join("\n"));
@@ -6829,45 +9800,22 @@ function buildCyberMindCommand(ctx) {
         case "code":
         case "creative":
           if (parts.length < 2) {
-            reply(`Usage: /cybermind ${command} <your-prompt>`);
+            reply(`Usage: /codeva ${command} <your-prompt>`);
             return;
           }
-          const cybermindModelId = `cybermind-${command}`;
+          const cybermindModelId = `codeva-${command}`;
           const cybermindModel = customServer.getModel(cybermindModelId);
           const cybermindPrompt = parts.slice(1).join(" ");
           if (!cybermindPrompt) {
             reply("Prompt is required");
             return;
           }
-          if (!cybermindModel) {
-            reply(`\u274C Model ${cybermindModelId} not available. Please set up custom server first.`);
-            return;
+          if (ctx.setModel) ctx.setModel(cybermindModelId);
+          if (ctx.submitUserPrompt) {
+            ctx.submitUserPrompt(cybermindPrompt);
+          } else {
+            reply(`Codeva ${command} is not available in this context.`);
           }
-          reply(`\u{1F9E0} Using CyberMind ${command.charAt(0).toUpperCase() + command.slice(1)} model
-
-\u23F3 Processing: "${cybermindPrompt.substring(0, 50)}..."
-
-\u{1F916} Generating intelligent response...`);
-          setTimeout(() => {
-            const responses = {
-              ultra: `\u{1F680} **Ultra Response**: Advanced analysis of "${cybermindPrompt}"
-
-This is the most sophisticated analysis using our most powerful model. The response includes deep insights, comprehensive reasoning, and optimal solutions.`,
-              pro: `\u26A1 **Pro Response**: Professional analysis of "${cybermindPrompt}"
-
-Balanced approach providing practical solutions with clear reasoning and actionable recommendations.`,
-              speed: `\u{1F3C3}\u200D\u2642\uFE0F **Speed Response**: Quick analysis of "${cybermindPrompt}"
-
-Fast and efficient response with key insights and immediate actionable steps.`,
-              code: `\u{1F4BB} **Code Response**: Technical analysis of "${cybermindPrompt}"
-
-Specialized coding perspective with optimized solutions, best practices, and implementation details.`,
-              creative: `\u{1F3A8} **Creative Response**: Innovative analysis of "${cybermindPrompt}"
-
-Creative approach with out-of-the-box thinking, design principles, and innovative solutions.`
-            };
-            reply(responses[command] || "Response generated.");
-          }, 2e3);
           break;
         default:
           reply(`Unknown command "${command}". Use: models, ultra, pro, speed, code, creative`);
@@ -6878,13 +9826,15 @@ Creative approach with out-of-the-box thinking, design principles, and innovativ
 }
 
 // src/commands/auth.ts
-var log18 = createLogger("auth");
+init_src();
+init_config();
+var log20 = createLogger("auth");
 function buildLoginCommand(ctx) {
   return {
     name: "login",
-    description: "Login to CyberCoder (required like Claude Code)",
+    description: "Login using an API Key",
     category: "auth",
-    usage: "/login [email] [password]",
+    usage: "/login <api_key>",
     run: async (args) => {
       const reply = (content) => ctx.appendMessage({
         id: `login-${Date.now()}`,
@@ -6892,75 +9842,38 @@ function buildLoginCommand(ctx) {
         content,
         createdAt: Date.now()
       });
-      const parts = args.trim().split(/\s+/).filter(Boolean);
-      if (parts.length === 0) {
-        reply(`\u{1F510} CyberCoder Login Required
+      const key = args.trim();
+      if (!key) {
+        reply(
+          `\u{1F510} CyberCoder Authentication Required
 
-Like Claude Code, you must login to use CyberCoder.
+Usage: /login <api_key>
 
-Usage: /login <email> <password>
+You can get an API key from the Web dashboard:
+https://cybermindcli.info/settings/api-keys
 
-Or visit: https://cybercoder.ai/login
-
-Free plan includes:
-\u2022 Ollama local models
-\u2022 Basic commands
-\u2022 Community support`);
+Or use local models offline: /provider ollama`
+        );
         return;
       }
-      if (parts.length < 2) {
-        reply("Usage: /login <email> <password>");
-        return;
+      reply("\u{1F510} Authenticating key with Codeva Cloud...");
+      try {
+        const authInfo = await apiClient.authenticate(key);
+        setAuthToken(key);
+        setSessionId(authInfo.session_id);
+        setUserProfile(authInfo.user);
+        reply(
+          `\u2705 Authentication Successful!
+
+Welcome back, ${authInfo.user.name || "Developer"}!
+Plan: ${authInfo.user.plan?.toUpperCase() || "FREE"}
+Session ID: ${authInfo.session_id}
+
+\u{1F680} CyberCoder is now online and connected to the cloud!`
+        );
+      } catch (err) {
+        reply(`\u2715 Authentication failed: ${err.message || String(err)}`);
       }
-      const email = parts[0];
-      const password = parts[1];
-      reply(`\u{1F510} Logging in to CyberCoder...
-
-Email: ${email}
-Status: Authenticating
-
-\u23F3 Please wait...`);
-      setTimeout(() => {
-        const userProfile = {
-          id: "user_" + Math.random().toString(36).substr(2, 9),
-          email,
-          name: email.split("@")[0],
-          plan: email.includes("enterprise") ? "enterprise" : email.includes("pro") ? "pro" : email.includes("basic") ? "basic" : "free",
-          preferences: {
-            preferredModel: "auto",
-            autoAgentAssignment: true,
-            learningEnabled: true
-          },
-          knowledgeGraph: {
-            skills: [],
-            projects: [],
-            patterns: [],
-            lastUsed: {}
-          },
-          usage: {
-            requests: 0,
-            tokens: 0,
-            cost: 0,
-            lastReset: Date.now()
-          }
-        };
-        reply(`\u2705 Login Successful!
-
-Welcome back, ${userProfile.name}!
-
-Plan: ${userProfile.plan.toUpperCase()}
-Email: ${userProfile.email}
-User ID: ${userProfile.id}
-
-\u{1F680} CyberCoder is ready to use!
-
-Next steps:
-\u2022 Set up API key: /secret set ANTHROPIC_API_KEY your-key
-\u2022 Or use free models: /provider ollama
-\u2022 View commands: /help
-
-\u{1F4A1} Your knowledge graph will build as you use CyberCoder!`);
-      }, 2e3);
     }
   };
 }
@@ -6970,7 +9883,7 @@ function buildLogoutCommand(ctx) {
     description: "Logout from CyberCoder and clear all session data",
     category: "auth",
     usage: "/logout",
-    run: (args) => {
+    run: async (args) => {
       void args;
       const reply = (content) => ctx.appendMessage({
         id: `logout-${Date.now()}`,
@@ -6978,102 +9891,65 @@ function buildLogoutCommand(ctx) {
         content,
         createdAt: Date.now()
       });
+      reply("\u{1F44B} Logging out...");
+      try {
+        await apiClient.logout();
+      } catch {
+      }
+      clearLogin();
       if (ctx.logout) {
         ctx.logout();
-        reply("\u{1F44B} Logged out successfully.\n\nAll session data cleared.\nRun cm again to login.\n");
-      } else {
-        reply("Logout is not available in this context.");
       }
+      reply("\u{1F44B} Logged out successfully. Session data cleared.");
     }
   };
 }
 function buildProfileCommand2(ctx) {
   return {
     name: "profile",
-    description: "View and manage your CyberCoder profile",
+    description: "View your profile and active session stats",
     category: "auth",
-    usage: "/profile [view|edit|reset]",
-    run: (args) => {
-      const parts = args.trim().split(/\s+/).filter(Boolean);
+    usage: "/profile",
+    run: async (args) => {
+      void args;
       const reply = (content) => ctx.appendMessage({
         id: `profile-${Date.now()}`,
         role: "system",
         content,
         createdAt: Date.now()
       });
-      const command = parts[0] || "view";
-      switch (command) {
-        case "view":
-          const profileLines = [
-            "\u{1F464} CyberCoder Profile",
-            "",
-            "\u{1F4CB} Account Info:",
-            "\u2022 Name: Demo User",
-            "\u2022 Email: demo@cybercoder.ai",
-            "\u2022 Plan: PRO",
-            "\u2022 Member Since: 2024-12-01",
-            "",
-            "\u{1F3AF} Preferences:",
-            "\u2022 Preferred Model: Auto",
-            "\u2022 Auto Agent Assignment: \u2705 Enabled",
-            "\u2022 Learning Enabled: \u2705 Enabled",
-            "",
-            "\u{1F9E0} Knowledge Graph:",
-            "\u2022 Skills Learned: 12",
-            "\u2022 Projects Analyzed: 5",
-            "\u2022 Patterns Detected: 28",
-            "",
-            "\u{1F4CA} Usage This Month:",
-            "\u2022 Requests: 1,247",
-            "\u2022 Tokens: 2.3M",
-            "\u2022 Cost: $23.50",
-            "",
-            "\u{1F4A1} Quick Actions:",
-            "\u2022 /profile edit - Edit preferences",
-            "\u2022 /profile reset - Reset learning",
-            "\u2022 /usage status - Detailed usage"
-          ];
-          reply(profileLines.join("\n"));
-          break;
-        case "edit":
-          reply(`\u2699\uFE0F Profile Settings
-
-Edit your preferences:
-
-1. Preferred Model:
-   /model <model-name>
-
-2. Auto Agent Assignment:
-   /profile auto-agent on/off
-
-3. Learning Settings:
-   /profile learning on/off
-
-4. API Keys:
-   /secret list
-   /secret set <key> <value>
-
-\u{1F4A1} Changes saved automatically!`);
-          break;
-        case "reset":
-          reply(`\u{1F504} Reset Knowledge Graph?
-
-\u26A0\uFE0F This will clear all learned patterns and preferences.
-
-To confirm, run:
-/profile reset confirm
-
-This will reset:
-\u2022 Learned skills
-\u2022 Project patterns
-\u2022 Usage history
-\u2022 Custom preferences
-
-Your account and API keys will remain intact.`);
-          break;
-        default:
-          reply("Usage: /profile <view|edit|reset>");
-          break;
+      const token = getAuthToken();
+      if (!token) {
+        reply("\u{1F464} Offline / Not Authenticated. Type /login to connect to the cloud.");
+        return;
+      }
+      reply("\u{1F50D} Loading profile data from cloud...");
+      try {
+        const stats = await apiClient.getStats();
+        const profile = getUserProfile();
+        const profileLines = [
+          "\u{1F464} CyberCoder Profile",
+          "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+          `\u{1F4CB} Account:`,
+          `  \u2022 Name: ${profile.name || "Developer"}`,
+          `  \u2022 Email: ${profile.email || "N/A"}`,
+          `  \u2022 Plan: ${profile.plan?.toUpperCase() || "FREE"}`,
+          "",
+          `\u{1F4CA} Session Usage:`,
+          `  \u2022 Session ID: ${stats.current_session.id}`,
+          `  \u2022 Commands Executed: ${stats.current_session.total_commands}`,
+          `  \u2022 AI Interactions: ${stats.current_session.ai_interactions}`,
+          `  \u2022 Session Tokens: ${stats.usage.this_session.tokens.toLocaleString()}`,
+          `  \u2022 Session Cost: $${stats.usage.this_session.cost.toFixed(4)}`,
+          "",
+          `\u{1F4C9} Monthly Totals:`,
+          `  \u2022 Total Requests: ${stats.usage.this_month.total_requests}`,
+          `  \u2022 Total Cost: $${stats.usage.this_month.total_cost.toFixed(4)}`,
+          `  \u2022 Total Commands: ${stats.usage.this_month.total_commands}`
+        ];
+        reply(profileLines.join("\n"));
+      } catch (err) {
+        reply(`\u2715 Failed to load profile: ${err.message || String(err)}`);
       }
     }
   };
@@ -7081,148 +9957,257 @@ Your account and API keys will remain intact.`);
 function buildKnowledgeCommand(ctx) {
   return {
     name: "knowledge",
-    description: "View your AI knowledge graph and learning progress",
+    description: "View your AI knowledge graph context",
     category: "utility",
-    usage: "/knowledge <graph|skills|patterns|projects>",
-    run: (args) => {
-      const parts = args.trim().split(/\s+/).filter(Boolean);
+    usage: "/knowledge [topic]",
+    run: async (args) => {
       const reply = (content) => ctx.appendMessage({
         id: `knowledge-${Date.now()}`,
         role: "system",
         content,
         createdAt: Date.now()
       });
-      const command = parts[0] || "graph";
-      switch (command) {
-        case "graph":
-          const graphLines = [
-            "\u{1F9E0} Your Knowledge Graph",
-            "",
-            "\u{1F4CA} Overall Progress:",
-            "\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 85% Complete",
-            "",
-            "\u{1F3AF} Key Insights:",
-            "\u2022 You prefer TypeScript over JavaScript",
-            "\u2022 React is your most used framework",
-            "\u2022 You work best in the morning",
-            "\u2022 Debugging is your strongest skill",
-            "",
-            "\u{1F517} Connections Found:",
-            "\u2022 React \u2194 TypeScript (strong correlation)",
-            "\u2022 Testing \u2194 Code Quality (positive impact)",
-            "\u2022 Documentation \u2194 Maintainability (high value)",
-            "",
-            "\u{1F4C8} Learning Velocity:",
-            "\u2022 New skills/week: 2.3",
-            "\u2022 Retention rate: 94%",
-            "\u2022 Application rate: 87%",
-            "",
-            "\u{1F4A1} Recommendations:",
-            "\u2022 Learn Rust (based on your systems interests)",
-            "\u2022 Try GraphQL (matches your API patterns)",
-            "\u2022 Explore Kubernetes (scales with your DevOps work)"
-          ];
-          reply(graphLines.join("\n"));
-          break;
-        case "skills":
-          const skillsLines = [
-            "\u{1F6E0}\uFE0F Your Skills Portfolio",
-            "",
-            "\u{1F525} Mastered Skills:",
-            "\u2022 React Development - Expert (Level 5)",
-            "\u2022 TypeScript Programming - Expert (Level 5)",
-            "\u2022 API Design - Advanced (Level 4)",
-            "\u2022 Database Architecture - Advanced (Level 4)",
-            "",
-            "\u{1F4DA} Learning Skills:",
-            "\u2022 Rust Programming - Intermediate (Level 3)",
-            "\u2022 Machine Learning - Beginner (Level 2)",
-            "\u2022 Cloud Architecture - Beginner (Level 2)",
-            "",
-            "\u{1F3AF} Recommended Next Skills:",
-            "\u2022 GraphQL API Design",
-            "\u2022 Kubernetes Orchestration",
-            "\u2022 Advanced Testing Patterns",
-            "",
-            "\u{1F4CA} Skill Distribution:",
-            "Frontend: \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 70%",
-            "Backend:  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588         40%",
-            "DevOps:   \u2588\u2588\u2588\u2588\u2588\u2588               20%",
-            "AI/ML:    \u2588\u2588\u2588                  10%"
-          ];
-          reply(skillsLines.join("\n"));
-          break;
-        case "patterns":
-          const patternsLines = [
-            "\u{1F50D} Your Coding Patterns",
-            "",
-            "\u{1F3AF} Code Style Patterns:",
-            "\u2022 Functional programming preference",
-            "\u2022 Immutable state management",
-            "\u2022 Error-first callback patterns",
-            "\u2022 Composition over inheritance",
-            "",
-            "\u26A1 Performance Patterns:",
-            "\u2022 Lazy loading optimization",
-            "\u2022 Memoization usage",
-            "\u2022 Efficient data structures",
-            "\u2022 Minimal re-renders",
-            "",
-            "\u{1F3D7}\uFE0F Architecture Patterns:",
-            "\u2022 Microservices preference",
-            "\u2022 Event-driven design",
-            "\u2022 Repository pattern usage",
-            "\u2022 Service layer abstraction",
-            "",
-            "\u{1F9EA} Testing Patterns:",
-            "\u2022 TDD approach",
-            "\u2022 Integration testing focus",
-            "\u2022 Mock isolation",
-            "\u2022 Behavior verification",
-            "",
-            "\u{1F4A1} Pattern Insights:",
-            "Your code follows 87% of best practices",
-            "Consistency score: 92%",
-            "Maintainability rating: A+"
-          ];
-          reply(patternsLines.join("\n"));
-          break;
-        case "projects":
-          const projectsLines = [
-            "\u{1F4C1} Your Project Analysis",
-            "",
-            "\u{1F680} Active Projects:",
-            "\u2022 E-commerce Platform - 85% complete",
-            "\u2022 API Gateway Service - 92% complete",
-            "\u2022 Mobile App Backend - 67% complete",
-            "",
-            "\u{1F4CA} Project Complexity:",
-            "High Complexity: \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 3 projects",
-            "Medium Complexity: \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588         2 projects",
-            "Low Complexity: \u2588\u2588\u2588                1 project",
-            "",
-            "\u{1F527} Technologies Used:",
-            "Frontend: React, TypeScript, Next.js",
-            "Backend: Node.js, Express, PostgreSQL",
-            "DevOps: Docker, AWS, CI/CD",
-            "Testing: Jest, Cypress, Integration",
-            "",
-            "\u{1F4C8} Project Insights:",
-            "\u2022 Average completion time: 2.3 weeks",
-            "\u2022 Code quality score: 88/100",
-            "\u2022 Documentation coverage: 76%",
-            "\u2022 Test coverage: 82%",
-            "",
-            "\u{1F4A1} Project Recommendations:",
-            "\u2022 Consider monorepo for similar projects",
-            "\u2022 Standardize testing patterns",
-            "\u2022 Implement automated code reviews"
-          ];
-          reply(projectsLines.join("\n"));
-          break;
-        default:
-          reply("Usage: /knowledge <graph|skills|patterns|projects>");
-          break;
+      const token = getAuthToken();
+      if (!token) {
+        reply("\u{1F9E0} Offline / Not Authenticated. Connect to cloud to sync knowledge.");
+        return;
+      }
+      reply("\u{1F9E0} Fetching knowledge graph context...");
+      try {
+        const context = await apiClient.getContext(args.trim());
+        const lines = [
+          "\u{1F9E0} Your Knowledge Graph Context",
+          "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+          "\u{1F4CA} Learned Skills:",
+          context.knowledge?.skills?.length > 0 ? context.knowledge.skills.map((s) => `  \u2022 ${s.technology} (Level ${s.level})`).join("\n") : "  \u2022 No skills recorded yet.",
+          "",
+          "\u{1F3D7}\uFE0F Project Directories:",
+          `  \u2022 Current Directory: ${context.current_session.working_directory}`,
+          `  \u2022 Recent Active Directories:`,
+          ...context.recent_sessions?.map((s) => `    - ${s.directory} (${s.commands} cmds)`) || ["    - None"]
+        ];
+        reply(lines.join("\n"));
+      } catch (err) {
+        reply(`\u2715 Failed to load knowledge: ${err.message || String(err)}`);
+      }
+    }
+  };
+}
+
+// src/commands/init.ts
+init_project_memory();
+import * as fs from "fs";
+import * as path from "path";
+function buildInitCommand(ctx) {
+  return {
+    name: "init",
+    description: "Initialize project with coding conventions (creates CYBER.md).",
+    category: "config",
+    usage: "/init",
+    run: () => {
+      const cwd2 = process.cwd();
+      const targetPath = path.join(cwd2, "CYBER.md");
+      const reply = (content) => {
+        ctx.appendMessage({
+          id: `init-${Date.now()}`,
+          role: "system",
+          content,
+          createdAt: Date.now()
+        });
+      };
+      if (fs.existsSync(targetPath)) {
+        reply("\u26A0\uFE0F CYBER.md already exists in the current directory.");
+        return;
+      }
+      let projectType = "Generic";
+      let buildCommand = "make";
+      let testCommand = "make test";
+      let guidelines = "Write clean, modern, and self-documenting code.";
+      if (fs.existsSync(path.join(cwd2, "package.json"))) {
+        projectType = "Node.js / TypeScript";
+        buildCommand = "npm run build";
+        testCommand = "npm test";
+        guidelines = "- Prefer TypeScript over plain JavaScript.\n- Use ES modules (import/export).\n- Keep dependencies minimal and use clean async/await patterns.";
+      } else if (fs.existsSync(path.join(cwd2, "Cargo.toml"))) {
+        projectType = "Rust";
+        buildCommand = "cargo build";
+        testCommand = "cargo test";
+        guidelines = "- Follow standard rustfmt conventions.\n- Minimize use of `unsafe` blocks.\n- Handle errors explicitly using Result and Option.";
+      } else if (fs.existsSync(path.join(cwd2, "go.mod"))) {
+        projectType = "Go";
+        buildCommand = "go build ./...";
+        testCommand = "go test ./...";
+        guidelines = "- Handle errors immediately where they occur.\n- Use standard naming style (camelCase).\n- Write table-driven unit tests.";
+      } else if (fs.existsSync(path.join(cwd2, "requirements.txt")) || fs.existsSync(path.join(cwd2, "pyproject.toml")) || fs.existsSync(path.join(cwd2, "setup.py"))) {
+        projectType = "Python";
+        buildCommand = "python -m pip install -r requirements.txt";
+        testCommand = "pytest";
+        guidelines = "- Follow PEP 8 guidelines.\n- Use type hints for all public functions.\n- Write docstrings in Google style format.";
+      }
+      const template = `# CYBER.md - Project Conventions
+
+This file defines guidelines and standard instructions for CyberCoder when operating in this codebase.
+
+## Project Profile
+- **Project Type**: ${projectType}
+- **Build Command**: \`${buildCommand}\`
+- **Test Command**: \`${testCommand}\`
+
+## Coding Standards & Guidelines
+${guidelines}
+- Write thorough unit tests for new functionality.
+- Prioritize visual polish, responsive design, and CSS variables for UI components.
+
+## Architecture & Structure
+- Document major architecture modules.
+- Maintain clean separation between client (frontend) and server (backend) code.
+
+## Preferred Tools
+- CLI edits: Use \`edit\` tool for surgical modifications.
+- Commands: Propose standard commands using \`run_command\`.
+`;
+      try {
+        fs.writeFileSync(targetPath, template, "utf8");
+        let memoryNote = "";
+        try {
+          const stackMap = {
+            "Node.js / TypeScript": ["Node.js", "TypeScript"],
+            "Rust": ["Rust"],
+            "Go": ["Go"],
+            "Python": ["Python"],
+            "Generic": []
+          };
+          const alreadyHad = cyberDirExists(cwd2);
+          initProjectMemory(cwd2, {
+            name: path.basename(cwd2),
+            summary: `${projectType} project.`,
+            stack: stackMap[projectType] ?? [],
+            commands: { build: buildCommand, test: testCommand },
+            entryPoints: [],
+            conventions: ["See CYBER.md for full coding conventions."]
+          });
+          memoryNote = alreadyHad ? "\n\nUpdated `.cyber/` project memory." : "\n\nAlso created `.cyber/` self-learning project memory (project.json, memory.md). Future sessions will understand this project from `.cyber/` alone.";
+        } catch {
+        }
+        reply(`\u2705 Successfully initialized project! Created CYBER.md for **${projectType}**.${memoryNote}`);
+      } catch (err) {
+        reply(`\u274C Failed to create CYBER.md: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  };
+}
+
+// src/commands/compact.ts
+init_chat();
+function buildCompactCommand(ctx) {
+  return {
+    name: "compact",
+    description: "Compress conversation history to free context window.",
+    category: "session",
+    usage: "/compact [focus_topic]",
+    run: async (args) => {
+      const focus = args.trim();
+      const reply = (content) => {
+        ctx.appendMessage({
+          id: `compact-${Date.now()}`,
+          role: "system",
+          content,
+          createdAt: Date.now()
+        });
+      };
+      const getMessages = ctx.getMessages;
+      const setMessages = ctx.setMessages;
+      if (!getMessages || !setMessages) {
+        reply("\u26A0\uFE0F Compaction is not supported in this environment.");
+        return;
+      }
+      const history = getMessages();
+      const chatHistory = history.filter((m) => m.role === "user" || m.role === "assistant");
+      if (chatHistory.length < 3) {
+        reply("\u2139\uFE0F Message history is too brief to require compaction.");
+        return;
+      }
+      reply("\u28FE Compressing conversation history via active provider...");
+      const chatText = chatHistory.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
+      const systemPrompt = `You are a conversation compaction assistant. Your task is to summarize the preceding developer-assistant chat log into a single, dense, bulleted summary.
+Specify what files have been read/edited, what build/test commands were run, and what tasks remain.
+${focus ? `Focus particularly on: ${focus}` : ""}
+Keep the summary under 200 words. Do not introduce yourself or add pleasantries. Start immediately with the bulleted list.`;
+      try {
+        const router = getRouter();
+        let summary = "";
+        const chunks = router.chat({
+          model: "auto",
+          messages: [{ role: "user", content: chatText }],
+          systemPrompt,
+          temperature: 0.3
+        });
+        for await (const chunk of chunks) {
+          if (chunk.type === "text") {
+            summary += chunk.text;
+          } else if (chunk.type === "done" && chunk.reason === "error") {
+            throw new Error(chunk.error ?? "Unknown model error");
+          }
+        }
+        if (!summary) {
+          throw new Error("Empty summary returned");
+        }
+        const compactedMessage = {
+          id: `compact-summary-${Date.now()}`,
+          role: "system",
+          content: `[Conversation compacted to free context window]
+
+**Progress summary so far**:
+${summary.trim()}`,
+          createdAt: Date.now()
+        };
+        setMessages([compactedMessage]);
+        reply("\u2728 History successfully compacted!");
+      } catch (err) {
+        reply(`\u274C Failed to compact history: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  };
+}
+
+// src/commands/usage-command.ts
+function buildUsageCommand(ctx) {
+  return {
+    name: "usage",
+    description: "Show live API usage stats from the backend.",
+    category: "auth",
+    usage: "/usage",
+    run: async () => {
+      const reply = (content) => {
+        ctx.appendMessage({
+          id: `usage-${Date.now()}`,
+          role: "system",
+          content,
+          createdAt: Date.now()
+        });
+      };
+      reply("\u28FE Querying usage statistics from backend...");
+      try {
+        const stats = await apiClient.getStats();
+        const lines = [
+          "\u256D\u2500\u2500\u2500 CyberCoder Usage Statistics \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E",
+          `\u2502  Session ID: ${stats.current_session.id.slice(0, 12)}\u2026                   \u2502`,
+          `\u2502  Session Started: ${new Date(stats.current_session.started_at).toLocaleTimeString()}                           \u2502`,
+          "\u2502                                                             \u2502",
+          "\u2502  This Session:                                              \u2502",
+          `\u2502    - Commands executed: ${stats.usage.this_session.commands}                                   \u2502`,
+          `\u2502    - Tokens consumed: ${stats.usage.this_session.tokens.toLocaleString()}                               \u2502`,
+          `\u2502    - Session Cost: $${stats.usage.this_session.cost.toFixed(4)}                                \u2502`,
+          "\u2502                                                             \u2502",
+          "\u2502  This Month:                                                \u2502",
+          `\u2502    - Total requests: ${stats.usage.this_month.total_requests}                                   \u2502`,
+          `\u2502    - Total commands: ${stats.usage.this_month.total_commands}                                   \u2502`,
+          `\u2502    - Total cost: $${stats.usage.this_month.total_cost.toFixed(4)}                                    \u2502`,
+          "\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F"
+        ];
+        reply(lines.join("\n"));
+      } catch (err) {
+        reply(`\u274C Failed to retrieve usage statistics: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -7238,6 +10223,12 @@ function buildCommandRegistry(ctx) {
     buildResearchCommand(ctx),
     buildPlanCommand(ctx),
     buildCodeReviewCommand(ctx),
+    buildDebugCommand(ctx),
+    buildSecurityCommand(ctx),
+    buildCommitCommand(ctx),
+    buildWebCommand(ctx),
+    buildGoalCommand(ctx),
+    buildFixCommand(ctx),
     buildTrustCommand(ctx),
     buildSecretCommand(ctx),
     buildModelCommand(ctx),
@@ -7247,6 +10238,7 @@ function buildCommandRegistry(ctx) {
     buildThemeCommand(ctx),
     buildSettingsCommand(ctx),
     buildReleaseNotesCommand(ctx),
+    buildHooksCommand(ctx),
     buildWorkflowCommand(ctx),
     buildRewindCommand(ctx),
     buildDiffCommand(ctx),
@@ -7272,6 +10264,9 @@ function buildCommandRegistry(ctx) {
     buildLogoutCommand(ctx),
     buildProfileCommand2(ctx),
     buildKnowledgeCommand(ctx),
+    buildInitCommand(ctx),
+    buildCompactCommand(ctx),
+    buildUsageCommand(ctx),
     ...buildStubCommands(ctx)
   ];
   const byName = /* @__PURE__ */ new Map();
@@ -7293,7 +10288,13 @@ function buildCommandRegistry(ctx) {
   };
 }
 
+// src/app.tsx
+init_chat();
+init_hooks();
+init_config();
+
 // src/utils/update.ts
+init_src();
 var cachedLatest = null;
 var lastCheck = 0;
 var CACHE_TTL = 60 * 60 * 1e3;
@@ -7342,47 +10343,53 @@ async function getUpdateMessage() {
 }
 
 // src/app.tsx
-import { Fragment as Fragment4, jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
-  const hasCompletedOnboarding = isOnboardingComplete();
-  const [screen, setScreen] = useState7(hasCompletedOnboarding ? "welcome" : "onboarding");
-  const [themeConfig, setThemeConfig] = useState7({
+  const [themeVersion, setThemeVersion] = useState9(0);
+  if (themeVersion === 0) {
+    setActiveTheme(configTheme.mode ?? "dark");
+  }
+  const hasCompletedOnboarding = isOnboardingComplete() && isAuthenticated();
+  const [screen, setScreen] = useState9(hasCompletedOnboarding ? "welcome" : "onboarding");
+  const [themeConfig, setThemeConfig] = useState9({
     mode: configTheme.mode,
     syntaxTheme: configTheme.syntaxTheme
   });
   void themeConfig;
-  const [messages, setMessages] = useState7([]);
-  const [status, setStatus] = useState7("idle");
-  const [model, setModel] = useState7(initialModel ?? "auto");
-  const [provider, setProvider] = useState7(initialProvider ?? "auto");
-  const [, setPromptColor] = useState7("cyan");
-  const [welcomeVisible, setWelcomeVisible] = useState7(showWelcome);
-  const [exitConfirm, setExitConfirm] = useState7(false);
-  const [pendingApproval, setPendingApproval] = useState7(null);
-  const [updateNotice, setUpdateNotice] = useState7("");
-  useEffect(() => {
+  const [messages, setMessages] = useState9([]);
+  const [totalTokens, setTotalTokens] = useState9(0);
+  const [totalCost, setTotalCost] = useState9(0);
+  const [status, setStatus] = useState9("idle");
+  const [model, setModel] = useState9(initialModel ?? "auto");
+  const [provider, setProvider] = useState9(initialProvider ?? "auto");
+  const [, setPromptColor] = useState9("cyan");
+  const [welcomeVisible, setWelcomeVisible] = useState9(showWelcome);
+  const [exitConfirm, setExitConfirm] = useState9(false);
+  const [pendingApproval, setPendingApproval] = useState9(null);
+  const [updateNotice, setUpdateNotice] = useState9("");
+  useEffect4(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
         if (msg) setUpdateNotice(msg);
       });
     }
   }, [screen]);
-  const streamingIdRef = useRef(null);
-  const driveChatRef = useRef(async () => {
+  const streamingIdRef = useRef2(null);
+  const driveChatRef = useRef2(async () => {
   });
   const approvalUI = useMemo(
     () => ({
       ask(prompt) {
-        return new Promise((resolve9) => {
+        return new Promise((resolve13) => {
           setPendingApproval({
             toolName: prompt.toolName,
             summary: prompt.summary,
             destructive: prompt.destructive,
             resolve: (decision) => {
               setPendingApproval(null);
-              resolve9(decision);
+              resolve13(decision);
             }
           });
         });
@@ -7416,11 +10423,13 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
         setMessages([]);
         setWelcomeVisible(true);
         setScreen("onboarding");
-      }
+      },
+      getMessages: () => messages,
+      setMessages: (msgs) => setMessages(msgs)
     }),
-    [appendMessage, clearMessages, exit, model, provider, setScreen, setMessages, setWelcomeVisible]
+    [appendMessage, clearMessages, exit, model, provider, setScreen, setMessages, setWelcomeVisible, messages]
   );
-  useInput7((input, key) => {
+  useInput8((input, key) => {
     if (key.ctrl && input === "c") {
       if (exitConfirm) {
         exit();
@@ -7438,7 +10447,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
     });
   }, []);
   const driveChat = useCallback(
-    async (userText) => {
+    async (userText, goalMode = false) => {
       const userMsg = {
         id: cryptoRandomId(),
         role: "user",
@@ -7456,8 +10465,9 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
       const nextHistory = [...messages, userMsg];
       setMessages([...nextHistory, assistantMsg]);
       setStatus("thinking");
+      const driver = goalMode ? runGoalChat : runChat;
       try {
-        await runChat(nextHistory, {
+        await driver(nextHistory, {
           model,
           approvalUI,
           onEvent: (evt) => {
@@ -7474,6 +10484,14 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
               appendDelta(`
 ${trimmed}
 `);
+            } else if (evt.type === "usage") {
+              setTotalTokens((prev) => prev + evt.inputTokens + evt.outputTokens);
+              const costAmt = evt.inputTokens * 3e-6 + evt.outputTokens * 15e-6;
+              setTotalCost((prev) => prev + costAmt);
+            } else if (evt.type === "context") {
+              appendDelta(`
+[\xB7 ${evt.note} \xB7]
+`);
             } else if (evt.type === "done") {
               if (evt.reason === "error") {
                 appendDelta(`
@@ -7488,6 +10506,13 @@ ${trimmed}
       } finally {
         streamingIdRef.current = null;
         setStatus("idle");
+        try {
+          const h = runHooks("postTask", userText);
+          if (h.output) {
+            appendMessage({ id: cryptoRandomId(), role: "system", content: h.output, createdAt: Date.now() });
+          }
+        } catch {
+        }
       }
     },
     [messages, model, appendDelta, approvalUI]
@@ -7516,6 +10541,19 @@ ${trimmed}
         }
         const [name, ...rest] = trimmed.split(/\s+/);
         const args = rest.join(" ");
+        if (name === "goal") {
+          if (!args.trim()) {
+            appendMessage({
+              id: cryptoRandomId(),
+              role: "system",
+              content: "Usage: /goal <objective> \u2014 I will work autonomously until it is done.",
+              createdAt: Date.now()
+            });
+            return;
+          }
+          void driveChat(args, true);
+          return;
+        }
         const cmd = commandRegistry.find(name ?? "");
         if (!cmd) {
           appendMessage({
@@ -7549,6 +10587,8 @@ ${trimmed}
   const handleThemeComplete = useCallback((theme) => {
     setThemeConfig(theme);
     setTheme(theme.mode, theme.syntaxTheme);
+    setActiveTheme(theme.mode);
+    setThemeVersion((v) => v + 1);
     setScreen("welcome");
   }, []);
   const handleSettingsClose = useCallback(() => {
@@ -7567,40 +10607,42 @@ ${trimmed}
   const renderScreen = () => {
     switch (screen) {
       case "onboarding":
-        return /* @__PURE__ */ jsx15(Onboarding, { onComplete: handleOnboardingComplete });
+        return /* @__PURE__ */ jsx16(Onboarding, { onComplete: handleOnboardingComplete });
       case "theme":
-        return /* @__PURE__ */ jsx15(ThemePicker, { onComplete: handleThemeComplete });
+        return /* @__PURE__ */ jsx16(ThemePicker, { onComplete: handleThemeComplete });
       case "settings":
-        return /* @__PURE__ */ jsx15(Settings, { onClose: handleSettingsClose });
+        return /* @__PURE__ */ jsx16(Settings, { onClose: handleSettingsClose });
       case "model":
-        return /* @__PURE__ */ jsx15(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
+        return /* @__PURE__ */ jsx16(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
       case "release-notes":
-        return /* @__PURE__ */ jsx15(ReleaseNotes, { onClose: handleReleaseNotesClose });
+        return /* @__PURE__ */ jsx16(ReleaseNotes, { onClose: handleReleaseNotesClose });
       case "welcome":
-        return /* @__PURE__ */ jsxs14(Fragment4, { children: [
-          updateNotice && /* @__PURE__ */ jsx15(Box13, { marginBottom: 1, children: /* @__PURE__ */ jsx15(Text15, { color: "yellow", children: updateNotice }) }),
-          welcomeVisible && /* @__PURE__ */ jsx15(Welcome, { provider, model }),
-          /* @__PURE__ */ jsx15(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx15(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx15(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx15(StatusBar, { status, model, provider }),
-          /* @__PURE__ */ jsx15(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx15(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs15(Fragment4, { children: [
+          updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
+          welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
+          /* @__PURE__ */ jsx16(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
+          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens }),
+          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
+          /* @__PURE__ */ jsx16(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
         ] });
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs14(Fragment4, { children: [
-          updateNotice && /* @__PURE__ */ jsx15(Box13, { marginBottom: 1, children: /* @__PURE__ */ jsx15(Text15, { color: "yellow", children: updateNotice }) }),
-          /* @__PURE__ */ jsx15(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx15(ApprovalDialog, { pending: pendingApproval }),
-          /* @__PURE__ */ jsx15(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx15(StatusBar, { status, model, provider }),
-          /* @__PURE__ */ jsx15(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx15(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs15(Fragment4, { children: [
+          updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
+          /* @__PURE__ */ jsx16(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
+          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens }),
+          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
+          /* @__PURE__ */ jsx16(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
         ] });
     }
   };
-  return /* @__PURE__ */ jsx15(Box13, { flexDirection: "column", children: renderScreen() });
+  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -7615,22 +10657,29 @@ function stringifyArgs(input) {
 }
 
 // src/index.tsx
-import { jsx as jsx16 } from "react/jsx-runtime";
-var log19 = createLogger("cli");
+init_chat();
+init_config();
+import { jsx as jsx17 } from "react/jsx-runtime";
+var log21 = createLogger("cli");
 async function main() {
   const program = new Command();
-  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").action((opts) => {
+  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant by Codeva").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").option("--rpc", "start as a JSON-RPC server (used by the VS Code extension)").action(async (opts) => {
+    if (opts.rpc) {
+      const { startRpcServer: startRpcServer2 } = await Promise.resolve().then(() => (init_rpc_server(), rpc_server_exports));
+      startRpcServer2();
+      return;
+    }
     if (opts.debug) {
       process.env.CYBERMIND_LOG_LEVEL = "debug";
       process.env.CYBERMIND_LOG_STDERR = "true";
     }
-    log19.debug("starting CyberMind CLI", { opts });
+    log21.debug("starting CyberMind CLI", { opts });
     if (opts.print) {
       void runPrintMode(opts.print, opts.model);
       return;
     }
     const { waitUntilExit } = render(
-      /* @__PURE__ */ jsx16(
+      /* @__PURE__ */ jsx17(
         App,
         {
           showWelcome: opts.welcome !== false,
@@ -7646,7 +10695,7 @@ async function main() {
     waitUntilExit().then(
       () => process.exit(0),
       (err) => {
-        log19.error("CLI exited with error", err instanceof Error ? err.message : err);
+        log21.error("CLI exited with error", err instanceof Error ? err.message : err);
         process.exit(1);
       }
     );
@@ -7689,7 +10738,7 @@ async function main() {
     process.exit(0);
   });
   program.parseAsync(process.argv).catch((err) => {
-    log19.error("failed to parse args", err instanceof Error ? err.message : err);
+    log21.error("failed to parse args", err instanceof Error ? err.message : err);
     process.exit(1);
   });
 }

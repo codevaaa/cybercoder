@@ -1,0 +1,124 @@
+{
+  "name": "cybercoder-vscode",
+  "displayName": "CyberCoder — AI Coding Agent",
+  "description": "Agentic AI coding assistant in your editor. Chat, edit, and ship with 8+ AI providers. A free, powerful alternative to Claude Code.",
+  "version": "0.6.0",
+  "publisher": "codeva",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["AI", "Programming Languages", "Machine Learning", "Chat"],
+  "keywords": ["ai", "copilot", "chat", "coding agent", "cybercoder", "codeva", "claude code"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codevaaa/cybercoder"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cybercoder",
+          "title": "CyberCoder",
+          "icon": "media/activitybar.svg"
+        }
+      ]
+    },
+    "views": {
+      "cybercoder": [
+        {
+          "id": "cybercoder.sessions",
+          "name": "Sessions",
+          "icon": "media/activitybar.svg"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "cybercoder.openChat", "title": "CyberCoder: Open Chat", "icon": "$(comment-discussion)" },
+      { "command": "cybercoder.newChat", "title": "New session", "icon": "$(add)" },
+      { "command": "cybercoder.openSession", "title": "Open session" },
+      { "command": "cybercoder.renameSession", "title": "Rename session", "icon": "$(edit)" },
+      { "command": "cybercoder.deleteSession", "title": "Delete session", "icon": "$(trash)" },
+      { "command": "cybercoder.explainSelection", "title": "CyberCoder: Explain Selection" },
+      { "command": "cybercoder.refactorSelection", "title": "CyberCoder: Refactor Selection" },
+      { "command": "cybercoder.fixSelection", "title": "CyberCoder: Fix / Debug Selection" },
+      { "command": "cybercoder.generateTests", "title": "CyberCoder: Generate Tests for Selection" },
+      { "command": "cybercoder.addToChat", "title": "CyberCoder: Add Selection to Chat" },
+      { "command": "cybercoder.signIn", "title": "CyberCoder: Sign In" },
+      { "command": "cybercoder.signOut", "title": "CyberCoder: Sign Out" },
+      { "command": "cybercoder.connectProvider", "title": "CyberCoder: Connect Provider (Anthropic / OpenAI / Ollama)" },
+      { "command": "cybercoder.selectModel", "title": "CyberCoder: Select Model" },
+      { "command": "cybercoder.scanFile", "title": "CyberCoder: Scan File for Bugs", "icon": "$(bug)" },
+      { "command": "cybercoder.scanWorkspace", "title": "CyberCoder: Scan Workspace for Bugs", "icon": "$(search)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "cybercoder.newChat", "when": "view == cybercoder.sessions", "group": "navigation@1" },
+        { "command": "cybercoder.scanWorkspace", "when": "view == cybercoder.sessions", "group": "navigation@2" }
+      ],
+      "view/item/context": [
+        { "command": "cybercoder.renameSession", "when": "view == cybercoder.sessions && viewItem == cybercoderSession", "group": "inline@1" },
+        { "command": "cybercoder.deleteSession", "when": "view == cybercoder.sessions && viewItem == cybercoderSession", "group": "inline@2" }
+      ],
+      "editor/context": [
+        { "command": "cybercoder.explainSelection", "when": "editorHasSelection", "group": "cybercoder@1" },
+        { "command": "cybercoder.refactorSelection", "when": "editorHasSelection", "group": "cybercoder@2" },
+        { "command": "cybercoder.fixSelection", "when": "editorHasSelection", "group": "cybercoder@3" },
+        { "command": "cybercoder.generateTests", "when": "editorHasSelection", "group": "cybercoder@4" },
+        { "command": "cybercoder.scanFile", "group": "cybercoder@5" },
+        { "command": "cybercoder.addToChat", "when": "editorHasSelection", "group": "cybercoder@6" }
+      ]
+    },
+    "keybindings": [
+      { "command": "cybercoder.openChat", "key": "ctrl+shift+i", "mac": "cmd+shift+i" },
+      { "command": "cybercoder.addToChat", "key": "ctrl+shift+l", "mac": "cmd+shift+l", "when": "editorHasSelection" }
+    ],
+    "configuration": {
+      "title": "CyberCoder",
+      "properties": {
+        "cybercoder.apiBaseUrl": {
+          "type": "string",
+          "default": "https://cybercli-api.onrender.com/api/v1",
+          "description": "CyberCoder backend API base URL."
+        },
+        "cybercoder.defaultModel": {
+          "type": "string",
+          "default": "auto",
+          "description": "Default model id used for completions (auto routes by task)."
+        },
+        "cybercoder.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature for completions."
+        },
+        "cybercoder.includeOpenEditors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include open editor file context with chat requests."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "geticon": "node scripts/gen-icon.mjs",
+    "build": "node scripts/gen-icon.mjs && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "node scripts/gen-icon.mjs && node esbuild.mjs --production && npx @vscode/vsce package --no-dependencies -o cybercoder.vsix",
+    "package:full": "node scripts/gen-icon.mjs && node esbuild.mjs --production && node scripts/copy-binary.mjs && npx @vscode/vsce package --no-dependencies -o cybercoder-full.vsix",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}

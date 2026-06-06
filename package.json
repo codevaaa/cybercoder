@@ -2,11 +2,11 @@
   "name": "cybercoder-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "� CyberCoder CLI — Advanced AI-powered command-line interface, better than Claude Code",
-  "homepage": "https://stilcybermindcli.github.io/cybercoder",
+  "description": "CyberCoder CLI — Advanced AI-powered command-line interface, better than Claude Code",
+  "homepage": "https://codevaaa.github.io/codeva",
   "repository": {
     "type": "git",
-    "url": "https://github.com/stilcybermindcli/cybercoder"
+    "url": "https://github.com/codevaaa/codeva"
   },
   "license": "MIT",
   "packageManager": "pnpm@8.15.0",

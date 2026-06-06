@@ -1,0 +1,319 @@
+/**
+ * CyberCoder Chrome Extension — Content Script
+ *
+ * Runs on every page. Responsibilities:
+ * - Extract page text for summarization/analysis
+ * - Inject floating action button (optional)
+ * - Handle text selection for context-menu actions
+ * - Communicate with background service worker
+ */
+
+// ── Extract readable text from the page ──
+function extractPageText() {
+  // Try to get the main content (article, main, or body)
+  const selectors = ['article', 'main', '[role="main"]', '.content', '#content', '.post-content', '.entry-content']
+  let el = null
+  for (const s of selectors) {
+    el = document.querySelector(s)
+    if (el && el.innerText.trim().length > 100) break
+    el = null
+  }
+  if (!el) el = document.body
+
+  // Clean: remove scripts, styles, nav, footer, ads
+  const clone = el.cloneNode(true)
+  clone.querySelectorAll('script, style, nav, footer, header, aside, [role="navigation"], [role="banner"], .ad, .ads, .sidebar').forEach(n => n.remove())
+
+  let text = clone.innerText || ''
+  // Trim to reasonable size for AI context
+  text = text.replace(/\n{3,}/g, '\n\n').trim()
+  if (text.length > 12000) text = text.slice(0, 12000) + '\n\n…[page truncated]'
+  return text
+}
+
+// ── Message listener ──
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'extract-text') {
+    const text = extractPageText()
+    const title = document.title
+    const url = window.location.href
+    sendResponse({ text, title, url })
+    return true
+  }
+
+  if (msg.type === 'highlight-text') {
+    // Highlight selected text on the page (visual feedback)
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      const span = document.createElement('span')
+      span.style.cssText = 'background: rgba(201,100,66,0.2); border-radius: 3px; transition: background 0.3s;'
+      range.surroundContents(span)
+      setTimeout(() => { span.outerHTML = span.innerHTML }, 3000)
+    }
+    sendResponse({ ok: true })
+    return true
+  }
+
+  if (msg.type === 'fill-input') {
+    // Fill the focused input/textarea with AI-generated text
+    const active = document.activeElement
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+      if (active.isContentEditable) {
+        active.innerText = msg.text
+      } else {
+        active.value = msg.text
+        active.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+      sendResponse({ ok: true })
+    } else {
+      sendResponse({ ok: false, error: 'No focused input field' })
+    }
+    return true
+  }
+
+  // ── Browser Automation Commands (Puppeteer-like) ──
+
+  // Helper: Find element piercing shadow DOM
+  function findElement(selector, root = document) {
+    let el = root.querySelector(selector);
+    if (el) return el;
+    for (const child of root.querySelectorAll('*')) {
+      if (child.shadowRoot) {
+        el = findElement(selector, child.shadowRoot);
+        if (el) return el;
+      }
+    }
+    return null;
+  }
+
+  // Helper: Find all interactive elements across shadow DOMs
+  function findAllInteractive(root, results = []) {
+    const els = root.querySelectorAll('a, button, input, textarea, select, [role="button"], [onclick], [tabindex]:not([tabindex="-1"])');
+    els.forEach(e => results.push(e));
+    root.querySelectorAll('*').forEach(node => {
+      if (node.shadowRoot) findAllInteractive(node.shadowRoot, results);
+    });
+    return results;
+  }
+
+  if (msg.type === 'click') {
+    // Click an element by CSS selector or text content (Scrapling adaptive fallback)
+    try {
+      let el = null;
+      if (msg.selector) el = findElement(msg.selector);
+      if (!el && msg.text) {
+        const all = findAllInteractive(document);
+        el = all.find(e => e.textContent?.trim().toLowerCase().includes(msg.text.toLowerCase()) || e.getAttribute('aria-label')?.toLowerCase().includes(msg.text.toLowerCase()));
+      }
+      if (el) { el.click(); sendResponse({ ok: true, clicked: el.tagName }) }
+      else sendResponse({ ok: false, error: 'Element not found' })
+    } catch (e) { sendResponse({ ok: false, error: e.message }) }
+    return true
+  }
+
+  if (msg.type === 'type-text') {
+    // Type text into an element (by selector or the focused element)
+    try {
+      const el = msg.selector ? findElement(msg.selector) : document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+        if (el.isContentEditable) el.innerText = msg.text;
+        else { el.value = msg.text; el.dispatchEvent(new Event('input', { bubbles: true })) }
+        sendResponse({ ok: true })
+      } else sendResponse({ ok: false, error: 'No typeable element found' })
+    } catch (e) { sendResponse({ ok: false, error: e.message }) }
+    return true
+  }
+
+  if (msg.type === 'scroll-to') {
+    try {
+      if (msg.selector) {
+        const el = findElement(msg.selector);
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); sendResponse({ ok: true }) }
+        else sendResponse({ ok: false, error: 'Element not found' })
+      } else {
+        window.scrollTo({ top: msg.y || 0, left: msg.x || 0, behavior: 'smooth' })
+        sendResponse({ ok: true })
+      }
+    } catch (e) { sendResponse({ ok: false, error: e.message }) }
+    return true
+  }
+
+  if (msg.type === 'get-elements') {
+    // Get a list of interactive elements on the page with Scrapling-style adaptive locators
+    try {
+      const getUniqueSelector = (el, index) => {
+        // 1. Unambiguous IDs
+        if (el.id && !/^\d|[\-_\d]{5,}/.test(el.id)) {
+          const sel = `#${CSS.escape(el.id)}`;
+          if (document.querySelectorAll(sel).length === 1) return sel;
+        }
+        
+        // 2. Data test attributes (most reliable)
+        const testAttrs = ['data-testid', 'data-id', 'data-cy', 'data-qa', 'name'];
+        for (const attr of testAttrs) {
+          if (el.getAttribute(attr)) {
+            const sel = `${el.tagName.toLowerCase()}[${CSS.escape(attr)}="${CSS.escape(el.getAttribute(attr))}"]`;
+            if (document.querySelectorAll(sel).length === 1) return sel;
+          }
+        }
+        
+        // 3. Aria attributes
+        if (el.getAttribute('aria-label')) {
+          const sel = `${el.tagName.toLowerCase()}[aria-label="${CSS.escape(el.getAttribute('aria-label'))}"]`;
+          if (document.querySelectorAll(sel).length === 1) return sel;
+        }
+        if (el.getAttribute('placeholder')) {
+          const sel = `${el.tagName.toLowerCase()}[placeholder="${CSS.escape(el.getAttribute('placeholder'))}"]`;
+          if (document.querySelectorAll(sel).length === 1) return sel;
+        }
+
+        // 4. Structural combination (Tag + robust classes)
+        if (el.className && typeof el.className === 'string') {
+          const classes = el.className.trim().split(/\s+/).filter(c => !c.includes(':') && !c.includes('[') && !c.includes('active') && !c.includes('hover') && c.length > 2);
+          if (classes.length > 0) {
+            const classSelector = `.${CSS.escape(classes[0])}`;
+            const sel = `${el.tagName.toLowerCase()}${classSelector}`;
+            if (document.querySelectorAll(sel).length === 1) return sel;
+          }
+        }
+        
+        // 5. Fallback: Robust Structural Path
+        let path = [];
+        let parent = el;
+        while (parent && parent.nodeType === Node.ELEMENT_NODE && parent.tagName !== 'HTML') {
+          let sibCount = 0;
+          let sibIndex = 0;
+          if (parent.parentNode) {
+            for (let sib of parent.parentNode.children) {
+              if (sib.tagName === parent.tagName) {
+                sibCount++;
+                if (sib === parent) sibIndex = sibCount;
+              }
+            }
+          }
+          const tagName = parent.tagName.toLowerCase();
+          if (parent.id && !/^\d|[\-_\d]{5,}/.test(parent.id)) {
+            path.unshift(`#${CSS.escape(parent.id)}`);
+            break;
+          } else if (sibCount > 1) {
+            path.unshift(`${tagName}:nth-of-type(${sibIndex})`);
+          } else {
+            path.unshift(tagName);
+          }
+          parent = parent.parentNode;
+        }
+        return path.length > 0 ? path.join(' > ') : `${el.tagName.toLowerCase()}:nth-of-type(${index + 1})`;
+      };
+
+      const interactiveElements = findAllInteractive(document);
+      const items = Array.from(new Set(interactiveElements)).filter(el => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }).slice(0, 50).map((el, i) => ({
+        index: i,
+        tag: el.tagName.toLowerCase(),
+        type: el.getAttribute('type') || '',
+        text: (el.textContent || el.getAttribute('placeholder') || el.getAttribute('aria-label') || '').trim().slice(0, 80),
+        href: el.getAttribute('href') || '',
+        selector: getUniqueSelector(el, i),
+      }))
+      sendResponse({ elements: items })
+    } catch (e) { sendResponse({ elements: [], error: e.message }) }
+    return true
+  }
+
+  if (msg.type === 'screenshot') {
+    // Capture visible viewport as a data URL using canvas
+    try {
+      // Use the native browser API to capture the visible area
+      // We create a canvas and draw the page content
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+
+      // For a proper screenshot, we use the background script's chrome.tabs.captureVisibleTab
+      // From content script, we can only provide page metadata + a DOM snapshot
+      const info = {
+        title: document.title,
+        url: window.location.href,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        scrollY: window.scrollY,
+        bodyHeight: document.body.scrollHeight,
+        // Visible text content (what the user sees)
+        visibleText: document.body.innerText.slice(0, 3000),
+        // Key visual elements
+        images: Array.from(document.querySelectorAll('img')).slice(0, 10).map(img => ({
+          src: img.src?.slice(0, 200),
+          alt: img.alt?.slice(0, 100),
+          width: img.naturalWidth,
+          height: img.naturalHeight
+        })),
+        headings: Array.from(document.querySelectorAll('h1,h2,h3')).slice(0, 10).map(h => h.textContent?.trim().slice(0, 100))
+      }
+      sendResponse({ screenshot: null, info, note: 'Page structure captured. Use chrome.tabs.captureVisibleTab for visual screenshot.' })
+    } catch (e) { sendResponse({ screenshot: null, error: e.message }) }
+    return true
+  }
+
+  if (msg.type === 'navigate') {
+    // Navigate to a URL
+    try {
+      window.location.href = msg.url
+      sendResponse({ ok: true })
+    } catch (e) { sendResponse({ ok: false, error: e.message }) }
+    return true
+  }
+})
+
+// ── Floating action button (shows on text selection) ──
+let fab = null
+document.addEventListener('mouseup', (e) => {
+  const sel = window.getSelection()
+  if (sel && sel.toString().trim().length > 10) {
+    if (!fab) {
+      fab = document.createElement('div')
+      fab.id = 'cybercoder-fab'
+      fab.innerHTML = '✳'
+      document.body.appendChild(fab)
+      fab.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'run-task', prompt: `Explain: "${sel.toString().trim().slice(0, 500)}"` })
+        hideFab()
+      })
+    }
+    fab.style.display = 'flex'
+    fab.style.top = `${e.pageY - 40}px`
+    fab.style.left = `${e.pageX + 10}px`
+  } else {
+    hideFab()
+  }
+})
+
+function hideFab() {
+  if (fab) fab.style.display = 'none'
+}
+document.addEventListener('mousedown', (e) => {
+  if (e.target?.id !== 'cybercoder-fab') hideFab()
+})
+
+// ── Auth Sync from Web App ──
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return
+  const msg = event.data
+  if (msg && msg.type === 'CYBERCLI_AUTH_SYNC') {
+    if (msg.token) {
+      chrome.runtime.sendMessage({
+        type: 'set-auth',
+        auth: {
+          token: msg.token,
+          user: msg.user,
+          apiKey: msg.token
+        }
+      }).catch(err => console.error('[Content] Auth sync set error:', err))
+    } else {
+      chrome.runtime.sendMessage({ type: 'clear-auth' })
+        .catch(err => console.error('[Content] Auth sync clear error:', err))
+    }
+  }
+})

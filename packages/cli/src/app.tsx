@@ -9,13 +9,16 @@ import { ReleaseNotes } from './components/ReleaseNotes.js';
 import { Prompt } from './components/Prompt.js';
 import { MessageList } from './components/MessageList.js';
 import { StatusBar } from './components/StatusBar.js';
+import { ThinkingIndicator } from './components/ThinkingIndicator.js';
 import { ExitConfirm } from './components/ExitConfirm.js';
 import { ApprovalDialog, type PendingApproval } from './components/ApprovalDialog.js';
 import { HintBar } from './components/HintBar.js';
 import { buildCommandRegistry } from './commands/index.js';
-import { runChat } from './runtime/chat.js';
-import { isOnboardingComplete, getTheme, setTheme, clearLogin } from './utils/config.js';
+import { runChat, runGoalChat } from './runtime/chat.js';
+import { runHooks } from './runtime/hooks.js';
+import { isOnboardingComplete, getTheme, setTheme, clearLogin, isAuthenticated } from './utils/config.js';
 import { getUpdateMessage } from './utils/update.js';
+import { setActiveTheme, type ThemeMode } from './theme/theme.js';
 import type { ApprovalDecision, ApprovalPrompt, ApprovalUI } from '@cybermind/tools';
 import type { SessionMessage, SessionStatus } from './state/session.js';
 
@@ -30,9 +33,14 @@ interface AppProps {
 export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp();
 
-  // Check config for onboarding completion and saved theme
   const configTheme = getTheme();
-  const hasCompletedOnboarding = isOnboardingComplete();
+  // Apply the persisted theme to the live palette as early as possible so the
+  // very first render already uses the user's chosen colors.
+  const [themeVersion, setThemeVersion] = useState(0);
+  if (themeVersion === 0) {
+    setActiveTheme((configTheme.mode as ThemeMode) ?? 'dark');
+  }
+  const hasCompletedOnboarding = isOnboardingComplete() && isAuthenticated();
   const [screen, setScreen] = useState<Screen>(hasCompletedOnboarding ? 'welcome' : 'onboarding');
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>({
     mode: configTheme.mode as ThemeConfig['mode'],
@@ -41,6 +49,8 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   void themeConfig; // used to track current theme across the app
 
   const [messages, setMessages] = useState<SessionMessage[]>([]);
+  const [totalTokens, setTotalTokens] = useState<number>(0);
+  const [totalCost, setTotalCost] = useState<number>(0);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [model, setModel] = useState<string>(initialModel ?? 'auto');
   const [provider, setProvider] = useState<string>(initialProvider ?? 'auto');
@@ -116,8 +126,10 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
           setWelcomeVisible(true);
           setScreen('onboarding');
         },
+        getMessages: () => messages,
+        setMessages: (msgs) => setMessages(msgs),
       }),
-    [appendMessage, clearMessages, exit, model, provider, setScreen, setMessages, setWelcomeVisible],
+    [appendMessage, clearMessages, exit, model, provider, setScreen, setMessages, setWelcomeVisible, messages],
   );
 
   // Handle Ctrl+C: first press asks for confirmation, second press exits.
@@ -143,7 +155,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   }, []);
 
   const driveChat = useCallback(
-    async (userText: string) => {
+    async (userText: string, goalMode = false) => {
       const userMsg: SessionMessage = {
         id: cryptoRandomId(),
         role: 'user',
@@ -164,8 +176,10 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       setMessages([...nextHistory, assistantMsg]);
       setStatus('thinking');
 
+      const driver = goalMode ? runGoalChat : runChat;
+
       try {
-        await runChat(nextHistory, {
+        await driver(nextHistory, {
           model,
           approvalUI,
           onEvent: (evt) => {
@@ -177,6 +191,13 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
               setStatus('thinking');
               const trimmed = evt.output.length > 800 ? `${evt.output.slice(0, 800)}\n…[truncated]` : evt.output;
               appendDelta(`\n${trimmed}\n`);
+            } else if (evt.type === 'usage') {
+              setTotalTokens((prev) => prev + evt.inputTokens + evt.outputTokens);
+              const costAmt = evt.inputTokens * 0.000003 + evt.outputTokens * 0.000015;
+              setTotalCost((prev) => prev + costAmt);
+            } else if (evt.type === 'context') {
+              // Surface auto-compaction / retry notices inline, dimmed.
+              appendDelta(`\n[· ${evt.note} ·]\n`);
             } else if (evt.type === 'done') {
               if (evt.reason === 'error') {
                 appendDelta(`\n[error] ${evt.error ?? 'unknown'}`);
@@ -189,6 +210,15 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       } finally {
         streamingIdRef.current = null;
         setStatus('idle');
+        // postTask hooks (e.g. auto-run tests after the agent finishes).
+        try {
+          const h = runHooks('postTask', userText);
+          if (h.output) {
+            appendMessage({ id: cryptoRandomId(), role: 'system', content: h.output, createdAt: Date.now() });
+          }
+        } catch {
+          /* hooks must never break the session */
+        }
       }
     },
     [messages, model, appendDelta, approvalUI],
@@ -226,6 +256,22 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
         }
         const [name, ...rest] = trimmed.split(/\s+/);
         const args = rest.join(' ');
+
+        // /goal <objective> — drive the goal loop until complete.
+        if (name === 'goal') {
+          if (!args.trim()) {
+            appendMessage({
+              id: cryptoRandomId(),
+              role: 'system',
+              content: 'Usage: /goal <objective> — I will work autonomously until it is done.',
+              createdAt: Date.now(),
+            });
+            return;
+          }
+          void driveChat(args, true);
+          return;
+        }
+
         const cmd = commandRegistry.find(name ?? '');
         if (!cmd) {
           appendMessage({
@@ -264,6 +310,9 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   const handleThemeComplete = useCallback((theme: ThemeConfig) => {
     setThemeConfig(theme);
     setTheme(theme.mode, theme.syntaxTheme);
+    // Apply immediately to the live palette so the whole UI re-paints.
+    setActiveTheme(theme.mode as ThemeMode);
+    setThemeVersion((v) => v + 1);
     setScreen('welcome');
   }, []);
 
@@ -308,8 +357,9 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
             {welcomeVisible && <Welcome provider={provider} model={model} />}
             <MessageList messages={messages} />
             {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
+            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} />}
             <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
-            <StatusBar status={status} model={model} provider={provider} />
+            <StatusBar status={status} model={model} provider={provider} tokens={totalTokens} cost={totalCost} />
             <HintBar status={status} />
             {exitConfirm && <ExitConfirm />}
           </>
@@ -325,8 +375,9 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
             )}
             <MessageList messages={messages} />
             {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
+            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} />}
             <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
-            <StatusBar status={status} model={model} provider={provider} />
+            <StatusBar status={status} model={model} provider={provider} tokens={totalTokens} cost={totalCost} />
             <HintBar status={status} />
             {exitConfirm && <ExitConfirm />}
           </>

@@ -159,8 +159,8 @@ export CYBERCODER_BASE_URL=https://api.cybercoder.ai  # Custom endpoint
 
 ```bash
 # Clone the repo
-git clone https://github.com/stilcybermindcli/cybercoder.git
-cd cybercoder
+git clone https://github.com/codevaaa/codeva.git
+cd codeva
 
 # Install dependencies
 pnpm install

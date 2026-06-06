@@ -1,0 +1,38 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Codeva extension icon — Sudarshan Chakra on warm dark, matches website -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#2a2622"/>
+      <stop offset="100%" stop-color="#1a1a18"/>
+    </radialGradient>
+    <radialGradient id="hub" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#E08A66"/>
+      <stop offset="100%" stop-color="#C96442"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <g transform="translate(128,128) scale(2.05) translate(-50,-50)">
+    <!-- outer dashed ring -->
+    <circle cx="50" cy="50" r="44" stroke="#C96442" stroke-width="1" stroke-dasharray="3 6" opacity="0.25"/>
+    <circle cx="50" cy="50" r="36" stroke="#C96442" stroke-width="1.5" opacity="0.2"/>
+    <circle cx="50" cy="50" r="26" stroke="#C96442" stroke-width="1" stroke-dasharray="4 2" opacity="0.4"/>
+    <circle cx="50" cy="50" r="18" stroke="#C96442" stroke-width="1.2" opacity="0.55"/>
+    <!-- 8 blades -->
+    <g fill="#C96442">
+      <polygon points="68.00,50.00 84.30,53.08 86.00,50.00 84.30,46.92" opacity="0.9"/>
+      <polygon points="62.73,62.73 73.27,75.45 76.00,76.00 75.45,73.27" opacity="0.9"/>
+      <polygon points="50.00,68.00 53.08,84.30 50.00,86.00 46.92,84.30" opacity="0.9"/>
+      <polygon points="37.27,62.73 24.55,73.27 24.00,76.00 26.73,75.45" opacity="0.9"/>
+      <polygon points="32.00,50.00 15.70,46.92 14.00,50.00 15.70,53.08" opacity="0.9"/>
+      <polygon points="37.27,37.27 26.73,24.55 24.00,24.00 24.55,26.73" opacity="0.9"/>
+      <polygon points="50.00,32.00 46.92,15.70 50.00,14.00 53.08,15.70" opacity="0.9"/>
+      <polygon points="62.73,37.27 75.45,26.73 76.00,24.00 73.27,24.55" opacity="0.9"/>
+    </g>
+    <!-- central octagon hub -->
+    <circle cx="50" cy="50" r="12" fill="url(#hub)" opacity="0.45"/>
+    <g stroke="#C96442" stroke-width="1.3" opacity="0.85" fill="none">
+      <polygon points="50,41 56.36,43.64 59,50 56.36,56.36 50,59 43.64,56.36 41,50 43.64,43.64"/>
+    </g>
+    <circle cx="50" cy="50" r="3.6" fill="#E08A66"/>
+  </g>
+</svg>

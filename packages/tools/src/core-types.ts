@@ -15,4 +15,10 @@ export interface AgentTool {
   /** True when the tool may mutate user state (write, exec, network). */
   destructive: boolean;
   execute(input: Record<string, unknown>, ctx: ToolContext): Promise<string>;
+  /**
+   * Optional post-execution check. Return an error string when the result is
+   * bad (the agent loop surfaces it so the model can self-correct), or null
+   * when the result is verified good.
+   */
+  verify?: (input: Record<string, unknown>, output: string, ctx: ToolContext) => Promise<string | null>;
 }

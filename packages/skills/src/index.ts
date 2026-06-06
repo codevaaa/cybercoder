@@ -12,4 +12,6 @@ export * from './loader.js';
 export * from './registry.js';
 export * from './runner.js';
 export * from './spawn-tool.js';
+export * from './orchestrator.js';
+export * from './team-tool.js';
 export const SKILLS_PACKAGE = '@cybermind/skills';

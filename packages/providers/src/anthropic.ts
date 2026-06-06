@@ -65,9 +65,14 @@ export class AnthropicProvider implements LLMProvider {
         model,
         max_tokens: req.maxTokens ?? 4096,
         temperature: req.temperature,
-        system: system || undefined,
+        // Cache the (constant) system prompt across loop iterations so re-sends
+        // are billed at the cheap cache-read rate instead of full input rate.
+        // (cache_control is runtime-supported; the pinned SDK types predate it.)
+        system: system
+          ? ([{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] as unknown as Anthropic.MessageCreateParams['system'])
+          : undefined,
         messages: messages.map(toAnthropicMessage),
-        tools: req.tools?.map(toAnthropicTool),
+        tools: withToolCaching(req.tools?.map(toAnthropicTool)),
       });
 
       const inflightToolCalls = new Map<number, ProviderToolCall>();
@@ -180,4 +185,18 @@ function toAnthropicTool(t: ToolSchema): Anthropic.Tool {
     description: t.description,
     input_schema: t.inputSchema as Anthropic.Tool['input_schema'],
   };
+}
+
+/**
+ * Mark the last tool with an ephemeral cache breakpoint. Anthropic caches the
+ * whole tools block up to the breakpoint, so the (constant) tool schemas are
+ * billed at the cheap cache-read rate on every subsequent agent iteration.
+ */
+function withToolCaching(tools?: Anthropic.Tool[]): Anthropic.Tool[] | undefined {
+  if (!tools || tools.length === 0) return tools;
+  const out = tools.slice();
+  const last = out[out.length - 1];
+  // cache_control is runtime-supported; cast around the pinned SDK types.
+  out[out.length - 1] = { ...last, cache_control: { type: 'ephemeral' } } as unknown as Anthropic.Tool;
+  return out;
 }

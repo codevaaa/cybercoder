@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CyberCoder Side Panel</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #E55B3C;
+    --accent-hover: #F26A4A;
+    --accent-glow: rgba(229, 91, 60, 0.15);
+    --bg: #0F0F11;
+    --bg2: rgba(30, 30, 34, 0.6);
+    --bg3: rgba(45, 45, 50, 0.8);
+    --fg: #F3F3F4;
+    --muted: #A1A1AA;
+    --dim: #71717A;
+    --border: rgba(255, 255, 255, 0.08);
+    --success: #34D399;
+    --error: #FB7185;
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(15, 15, 17, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .header .logo { color: var(--accent); font-size: 18px; font-weight: bold; text-shadow: 0 0 10px var(--accent-glow); }
+  .header .title { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* ── Model Selector (Claude-style) ── */
+  .model-select-wrap {
+    position: relative;
+  }
+  .model-select-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg2); border: 1px solid var(--border);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    color: var(--fg); border-radius: 8px; padding: 6px 12px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s var(--ease);
+  }
+  .model-select-btn:hover { border-color: var(--accent); background: var(--bg3); box-shadow: 0 0 15px var(--accent-glow); }
+  .model-select-btn .model-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+  }
+  .model-select-btn .chevron { font-size: 8px; color: var(--muted); transition: transform 0.2s; }
+  .model-dropdown {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: rgba(30, 30, 34, 0.95); border: 1px solid var(--border);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-radius: var(--r-md); min-width: 210px; z-index: 999;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    display: none; overflow: hidden;
+  }
+  .model-dropdown.open { display: block; animation: fadeSlide 0.2s var(--ease); }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .model-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; cursor: pointer; transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+  }
+  .model-option:last-child { border-bottom: none; }
+  .model-option:hover { background: var(--bg3); }
+  .model-option.selected { background: var(--accent-glow); }
+  .model-option .mo-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .model-option .mo-info { flex: 1; }
+  .model-option .mo-name { font-size: 12px; font-weight: 600; color: var(--fg); }
+  .model-option .mo-desc { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .model-option .mo-check { color: var(--success); font-size: 14px; font-weight: bold; }
+
+  /* ── Header buttons ── */
+  .hdr-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); width: 28px; height: 28px;
+    border-radius: 7px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; font-size: 13px;
+    transition: all 0.15s var(--ease);
+  }
+  .hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Navigation Tabs ── */
+  .tabs {
+    display: flex; background: var(--bg2);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1; background: none; border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted); cursor: pointer;
+    font-size: 11px; font-weight: 600;
+    padding: 10px 0; text-align: center;
+    transition: all 0.15s var(--ease);
+  }
+  .tab-btn:hover { color: var(--fg); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Content Views ── */
+  .view-container { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .view { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.2s var(--ease); }
+  .view.active { opacity: 1; pointer-events: auto; z-index: 10; }
+
+  /* ── Messages Pane ── */
+  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; flex-direction: column; gap: 4px; animation: fadeIn 0.3s var(--ease); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .msg .role { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 700; }
+  .msg.user .bubble {
+    background: linear-gradient(135deg, rgba(229, 91, 60, 0.15) 0%, rgba(229, 91, 60, 0.05) 100%); 
+    border: 1px solid rgba(229, 91, 60, 0.2);
+    border-radius: var(--r-lg); padding: 12px 14px;
+    white-space: pre-wrap; font-size: 13.5px; line-height: 1.6;
+    word-wrap: break-word; overflow-wrap: break-word;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .msg.assistant .bubble {
+    white-space: pre-wrap; font-size: 13.5px; line-height: 1.65;
+    word-wrap: break-word; overflow-wrap: break-word;
+  }
+  .msg.assistant .bubble strong { color: var(--accent); font-weight: 600; }
+
+  pre { background: #06060c; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+  code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; color: #cbd5e1; }
+  .thinking { display: inline-flex; align-items: center; gap: 3px; padding: 6px 0; }
+  .thinking .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: bounce 1.4s ease-in-out infinite; }
+  .thinking .dot:nth-child(2) { animation-delay: 0.16s; }
+  .thinking .dot:nth-child(3) { animation-delay: 0.32s; }
+  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+  .typing-cursor::after { content: '▋'; color: var(--accent); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Tool steps ── */
+  .tool-step { border: 1px solid var(--border); border-radius: var(--r-md); margin: 4px 0; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--bg2); }
+  .tool-step.running { border-color: rgba(124, 58, 237, 0.3); }
+  .tool-step.ok { border-color: rgba(16, 185, 129, 0.2); }
+  .tool-step.fail { border-color: rgba(239, 68, 68, 0.2); }
+  .tool-step .icon { font-size: 12px; }
+  .tool-step .icon.spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tool-step .name { flex: 1; color: var(--fg); font-weight: 500; }
+  .tool-step .time { color: var(--dim); font-size: 9px; font-family: monospace; }
+
+  /* ── Empty state ── */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 14px; }
+  .empty .mascot { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: var(--bg2); border: 1px solid var(--border); font-size: 24px; }
+  .empty .hint { font-size: 12px; color: var(--muted); max-width: 250px; line-height: 1.6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+  .chip { font-size: 10px; border: 1px solid var(--border); background: var(--bg2); color: var(--fg); padding: 6px 10px; border-radius: 16px; cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .chip:hover { border-color: var(--accent); background: var(--accent-glow); }
+
+  /* ── Auto badge ── */
+  .auto-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; background: rgba(201, 100, 66, 0.15); color: #d4714f; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
+
+  /* ── Composer ── */
+  .composer { border-top: 1px solid var(--border); padding: 14px 16px; flex-shrink: 0; background: rgba(15, 15, 17, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 100; }
+  .composer-box { border: 1px solid var(--border); border-radius: 16px; background: rgba(30, 30, 34, 0.5); padding: 10px 14px; transition: all 0.25s var(--ease); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+  .composer-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow), inset 0 2px 4px rgba(0,0,0,0.2); background: rgba(30, 30, 34, 0.8); }
+  textarea { width: 100%; resize: none; background: transparent; color: var(--fg); border: none; outline: none; font-family: inherit; font-size: 13px; line-height: 1.5; min-height: 34px; max-height: 100px; }
+  textarea::placeholder { color: var(--dim); }
+  .crow { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+  .crow-left { display: flex; align-items: center; gap: 6px; }
+  .page-ctx { font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 4px; }
+  .page-ctx .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
+  .crow-right { display: flex; align-items: center; gap: 6px; }
+  .send { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+  .send:hover { background: var(--accent-hover); transform: scale(1.05); }
+  .send:disabled { opacity: 0.4; transform: none; cursor: default; }
+  .stop { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; }
+  .stop:hover { border-color: var(--error); color: var(--error); }
+  .auto-btn { width: 28px; height: 28px; border-radius: 7px; background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+  .auto-btn:hover { border-color: #d4714f; color: #d4714f; background: rgba(201, 100, 66, 0.08); }
+  .auto-btn.active { border-color: #d4714f; color: #d4714f; background: rgba(201, 100, 66, 0.15); }
+  .err { color: var(--error); font-size: 12px; padding: 8px 16px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; margin: 0 16px; animation: fadeIn 0.2s; }
+
+  /* ── Settings Styles ── */
+  .settings-pane { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .settings-section { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .settings-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  input[type="text"], select { width: 100%; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--fg); font-size: 12px; outline: none; transition: border-color 0.15s; }
+  input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  .row-flex { display: flex; gap: 8px; }
+  .action-btn { padding: 8px 14px; background: var(--accent); color: #fff; border: none; border-radius: var(--r-sm); font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .action-btn:hover { background: var(--accent-hover); }
+  .action-btn-secondary { padding: 8px 14px; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-sm); font-size: 12px; cursor: pointer; transition: background 0.15s; }
+  .action-btn-secondary:hover { background: rgba(255,255,255,0.05); }
+  .save-toast { font-size: 10px; color: var(--success); font-weight: 600; animation: fadeIn 0.3s; }
+
+  /* ── Automations Styles ── */
+  .automations-pane { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .auto-task-form { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .auto-task-form input { flex: 1; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--fg); font-size: 12px; outline: none; }
+  .auto-task-form input:focus { border-color: var(--accent); }
+  .job-card { border: 1px solid var(--border); background: var(--bg2); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .job-card .job-header { display: flex; justify-content: space-between; align-items: center; }
+  .job-card .job-title { font-size: 12px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+  .job-card .job-status { font-size: 9px; padding: 1px 6px; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
+  .status-done { background: rgba(16,185,129,0.1); color: var(--success); }
+  .status-running { background: rgba(124,58,237,0.1); color: #a78bfa; }
+  .status-pending { background: rgba(255,255,255,0.05); color: var(--muted); }
+  .status-failed { background: rgba(239,68,68,0.1); color: var(--error); }
+  .job-card .job-result { font-size: 11px; color: var(--muted); max-height: 80px; overflow-y: auto; white-space: pre-wrap; background: var(--bg3); padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.03); word-wrap: break-word; }
+
+  .hidden { display: none !important; }
+
+  /* ── Responsive ── */
+  @media (max-width: 420px) {
+    .header { padding: 8px 10px; gap: 6px; }
+    .header .title { font-size: 13px; }
+    .model-select-btn { font-size: 10px; padding: 4px 8px; }
+    .messages { padding: 12px; gap: 10px; }
+    .composer { padding: 10px 12px; }
+    .msg.user .bubble, .msg.assistant .bubble { font-size: 12px; }
+    .settings-pane { padding: 12px; }
+    .chip { font-size: 9px; padding: 5px 8px; }
+    .model-dropdown { min-width: 180px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="logo">✳</span>
+    <span class="title">CyberCoder</span>
+    <div class="header-right">
+      <span class="auto-badge" id="autoBadge" style="display:none;" title="Browser automation active">🤖 Auto</span>
+
+      <!-- Model Selector -->
+      <div class="model-select-wrap" id="modelWrap">
+        <button class="model-select-btn" id="modelBtn">
+          <span class="model-dot" id="modelDot"></span>
+          <span id="modelLabel">Codeva Auto</span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="model-dropdown" id="modelDropdown">
+          <div class="model-option selected" data-model="auto">
+            <span class="mo-dot" style="background: var(--accent);"></span>
+            <div class="mo-info"><div class="mo-name">Codeva Auto</div><div class="mo-desc">Smart routing — picks best available model</div></div>
+            <span class="mo-check" id="checkAuto">✓</span>
+          </div>
+          <div class="model-option" data-model="apifreellm/gpt-4o">
+            <span class="mo-dot" style="background: #10b981;"></span>
+            <div class="mo-info"><div class="mo-name">GPT-4o (Premium)</div><div class="mo-desc">General Purpose / Coding</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="apifreellm/claude-3.5-sonnet">
+            <span class="mo-dot" style="background: #d4714f;"></span>
+            <div class="mo-info"><div class="mo-name">Claude 3.5 Sonnet</div><div class="mo-desc">Advanced Reasoning</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="apifreellm/llama-3-70b">
+            <span class="mo-dot" style="background: #f97316;"></span>
+            <div class="mo-info"><div class="mo-name">Llama 3 70B</div><div class="mo-desc">Top-tier open source</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="opencode/deepseek-v4-pro">
+            <span class="mo-dot" style="background: #3b82f6;"></span>
+            <div class="mo-info"><div class="mo-name">DeepSeek V4 Pro</div><div class="mo-desc">DeepSeek का प्रो वर्ज़न</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="groq/llama-3.3-70b">
+            <span class="mo-dot" style="background: #f59e0b;"></span>
+            <div class="mo-info"><div class="mo-name">Llama 3.3 70B (Fast)</div><div class="mo-desc">GPT-4 level reasoning, blazing fast</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="groq/deepseek-r1-distill-70b">
+            <span class="mo-dot" style="background: #8b5cf6;"></span>
+            <div class="mo-info"><div class="mo-name">DeepSeek R1 (Groq)</div><div class="mo-desc">DeepSeek-R1 की reasoning पावर</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+          <div class="model-option" data-model="groq/qwen-2.5-coder-32b">
+            <span class="mo-dot" style="background: #06b6d4;"></span>
+            <div class="mo-info"><div class="mo-name">Qwen 2.5 Coder</div><div class="mo-desc">बेहतरीन कोडिंग मॉडल</div></div>
+            <span class="mo-check" style="display:none;">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="hdr-btn" id="clearBtn" title="New Chat">+</button>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+    <button class="tab-btn" data-tab="automations">🤖 Automations</button>
+    <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
+  </div>
+
+  <!-- Content Views -->
+  <div class="view-container">
+
+    <!-- 1. CHAT VIEW -->
+    <div id="chatView" class="view active">
+      <div class="messages" id="messages">
+        <div class="empty" id="empty">
+          <div class="mascot">✳</div>
+          <div class="hint">Ask questions about this page, summarize content, extract data, or run browser automations.</div>
+          <div class="chips">
+            <button class="chip" data-p="Summarize this page in bullet points">📝 Summarize</button>
+            <button class="chip" data-p="Extract key data from this page as a table">📊 Extract</button>
+            <button class="chip" data-p="Explain this page content simply in 3 sentences">💡 Explain</button>
+            <button class="chip" data-p="Translate the main content of this page to Hindi">🌐 Translate</button>
+            <button class="chip" data-p="Convert this page content to clean Markdown format">📄 Markdown</button>
+          </div>
+        </div>
+      </div>
+      <div id="errbar" class="err hidden"></div>
+      <div class="composer">
+        <div class="composer-box">
+          <textarea id="input" placeholder="Ask about this page or automate..." rows="1"></textarea>
+          <div class="crow">
+            <div class="crow-left">
+              <span class="page-ctx" id="pageCtx"><span class="dot"></span> Active tab context</span>
+            </div>
+            <div class="crow-right">
+              <button class="auto-btn" id="autoBtn" title="Toggle browser automation (AI takes actions)">🤖</button>
+              <button class="stop" id="stopBtn">■</button>
+              <button class="send" id="sendBtn">↑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. AUTOMATIONS VIEW -->
+    <div id="automationsView" class="view">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; font-weight: bold; color: var(--muted); text-transform: uppercase;">Background Tasks</span>
+        <button class="action-btn-secondary" id="clearJobsBtn" style="padding: 3px 8px; font-size: 10px;">Clear All</button>
+      </div>
+      <div class="auto-task-form">
+        <input type="text" id="newTaskInput" placeholder="Describe a background task..." />
+        <button class="action-btn" id="addTaskBtn" style="padding: 6px 12px; font-size: 11px;">Run</button>
+      </div>
+      <div class="automations-pane" id="jobsList">
+        <div class="empty" id="emptyJobs">
+          <div style="font-size: 24px; opacity: 0.5;">📋</div>
+          <div class="hint">No tasks yet. Type a task above or use the quick actions from Chat to queue background work.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SETTINGS VIEW -->
+    <div id="settingsView" class="view">
+      <div class="settings-pane">
+        
+        <!-- Account Status -->
+        <div class="settings-section">
+          <span class="settings-title">Account & Credentials</span>
+          <div class="form-group">
+            <label>Codeva API / JWT Token</label>
+            <div class="row-flex">
+              <input type="text" id="codevaKeyInput" placeholder="Paste sk_cyber_... token" />
+              <button class="action-btn" id="saveCodevaKey">Save</button>
+            </div>
+            <span style="font-size: 9px; color: var(--dim);" id="authStatusText">Auth Status: Checking...</span>
+          </div>
+        </div>
+
+        <!-- Connection Test -->
+        <div class="settings-section">
+          <span class="settings-title">Connection Status</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="connDot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);"></span>
+            <span id="connText" style="font-size: 11px; color: var(--muted);">Not tested</span>
+            <button class="action-btn-secondary" id="testConnBtn" style="padding: 4px 10px; font-size: 10px; margin-left: auto;">Test Connection</button>
+          </div>
+        </div>
+
+        <!-- Gateway Config -->
+        <div class="settings-section">
+          <span class="settings-title">Gateway Settings</span>
+          <div class="form-group">
+            <label>Backend API Base URL</label>
+            <select id="backendUrlSelect">
+              <option value="https://cybercli-api.onrender.com/api/v1">Production Cloud (Render)</option>
+              <option value="http://localhost:3000/api/v1">Local Server (localhost:3000)</option>
+              <option value="custom">Custom Endpoint...</option>
+            </select>
+          </div>
+          <div class="form-group hidden" id="customBackendGroup">
+            <label>Custom Backend API Base</label>
+            <div class="row-flex">
+              <input type="text" id="customBackendInput" placeholder="http://127.0.0.1:3000/api/v1" />
+              <button class="action-btn" id="saveCustomBackend">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bring Your Own Keys (BYOK) -->
+        <div class="settings-section">
+          <span class="settings-title">Provider API Keys (BYOK)</span>
+          <div style="font-size: 9.5px; color: var(--muted); margin-bottom: 4px;">Enter your own API keys to route directly to providers. Otherwise queries use Codeva Cloud.</div>
+          
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>Groq API Key</label>
+            <input type="text" id="groqKey" class="byok-input" placeholder="gsk_..." data-provider="groq" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>Gemini API Key</label>
+            <input type="text" id="geminiKey" class="byok-input" placeholder="AIza..." data-provider="gemini" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>OpenAI API Key</label>
+            <input type="text" id="openaiKey" class="byok-input" placeholder="sk-proj-..." data-provider="openai" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>Anthropic API Key</label>
+            <input type="text" id="anthropicKey" class="byok-input" placeholder="sk-ant-..." data-provider="anthropic" />
+          </div>
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label>OpenRouter API Key</label>
+            <input type="text" id="openrouterKey" class="byok-input" placeholder="sk-or-..." data-provider="openrouter" />
+          </div>
+          <button class="action-btn" id="saveAllKeys" style="width: 100%; margin-top: 4px;">💾 Save All Keys</button>
+          <span id="keysSaveToast" class="save-toast hidden">✓ All keys saved!</span>
+        </div>
+
+        <!-- Developer & Updates -->
+        <div class="settings-section" style="border-bottom: none;">
+          <span class="settings-title">Developer & Updates</span>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+              <span>Version: <strong style="color: var(--accent);">0.2.1</strong></span>
+              <button class="action-btn-secondary" id="checkUpdateBtn" style="padding: 4px 8px; font-size: 10px;">Check Updates</button>
+            </div>
+            <div id="updateStatusMsg" style="font-size: 10px; color: var(--success); font-weight: 500;" class="hidden"></div>
+            <button class="action-btn-secondary" id="reloadExtBtn" style="width: 100%; font-size: 11px; padding: 8px 0; border-color: rgba(201,100,66,0.2); color: #d4714f; font-weight: 600;">🔄 Reload Extension</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+<script src="marked.min.js"></script>
+<script src="panel.js"></script>
+</body>
+</html>

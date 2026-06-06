@@ -11,11 +11,22 @@ import { getSkillRegistry } from '../runtime/chat.js';
 export function buildSkillsCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'skills',
-    description: 'List installed skills (bundled, user, project). Install/publish ships in M13.',
+    description: 'List installed skills, or "/skills reload" to rescan after adding one.',
     category: 'skills',
-    usage: '/skills [list]',
-    run: () => {
+    usage: '/skills [list|reload]',
+    run: (args: string) => {
       const registry = getSkillRegistry();
+      const sub = args.trim().toLowerCase();
+      if (sub === 'reload') {
+        registry.reload();
+        ctx.appendMessage({
+          id: `skills-${Date.now()}`,
+          role: 'system',
+          content: `Reloaded skills. ${registry.list().length} installed.`,
+          createdAt: Date.now(),
+        });
+        return;
+      }
       const grouped = registry.bySource();
       const lines: string[] = ['Installed skills:'];
       for (const source of ['bundled', 'user', 'project', 'marketplace'] as const) {
@@ -29,10 +40,10 @@ export function buildSkillsCommand(ctx: CommandContext): SlashCommandHandler {
       }
       const total = registry.list().length;
       if (total === 0) {
-        lines.push('  (none — bundled skills will appear once you build the project)');
+        lines.push('  (none found — add SKILL.md files under .codeva/skills/)');
       } else {
         lines.push('');
-        lines.push(`  Total: ${total} skill(s). Try /research, /plan, or /code-review.`);
+        lines.push(`  Total: ${total} skill(s). Shortcuts: /research /plan /code-review /debug /security /commit /web`);
       }
       ctx.appendMessage({
         id: `skills-${Date.now()}`,
@@ -82,7 +93,7 @@ function buildSkillShortcut(
         ctx.appendMessage({
           id: `${name}-${Date.now()}`,
           role: 'system',
-          content: `Skill "${skill}" is not installed. Build the project (pnpm build) or copy skills-bundled/ into ~/.cybermind/skills/.`,
+          content: `Skill "${skill}" is not installed. Add it under .codeva/skills/<name>/SKILL.md (project) or ~/.codeva/skills/ (global), then run /skills reload.`,
           createdAt: Date.now(),
         });
         return;
@@ -126,4 +137,43 @@ export function buildCodeReviewCommand(ctx: CommandContext): SlashCommandHandler
     'code-review',
     'Spawn the code-review sub-agent on a diff, file, or commit.',
   );
+}
+
+export function buildDebugCommand(ctx: CommandContext): SlashCommandHandler {
+  return buildSkillShortcut(ctx, 'debug', 'debugger', 'Spawn the systematic root-cause debugging sub-agent.');
+}
+
+export function buildSecurityCommand(ctx: CommandContext): SlashCommandHandler {
+  return buildSkillShortcut(ctx, 'security', 'security-audit', 'Spawn the read-only security audit sub-agent.');
+}
+
+export function buildCommitCommand(ctx: CommandContext): SlashCommandHandler {
+  return buildSkillShortcut(ctx, 'commit', 'commit', 'Stage and write Conventional Commits from the working tree.');
+}
+
+export function buildWebCommand(ctx: CommandContext): SlashCommandHandler {
+  return buildSkillShortcut(ctx, 'web', 'web-research', 'Spawn the live web-research sub-agent (search + fetch + cite).');
+}
+
+export function buildFixCommand(ctx: CommandContext): SlashCommandHandler {
+  return buildSkillShortcut(ctx, 'fix', 'test-fixer', 'Run tests and self-heal the code until green (bounded).');
+}
+
+/**
+ * `/goal` — registry entry for discovery in /help. The actual goal loop is
+ * intercepted in app.tsx (it needs the goal-mode driver), so this handler only
+ * runs if invoked outside that path; it explains usage.
+ */
+export function buildGoalCommand(ctx: CommandContext): SlashCommandHandler {
+  return {
+    name: 'goal',
+    description: 'Work autonomously toward an objective until it is done (multi-round).',
+    category: 'agent',
+    usage: '/goal <objective>',
+    run: (args: string) => {
+      ctx.submitUserPrompt?.(args.trim()
+        ? `Work toward this goal until complete: ${args.trim()}`
+        : 'Usage: /goal <objective>');
+    },
+  };
 }

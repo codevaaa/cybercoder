@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 340px; min-height: 480px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1918; color: #e8e4de; display: flex; flex-direction: column; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+  .brand .dot { color: #C96442; font-size: 16px; }
+  .pin { background: none; border: none; color: #9a9590; cursor: pointer; font-size: 16px; }
+  .close { background: none; border: none; color: #9a9590; cursor: pointer; font-size: 18px; }
+
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 24px; text-align: center; gap: 16px; }
+  .icon-box { width: 80px; height: 70px; display: flex; align-items: center; justify-content: center; }
+  .icon-box svg { width: 72px; height: 62px; }
+  h2 { font-size: 28px; font-weight: 600; color: #e8e4de; font-family: 'Instrument Serif', Georgia, serif; }
+  .desc { font-size: 13px; color: #9a9590; line-height: 1.6; max-width: 260px; }
+  .btn { display: block; width: 100%; max-width: 220px; padding: 11px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center; text-decoration: none; }
+  .btn-primary { background: #C96442; color: #fff; border: none; }
+  .btn-primary:hover { background: #d4714f; }
+  .btn-secondary { background: transparent; color: #e8e4de; border: 1px solid rgba(255,255,255,0.12); margin-top: 8px; }
+  .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+
+  /* Logged-in state */
+  .logged-in { display: none; flex-direction: column; gap: 8px; width: 100%; padding: 0 16px; }
+  .task-btn { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #222120; border: 1px solid rgba(255,255,255,0.06); cursor: pointer; transition: background 0.15s; text-align: left; width: 100%; }
+  .task-btn:hover { background: #2a2826; border-color: #C96442; }
+  .task-btn .emoji { font-size: 18px; flex-shrink: 0; }
+  .task-btn .txt { font-size: 13px; color: #e8e4de; }
+  .task-btn .sub { font-size: 11px; color: #9a9590; margin-top: 2px; }
+  .footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; }
+  .footer a { font-size: 11px; color: #C96442; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .user-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: #C96442; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .user-info { flex: 1; }
+  .user-info .name { font-size: 12px; font-weight: 500; }
+  .user-info .plan { font-size: 10px; color: #9a9590; text-transform: uppercase; }
+  .signout { font-size: 11px; color: #9a9590; background: none; border: none; cursor: pointer; }
+  .signout:hover { color: #C96442; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand"><span class="dot">✳</span> CyberCoder <span id="connIndicator" style="width:6px;height:6px;border-radius:50%;background:#9a9590;margin-left:2px;"></span></div>
+    <div style="display:flex;gap:6px">
+      <button class="pin" id="pinBtn" title="Open side panel">📌</button>
+      <button class="close" id="closeBtn" title="Close">✕</button>
+    </div>
+  </div>
+
+  <!-- Login state -->
+  <div class="center" id="loginView">
+    <div class="icon-box">
+      <svg viewBox="0 0 17 15" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#C96442">
+          <rect x="3" y="0" width="1" height="1"/><rect x="13" y="0" width="1" height="1"/>
+          <rect x="4" y="1" width="1" height="1"/><rect x="12" y="1" width="1" height="1"/>
+          <rect x="3" y="2" width="11" height="1"/>
+          <rect x="2" y="3" width="2" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="10" y="3" width="1" height="1"/><rect x="13" y="3" width="2" height="1"/>
+          <rect x="1" y="4" width="15" height="1"/><rect x="1" y="5" width="15" height="1"/>
+          <rect x="1" y="6" width="3" height="1"/><rect x="6" y="6" width="5" height="1"/><rect x="13" y="6" width="3" height="1"/>
+          <rect x="1" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="13" y="7" width="1" height="1"/><rect x="15" y="7" width="1" height="1"/>
+          <rect x="5" y="8" width="2" height="1"/><rect x="10" y="8" width="2" height="1"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Log in</h2>
+    <p class="desc">CyberCoder in Chrome is available to all users. Free tier: 50 messages/hour.</p>
+    <button class="btn btn-primary" id="loginBtn">Log in via Website</button>
+    <button class="btn btn-secondary" id="providerBtn">Setup Providers</button>
+    <button class="btn btn-secondary" id="settingsBtn" style="margin-top:4px;font-size:12px;">⚙️ Setup Keys in Extension</button>
+  </div>
+
+  <!-- Logged-in state -->
+  <div id="mainView" class="hidden" style="flex:1;display:flex;flex-direction:column">
+    <div class="user-bar" id="userBar">
+      <div class="avatar" id="userAvatar">C</div>
+      <div class="user-info"><div class="name" id="userName">User</div><div class="plan" id="userPlan">FREE</div></div>
+      <button class="signout" id="signoutBtn">Sign out</button>
+    </div>
+    <div style="flex:1;padding:12px 16px;overflow-y:auto">
+      <p style="font-size:12px;color:#8a8780;margin-bottom:12px">Quick tasks on this page:</p>
+      <div class="logged-in" id="tasks" style="display:flex">
+        <button class="task-btn" data-task="summarize"><span class="emoji">📝</span><div><div class="txt">Summarize page</div><div class="sub">Get a concise summary of this page</div></div></button>
+        <button class="task-btn" data-task="extract"><span class="emoji">📊</span><div><div class="txt">Extract data</div><div class="sub">Pull structured data from the page</div></div></button>
+        <button class="task-btn" data-task="explain"><span class="emoji">💡</span><div><div class="txt">Explain page</div><div class="sub">ELI5 explanation of the content</div></div></button>
+        <button class="task-btn" data-task="translate"><span class="emoji">🌐</span><div><div class="txt">Translate page</div><div class="sub">Translate to Hindi or English</div></div></button>
+        <button class="task-btn" data-task="rewrite"><span class="emoji">✍️</span><div><div class="txt">Rewrite selection</div><div class="sub">Make selected text clearer</div></div></button>
+        <button class="task-btn" data-task="code"><span class="emoji">💻</span><div><div class="txt">Explain code</div><div class="sub">Explain code snippets on the page</div></div></button>
+        <button class="task-btn" data-task="chat"><span class="emoji">💬</span><div><div class="txt">Open chat</div><div class="sub">Full chat in the side panel</div></div></button>
+        <button class="task-btn" data-task="md"><span class="emoji">📄</span><div><div class="txt">Save as Markdown</div><div class="sub">Convert page to clean .md</div></div></button>
+      </div>
+    </div>
+    <div class="footer">
+      <a href="https://cybermindcli.info/help" target="_blank">Help Center</a> · <a href="https://cybermindcli.info/providers" target="_blank">Providers</a> · <a href="https://cybermindcli.info/upgrade" target="_blank">Upgrade</a>
+    </div>
+  </div>
+
+<script src="popup.js"></script>
+</body>
+</html>

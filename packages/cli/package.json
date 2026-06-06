@@ -1,15 +1,18 @@
 {
-  "name": "@cybercli_chat/cli",
-  "version": "0.1.21",
-  "description": "CyberMind CLI — fullstack agentic coding assistant",
+  "name": "@codeva_chat/cli",
+  "version": "0.1.22",
+  "description": "CyberCoder CLI — fullstack agentic coding assistant by Codeva",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "cm": "./bin/cybermind.mjs"
+    "cm": "./bin/cybermind.mjs",
+    "codeva": "./bin/cybermind.mjs",
+    "cybercoder": "./bin/cybermind.mjs"
   },
   "files": [
     "bin",
     "dist",
+    "skills-bundled",
     "install.sh",
     "install.ps1",
     "install.cmd",
@@ -21,7 +24,15 @@
   "scripts": {
     "dev": "tsx src/index.tsx",
     "start": "node dist/index.js",
+    "bundle-skills": "node scripts/bundle-skills.mjs",
+    "prebuild": "node scripts/bundle-skills.mjs",
     "build": "tsup",
+    "build:rpc": "tsup src/rpc-entry.ts --format esm --target node20 --outDir dist/rpc --clean",
+    "compile": "npm run build:rpc && node scripts/compile-binary.mjs",
+    "compile:win": "npm run build && node scripts/compile-binary.mjs --target win",
+    "compile:mac": "npm run build && node scripts/compile-binary.mjs --target mac",
+    "compile:linux": "npm run build && node scripts/compile-binary.mjs --target linux",
+    "prepublishOnly": "node scripts/bundle-skills.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo '(tests added in M14)'"
   },

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { AgentTool } from '../types.js';
 
@@ -29,5 +29,20 @@ export const writeFileTool: AgentTool = {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(abs, content, 'utf8');
     return `Wrote ${Buffer.byteLength(content, 'utf8')} bytes to ${abs}.`;
+  },
+  // Self-correction: confirm the file now exists with the expected size.
+  async verify(input, _output, ctx) {
+    try {
+      const abs = resolve(ctx.cwd, String(input.path ?? ''));
+      const content = String(input.content ?? '');
+      if (!existsSync(abs)) return 'write_file verification failed: file does not exist after writing.';
+      const written = readFileSync(abs, 'utf8');
+      if (written.length !== content.length) {
+        return `write_file verification warning: written size (${written.length}) differs from intended (${content.length}).`;
+      }
+      return null;
+    } catch (err) {
+      return `write_file verification error: ${err instanceof Error ? err.message : String(err)}`;
+    }
   },
 };

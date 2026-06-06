@@ -98,10 +98,10 @@ cybercoder
 
 ## 📞 Support
 
-- **Documentation**: https://stilcybermindcli.github.io/cybercoder
-- **GitHub**: https://github.com/stilcybermindcli/cybercoder
-- **Discord**: [Join Community](https://discord.gg/cybercoder)
-- **Issues**: [Report Bugs](https://github.com/stilcybermindcli/cybercoder/issues)
+- **Documentation**: https://codevaaa.github.io/codeva
+- **GitHub**: https://github.com/codevaaa/codeva
+- **Discord**: [Join Community](https://discord.gg/codeva)
+- **Issues**: [Report Bugs](https://github.com/codevaaa/codeva/issues)
 
 ---
 
