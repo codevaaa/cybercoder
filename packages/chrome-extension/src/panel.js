@@ -261,6 +261,10 @@ function addToolStep(summary) {
 }
 
 function renderMD(t) {
+  if (typeof marked !== 'undefined') {
+    return marked.parse(t);
+  }
+  // Fallback if marked fails to load
   var BT = String.fromCharCode(96);
   var RE1 = new RegExp('(' + BT+BT+BT + '[\\w-]*\\n[\\s\\S]*?' + BT+BT+BT + ')', 'g');
   var RE2 = new RegExp('^' + BT+BT+BT + '([\\w-]*)\\n([\\s\\S]*?)' + BT+BT+BT + '$');
