@@ -1,5 +1,5 @@
 {
-  "name": "@codeva_chat/cli",
+  "name": "cybercoder-cli",
   "version": "0.1.22",
   "description": "CyberCoder CLI — fullstack agentic coding assistant by Codeva",
   "type": "module",

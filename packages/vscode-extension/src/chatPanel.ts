@@ -269,8 +269,8 @@ export class ChatPanel {
         t.show()
         const isWin = process.platform === 'win32'
         const installCheck = isWin
-          ? 'if (-not (Get-Command cm -ErrorAction SilentlyContinue)) { Write-Host "Installing CyberCoder CLI..."; npm install -g @codeva_chat/cli@latest }; cm'
-          : 'command -v cm >/dev/null 2>&1 || { echo "Installing CyberCoder CLI..."; npm install -g @codeva_chat/cli@latest; }; cm'
+          ? 'if (-not (Get-Command cm -ErrorAction SilentlyContinue)) { Write-Host "Installing CyberCoder CLI..."; npm install -g cybercoder-cli@latest }; cm'
+          : 'command -v cm >/dev/null 2>&1 || { echo "Installing CyberCoder CLI..."; npm install -g cybercoder-cli@latest; }; cm'
         t.sendText(installCheck, true)
         break
       }
