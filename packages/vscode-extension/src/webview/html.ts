@@ -288,7 +288,7 @@ case 'cliBridgeStatus':state.cliBridge=m.active;show();break;
 case 'addContext':$('input').value=($('input').value?$('input').value+'\\n':'')+'['+m.label+']';$('input').focus();break;
 case 'userMessage':addMsg('user',m.text);break;
 case 'assistantStart':state.streaming=true;$('sendBtn').classList.add('hidden');$('stopBtn').classList.remove('hidden');assistantEl=addMsg('assistant','');assistantEl.querySelector('.bubble').innerHTML='<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';assistantEl._raw='';assistantEl._has=false;break;
-case 'toolStart':currentTool=addToolStep(m.summary);break;
+case 'toolStart':currentTool=addToolStep(m.summary);if(m.summary.includes('spawn_subagent')||m.summary.includes('spawn_team')){currentTool.querySelector('.tool-icon').innerHTML='✱';currentTool.querySelector('.tool-icon').style.color='#FF5F00';currentTool.querySelector('.tool-name').innerHTML='Coalescing <span class="thinking"><div class="dot" style="background:#FF5F00;width:4px;height:4px"></div><div class="dot" style="background:#FF5F00;width:4px;height:4px"></div><div class="dot" style="background:#FF5F00;width:4px;height:4px"></div></span>'}break;
 case 'toolEnd':finishTool(currentTool,m.ok,m.output||'');currentTool=null;break;
 case 'toolOutput':if(currentTool)currentTool.querySelector('.tool-body').textContent+=m.text;break;
 case 'assistantChunk':if(assistantEl){if(!assistantEl._has){assistantEl._has=true;assistantEl.querySelector('.bubble').innerHTML=''}assistantEl._raw+=m.text;assistantEl.querySelector('.bubble').innerHTML=renderMD(assistantEl._raw);assistantEl.querySelector('.bubble').classList.add('typing-cursor');wireCode(assistantEl);assistantEl.scrollIntoView({block:'end',behavior:'smooth'})}break;

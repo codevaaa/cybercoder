@@ -320,3 +320,26 @@ export function ModelThinking({ modelName }: { modelName: string }) {
     </Box>
   );
 }
+
+export function CoalescingAnimation() {
+  const [dots, setDots] = useState('');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(d => (d.length >= 3 ? '' : d + '.'));
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <Box>
+      <Text color="#FF5F00">✱ Coalescing{dots}</Text>
+    </Box>
+  );
+}
+
+export function RetryIndicator({ seconds, attempt, max }: { seconds: number; attempt: number; max: number }) {
+  return (
+    <Box>
+      <Text color="gray">  └ Retrying in {seconds}s • attempt {attempt}/{max}</Text>
+    </Box>
+  );
+}
