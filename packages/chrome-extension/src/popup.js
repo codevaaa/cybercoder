@@ -6,56 +6,36 @@
 const loginView = document.getElementById('loginView')
 const mainView = document.getElementById('mainView')
 const loginBtn = document.getElementById('loginBtn')
-const providerBtn = document.getElementById('providerBtn')
-const settingsBtn = document.getElementById('settingsBtn')
 const signoutBtn = document.getElementById('signoutBtn')
 const pinBtn = document.getElementById('pinBtn')
 const closeBtn = document.getElementById('closeBtn')
 const connIndicator = document.getElementById('connIndicator')
 
 async function checkAuth() {
-  const auth = await chrome.runtime.sendMessage({ type: 'get-auth' })
-  const providers = await chrome.runtime.sendMessage({ type: 'get-providers' })
-  const hasProvider = providers && Object.values(providers).some(v => v)
-  if (auth || hasProvider) {
-    loginView.classList.add('hidden')
-    mainView.classList.remove('hidden')
-    mainView.style.display = 'flex'
-    if (auth?.email) {
-      document.getElementById('userName').textContent = auth.email.split('@')[0]
-      document.getElementById('userAvatar').textContent = auth.email[0].toUpperCase()
-      document.getElementById('userPlan').textContent = (auth.plan || 'free').toUpperCase()
+  try {
+    const auth = await chrome.runtime.sendMessage({ type: 'get-auth' }).catch(() => null)
+    if (auth) {
+      loginView.classList.add('hidden')
+      mainView.classList.remove('hidden')
+      mainView.style.display = 'flex'
+      if (auth?.email) {
+        document.getElementById('userName').textContent = auth.email.split('@')[0]
+        document.getElementById('userAvatar').textContent = auth.email[0].toUpperCase()
+        document.getElementById('userPlan').textContent = (auth.plan || 'free').toUpperCase()
+      }
+      connIndicator.style.background = '#4ade80'
     } else {
-      document.getElementById('userName').textContent = 'BYOK User'
-      document.getElementById('userPlan').textContent = 'PROVIDER'
+      loginView.classList.remove('hidden')
+      mainView.classList.add('hidden')
+      connIndicator.style.background = '#d1d1d1'
     }
-    // Green dot — has keys
-    connIndicator.style.background = '#4ade80'
-  } else {
-    loginView.classList.remove('hidden')
-    mainView.classList.add('hidden')
-    // Grey dot — no keys
-    connIndicator.style.background = '#9a9590'
+  } catch (err) {
+    console.error('Auth check error:', err)
   }
 }
 
 loginBtn.addEventListener('click', () => {
   chrome.tabs.create({ url: 'https://cybermindcli.info/api-keys' })
-})
-
-providerBtn.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://cybermindcli.info/providers' })
-})
-
-// Setup Keys button opens side panel on Settings tab
-settingsBtn.addEventListener('click', async () => {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-  if (tab?.id) {
-    // Store a flag so panel opens Settings tab
-    await chrome.storage.local.set({ openSettingsTab: true })
-    await chrome.sidePanel.open({ tabId: tab.id })
-  }
-  window.close()
 })
 
 signoutBtn.addEventListener('click', async () => {

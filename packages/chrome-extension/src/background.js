@@ -19,78 +19,21 @@ async function setAuth(auth) {
 async function clearAuth() {
   await chrome.storage.local.remove('cyberAuth')
 }
-async function getProviderKeys() {
-  const { cyberProviders } = await chrome.storage.local.get('cyberProviders')
-  return cyberProviders || {}
-}
-async function setProviderKey(provider, key) {
-  const keys = await getProviderKeys()
-  keys[provider] = key
-  await chrome.storage.local.set({ cyberProviders: keys })
-}
-
-// ── Provider streaming (BYOK — direct to provider, no backend needed) ──
-async function* streamGroq(messages, system, key, signal) {
-  const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST', signal,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: msgs, temperature: 0.5, stream: true }),
-  })
-  if (!res.ok) throw new Error(`Groq ${res.status}`)
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n'); buf = lines.pop()
-    for (const l of lines) {
-      if (!l.startsWith('data:')) continue
-      const d = l.slice(5).trim()
-      if (d === '[DONE]') return
-      try { const j = JSON.parse(d); const t = j.choices?.[0]?.delta?.content; if (t) yield t } catch {}
-    }
-  }
-}
-
-async function* streamGemini(messages, system, key, signal) {
-  const contents = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`
-  const res = await fetch(url, {
-    method: 'POST', signal,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents, ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), generationConfig: { temperature: 0.5 } }),
-  })
-  if (!res.ok) throw new Error(`Gemini ${res.status}`)
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n'); buf = lines.pop()
-    for (const l of lines) {
-      if (!l.startsWith('data:')) continue
-      try { const j = JSON.parse(l.slice(5).trim()); const t = j.candidates?.[0]?.content?.parts?.[0]?.text; if (t) yield t } catch {}
-    }
-  }
-}
-
-async function getApiBase() {
-  const { customApiBase } = await chrome.storage.local.get('customApiBase')
-  return customApiBase || 'https://cybercli-api.onrender.com/api/v1'
-}
-
-async function* streamCodeva(messages, system, apiKey, signal, targetModel) {
-  const apiBase = await getApiBase()
+// ── Provider streaming (via Codeva Cloud backend) ──
+async function* smartStream(messages, system, signal, targetModel) {
+  const auth = await getAuth()
   const headers = { 'Content-Type': 'application/json' }
-  if (apiKey) headers.Authorization = `Bearer ${apiKey}`
-  const body = { messages: system ? [{ role: 'system', content: system }, ...messages] : messages, model: targetModel || 'auto', stream: true }
-  const res = await fetch(`${apiBase}/completions`, { method: 'POST', headers, body: JSON.stringify(body), signal })
-  if (!res.ok) throw new Error(`Codeva ${res.status}`)
+  if (auth?.apiKey) headers.Authorization = `Bearer ${auth.apiKey}`
+  
+  const body = { 
+    messages: system ? [{ role: 'system', content: system }, ...messages] : messages, 
+    model: targetModel || 'auto', 
+    stream: true 
+  }
+  
+  const res = await fetch(`${API_BASE}/completions`, { method: 'POST', headers, body: JSON.stringify(body), signal })
+  if (!res.ok) throw new Error(`Codeva Backend ${res.status}`)
+  
   const reader = res.body.getReader()
   const dec = new TextDecoder()
   let buf = ''
@@ -105,130 +48,6 @@ async function* streamCodeva(messages, system, apiKey, signal, targetModel) {
       if (d === '[DONE]') return
       try { const j = JSON.parse(d); if (j.type === 'token' && j.content) yield j.content } catch {}
     }
-  }
-}
-
-async function* streamOpenAI(messages, system, key, signal) {
-  const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST', signal,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: 'gpt-4o', messages: msgs, temperature: 0.5, stream: true }),
-  })
-  if (!res.ok) throw new Error(`OpenAI ${res.status}`)
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n'); buf = lines.pop()
-    for (const l of lines) {
-      if (!l.startsWith('data:')) continue
-      const d = l.slice(5).trim()
-      if (d === '[DONE]') return
-      try { const j = JSON.parse(d); const t = j.choices?.[0]?.delta?.content; if (t) yield t } catch {}
-    }
-  }
-}
-
-async function* streamAnthropic(messages, system, key, signal) {
-  const msgs = messages.map(m => ({ role: m.role, content: m.content }))
-  const body = {
-    model: 'claude-3-7-sonnet-20250219',
-    messages: msgs,
-    max_tokens: 4096,
-    stream: true,
-    ...(system ? { system } : {})
-  }
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST', signal,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerously-allow-html-user-agents': 'true'
-    },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error(`Anthropic ${res.status}`)
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n'); buf = lines.pop()
-    for (const l of lines) {
-      if (!l.startsWith('data:')) continue
-      const d = l.slice(5).trim()
-      try {
-        const j = JSON.parse(d)
-        if (j.type === 'content_block_delta') {
-          const t = j.delta?.text
-          if (t) yield t
-        }
-      } catch {}
-    }
-  }
-}
-
-async function* streamOpenRouter(messages, system, key, signal) {
-  const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST', signal,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages: msgs, temperature: 0.5, stream: true }),
-  })
-  if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n'); buf = lines.pop()
-    for (const l of lines) {
-      if (!l.startsWith('data:')) continue
-      const d = l.slice(5).trim()
-      if (d === '[DONE]') return
-      try { const j = JSON.parse(d); const t = j.choices?.[0]?.delta?.content; if (t) yield t } catch {}
-    }
-  }
-}
-
-/** Pick the best available provider and stream. */
-async function* smartStream(messages, system, signal, targetModel) {
-  const keys = await getProviderKeys()
-  
-  // If user selected a specific free model from the dropdown, go straight to the backend
-  if (targetModel && targetModel !== 'auto' && targetModel.includes('/')) {
-    const auth = await getAuth()
-    yield* streamCodeva(messages, system, auth?.apiKey || null, signal, targetModel)
-    return
-  }
-
-  // Otherwise, use local BYOK keys if available
-  if (keys.openai) { yield* streamOpenAI(messages, system, keys.openai, signal); return }
-  if (keys.anthropic) { yield* streamAnthropic(messages, system, keys.anthropic, signal); return }
-  if (keys.openrouter) { yield* streamOpenRouter(messages, system, keys.openrouter, signal); return }
-  if (keys.groq) { yield* streamGroq(messages, system, keys.groq, signal); return }
-  if (keys.gemini) { yield* streamGemini(messages, system, keys.gemini, signal); return }
-  
-  // Fallback to Codeva API base (with apiKey if authenticated, or null for guest fallback)
-  const auth = await getAuth()
-  try {
-    yield* streamCodeva(messages, system, auth?.apiKey || null, signal, targetModel)
-  } catch (e) {
-    // If Codeva backend fails too, give actionable error
-    const hasAnyKey = Object.values(keys).some(k => k)
-    if (!hasAnyKey && !auth?.apiKey) {
-      throw new Error('No API keys configured and Codeva backend is unreachable. Go to Settings → add a free Groq or Gemini API key to start chatting.')
-    }
-    throw e
   }
 }
 
@@ -341,6 +160,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
       if (!tabs[0]?.id) { sendResponse({ text: '' }); return }
       chrome.tabs.sendMessage(tabs[0].id, { type: 'extract-text' }, (res) => {
+        if (chrome.runtime.lastError) { /* ignore */ }
         sendResponse(res || { text: '' })
       })
     })
@@ -359,28 +179,8 @@ chrome.runtime.onConnect.addListener((port) => {
       if (msg.type === 'start') {
         try {
           const model = msg.model || 'auto'
-          const keys = await getProviderKeys()
-          let stream
-
           // Route based on user-selected model
-          if (model === 'groq' && keys.groq) {
-            stream = streamGroq(msg.messages, msg.system, keys.groq, controller.signal)
-          } else if (model === 'gemini' && keys.gemini) {
-            stream = streamGemini(msg.messages, msg.system, keys.gemini, controller.signal)
-          } else if (model === 'openai' && keys.openai) {
-            stream = streamOpenAI(msg.messages, msg.system, keys.openai, controller.signal)
-          } else if (model === 'anthropic' && keys.anthropic) {
-            stream = streamAnthropic(msg.messages, msg.system, keys.anthropic, controller.signal)
-          } else if (model === 'openrouter' && keys.openrouter) {
-            stream = streamOpenRouter(msg.messages, msg.system, keys.openrouter, controller.signal)
-          } else if (['openai', 'anthropic', 'openrouter'].includes(model) && !keys[model]) {
-            // User selected a specific BYOK provider but has no key
-            port.postMessage({ type: 'error', message: 'No API key set for ' + model + '. Go to Settings → Provider API Keys to add one.' })
-            return
-          } else {
-            // Auto mode or specific backend model
-            stream = smartStream(msg.messages, msg.system, controller.signal, model)
-          }
+          let stream = smartStream(msg.messages, msg.system, controller.signal, model)
 
           for await (const chunk of stream) {
             port.postMessage({ type: 'chunk', text: chunk })

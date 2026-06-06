@@ -78,87 +78,30 @@ chrome.storage.local.get('selectedModel', (d) => {
 const codevaKeyInput = document.getElementById('codevaKeyInput');
 const saveCodevaKey = document.getElementById('saveCodevaKey');
 const authStatusText = document.getElementById('authStatusText');
-const backendUrlSelect = document.getElementById('backendUrlSelect');
-const customBackendGroup = document.getElementById('customBackendGroup');
-const customBackendInput = document.getElementById('customBackendInput');
-const saveCustomBackend = document.getElementById('saveCustomBackend');
 
 async function loadSettings() {
   try {
-    const auth = await chrome.runtime.sendMessage({ type: 'get-auth' });
+    const auth = await chrome.runtime.sendMessage({ type: 'get-auth' }).catch(() => null);
     if (auth?.token) {
       codevaKeyInput.value = auth.token.slice(0, 15) + '...';
       authStatusText.textContent = 'Auth: Connected (' + (auth.email || 'Cloud') + ')';
       authStatusText.style.color = 'var(--success)';
     } else {
-      authStatusText.textContent = 'Auth: No token. Use BYOK keys or paste token.';
+      authStatusText.textContent = 'Auth: No token. Log in via Website.';
       authStatusText.style.color = 'var(--muted)';
     }
   } catch { authStatusText.textContent = 'Auth: Error checking status'; authStatusText.style.color = 'var(--error)'; }
-
-  try {
-    const providers = await chrome.runtime.sendMessage({ type: 'get-providers' }) || {};
-    if (providers.groq) document.getElementById('groqKey').value = providers.groq;
-    if (providers.gemini) document.getElementById('geminiKey').value = providers.gemini;
-    if (providers.openai) document.getElementById('openaiKey').value = providers.openai;
-    if (providers.anthropic) document.getElementById('anthropicKey').value = providers.anthropic;
-    if (providers.openrouter) document.getElementById('openrouterKey').value = providers.openrouter;
-  } catch {}
-
-  try {
-    const currentBackend = await chrome.runtime.sendMessage({ type: 'get-backend' });
-    if (currentBackend === 'https://cybercli-api.onrender.com/api/v1') {
-      backendUrlSelect.value = 'https://cybercli-api.onrender.com/api/v1';
-    } else if (currentBackend === 'http://localhost:3000/api/v1') {
-      backendUrlSelect.value = 'http://localhost:3000/api/v1';
-    } else {
-      backendUrlSelect.value = 'custom';
-      customBackendInput.value = currentBackend;
-      customBackendGroup.classList.remove('hidden');
-    }
-  } catch {}
 }
 
 saveCodevaKey.onclick = async () => {
   const val = codevaKeyInput.value.trim();
   if (val && !val.includes('...')) {
-    await chrome.runtime.sendMessage({ type: 'set-auth', auth: { token: val, apiKey: val, email: 'manual@codeva', plan: 'pro' } });
+    await chrome.runtime.sendMessage({ type: 'set-auth', auth: { token: val, apiKey: val, email: 'manual@codeva', plan: 'pro' } }).catch(() => null);
     authStatusText.textContent = 'Auth: Connected (Manual Key)';
     authStatusText.style.color = 'var(--success)';
     codevaKeyInput.value = val.slice(0, 15) + '...';
   }
 };
-
-backendUrlSelect.onchange = async () => {
-  const val = backendUrlSelect.value;
-  if (val === 'custom') { customBackendGroup.classList.remove('hidden'); }
-  else { customBackendGroup.classList.add('hidden'); await chrome.runtime.sendMessage({ type: 'set-backend', url: val }); }
-};
-
-saveCustomBackend.onclick = async () => {
-  const val = customBackendInput.value.trim();
-  if (val) { await chrome.runtime.sendMessage({ type: 'set-backend', url: val }); }
-};
-
-// Save All BYOK Keys
-document.getElementById('saveAllKeys').onclick = async () => {
-  const inputs = document.querySelectorAll('.byok-input');
-  for (const inp of inputs) {
-    const provider = inp.dataset.provider;
-    const key = inp.value.trim();
-    await chrome.runtime.sendMessage({ type: 'set-provider', provider, key });
-  }
-  const toast = document.getElementById('keysSaveToast');
-  toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 2500);
-};
-
-// Also save on individual change
-document.querySelectorAll('.byok-input').forEach(inp => {
-  inp.addEventListener('change', async () => {
-    await chrome.runtime.sendMessage({ type: 'set-provider', provider: inp.dataset.provider, key: inp.value.trim() });
-  });
-});
 
 // Connection test
 document.getElementById('testConnBtn').onclick = async () => {
@@ -166,7 +109,7 @@ document.getElementById('testConnBtn').onclick = async () => {
   const txt = document.getElementById('connText');
   dot.style.background = '#f59e0b'; txt.textContent = 'Testing...'; txt.style.color = '#f59e0b';
   try {
-    const backend = await chrome.runtime.sendMessage({ type: 'get-backend' });
+    const backend = 'https://cybercli-api.onrender.com/api/v1'; // Hardcoded default
     const res = await fetch(backend.replace('/api/v1','') + '/health', { signal: AbortSignal.timeout(8000) });
     if (res.ok) { dot.style.background = 'var(--success)'; txt.textContent = 'Connected to backend ✓'; txt.style.color = 'var(--success)'; }
     else { dot.style.background = 'var(--error)'; txt.textContent = 'Backend returned ' + res.status; txt.style.color = 'var(--error)'; }
@@ -181,7 +124,7 @@ document.getElementById('checkUpdateBtn').onclick = async () => {
   statusMsg.classList.remove('hidden');
   statusMsg.textContent = 'Checking...'; statusMsg.style.color = 'var(--muted)';
   try {
-    const backend = await chrome.runtime.sendMessage({ type: 'get-backend' });
+    const backend = 'https://cybercli-api.onrender.com/api/v1'; // Hardcoded default
     const res = await fetch(backend + '/downloads/extension/version');
     if (!res.ok) throw new Error('Status ' + res.status);
     const data = await res.json();
@@ -302,7 +245,10 @@ async function getPageElements() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (!tab?.id) return [];
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' });
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' }).catch(err => {
+      chrome.runtime.lastError; // Clear the error
+      return null;
+    });
     return res?.elements || [];
   } catch { return []; }
 }
@@ -311,7 +257,10 @@ async function executeAutomation(action) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (!tab?.id) return { ok: false, error: 'No active tab' };
-    const res = await chrome.tabs.sendMessage(tab.id, action);
+    const res = await chrome.tabs.sendMessage(tab.id, action).catch(err => {
+      chrome.runtime.lastError;
+      return null;
+    });
     return res || { ok: false, error: 'No response' };
   } catch (e) { return { ok: false, error: e.message }; }
 }
