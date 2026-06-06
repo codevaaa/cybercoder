@@ -74,14 +74,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // ── Browser Automation Commands (Puppeteer-like) ──
 
+  // Helper: Find element piercing shadow DOM
+  function findElement(selector, root = document) {
+    let el = root.querySelector(selector);
+    if (el) return el;
+    for (const child of root.querySelectorAll('*')) {
+      if (child.shadowRoot) {
+        el = findElement(selector, child.shadowRoot);
+        if (el) return el;
+      }
+    }
+    return null;
+  }
+
+  // Helper: Find all interactive elements across shadow DOMs
+  function findAllInteractive(root, results = []) {
+    const els = root.querySelectorAll('a, button, input, textarea, select, [role="button"], [onclick], [tabindex]:not([tabindex="-1"])');
+    els.forEach(e => results.push(e));
+    root.querySelectorAll('*').forEach(node => {
+      if (node.shadowRoot) findAllInteractive(node.shadowRoot, results);
+    });
+    return results;
+  }
+
   if (msg.type === 'click') {
-    // Click an element by CSS selector or text content
+    // Click an element by CSS selector or text content (Scrapling adaptive fallback)
     try {
-      let el = null
-      if (msg.selector) el = document.querySelector(msg.selector)
+      let el = null;
+      if (msg.selector) el = findElement(msg.selector);
       if (!el && msg.text) {
-        const all = document.querySelectorAll('a, button, [role="button"], input[type="submit"]')
-        el = Array.from(all).find(e => e.textContent?.trim().toLowerCase().includes(msg.text.toLowerCase()))
+        const all = findAllInteractive(document);
+        el = all.find(e => e.textContent?.trim().toLowerCase().includes(msg.text.toLowerCase()) || e.getAttribute('aria-label')?.toLowerCase().includes(msg.text.toLowerCase()));
       }
       if (el) { el.click(); sendResponse({ ok: true, clicked: el.tagName }) }
       else sendResponse({ ok: false, error: 'Element not found' })
@@ -92,9 +115,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'type-text') {
     // Type text into an element (by selector or the focused element)
     try {
-      const el = msg.selector ? document.querySelector(msg.selector) : document.activeElement
+      const el = msg.selector ? findElement(msg.selector) : document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
-        if (el.isContentEditable) el.innerText = msg.text
+        if (el.isContentEditable) el.innerText = msg.text;
         else { el.value = msg.text; el.dispatchEvent(new Event('input', { bubbles: true })) }
         sendResponse({ ok: true })
       } else sendResponse({ ok: false, error: 'No typeable element found' })
@@ -103,10 +126,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'scroll-to') {
-    // Scroll to an element or position
     try {
       if (msg.selector) {
-        const el = document.querySelector(msg.selector)
+        const el = findElement(msg.selector);
         if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); sendResponse({ ok: true }) }
         else sendResponse({ ok: false, error: 'Element not found' })
       } else {
@@ -118,27 +140,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'get-elements') {
-    // Get a list of interactive elements on the page (for AI to choose from)
+    // Get a list of interactive elements on the page with Scrapling-style adaptive locators
     try {
       const getUniqueSelector = (el, index) => {
-        if (el.id) return `#${CSS.escape(el.id)}`;
+        // 1. Unambiguous IDs
+        if (el.id && !/^\d|[\-_\d]{5,}/.test(el.id)) {
+          const sel = `#${CSS.escape(el.id)}`;
+          if (document.querySelectorAll(sel).length === 1) return sel;
+        }
         
-        if (el.getAttribute('name')) {
-          return `${el.tagName.toLowerCase()}[name="${CSS.escape(el.getAttribute('name'))}"]`;
+        // 2. Data test attributes (most reliable)
+        const testAttrs = ['data-testid', 'data-id', 'data-cy', 'data-qa', 'name'];
+        for (const attr of testAttrs) {
+          if (el.getAttribute(attr)) {
+            const sel = `${el.tagName.toLowerCase()}[${CSS.escape(attr)}="${CSS.escape(el.getAttribute(attr))}"]`;
+            if (document.querySelectorAll(sel).length === 1) return sel;
+          }
+        }
+        
+        // 3. Aria attributes
+        if (el.getAttribute('aria-label')) {
+          const sel = `${el.tagName.toLowerCase()}[aria-label="${CSS.escape(el.getAttribute('aria-label'))}"]`;
+          if (document.querySelectorAll(sel).length === 1) return sel;
         }
         if (el.getAttribute('placeholder')) {
-          return `${el.tagName.toLowerCase()}[placeholder="${CSS.escape(el.getAttribute('placeholder'))}"]`;
+          const sel = `${el.tagName.toLowerCase()}[placeholder="${CSS.escape(el.getAttribute('placeholder'))}"]`;
+          if (document.querySelectorAll(sel).length === 1) return sel;
         }
-        
-        const firstClass = el.className && typeof el.className === 'string' ? el.className.trim().split(/\s+/)[0] : '';
-        if (firstClass && !firstClass.includes('animated') && !firstClass.includes('transition') && !firstClass.includes('hover:') && !firstClass.includes('focus:') && !firstClass.includes('/') && !firstClass.includes('[')) {
-          try {
-            const sel = `.${CSS.escape(firstClass)}`;
+
+        // 4. Structural combination (Tag + robust classes)
+        if (el.className && typeof el.className === 'string') {
+          const classes = el.className.trim().split(/\s+/).filter(c => !c.includes(':') && !c.includes('[') && !c.includes('active') && !c.includes('hover') && c.length > 2);
+          if (classes.length > 0) {
+            const classSelector = `.${CSS.escape(classes[0])}`;
+            const sel = `${el.tagName.toLowerCase()}${classSelector}`;
             if (document.querySelectorAll(sel).length === 1) return sel;
-          } catch (e) {}
+          }
         }
         
-        // Fallback to tag name with nth-of-type path
+        // 5. Fallback: Robust Structural Path
         let path = [];
         let parent = el;
         while (parent && parent.nodeType === Node.ELEMENT_NODE && parent.tagName !== 'HTML') {
@@ -153,7 +193,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             }
           }
           const tagName = parent.tagName.toLowerCase();
-          if (parent.id) {
+          if (parent.id && !/^\d|[\-_\d]{5,}/.test(parent.id)) {
             path.unshift(`#${CSS.escape(parent.id)}`);
             break;
           } else if (sibCount > 1) {
@@ -166,8 +206,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return path.length > 0 ? path.join(' > ') : `${el.tagName.toLowerCase()}:nth-of-type(${index + 1})`;
       };
 
-      const els = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [onclick]')
-      const items = Array.from(els).slice(0, 50).map((el, i) => ({
+      const interactiveElements = findAllInteractive(document);
+      const items = Array.from(new Set(interactiveElements)).filter(el => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }).slice(0, 50).map((el, i) => ({
         index: i,
         tag: el.tagName.toLowerCase(),
         type: el.getAttribute('type') || '',

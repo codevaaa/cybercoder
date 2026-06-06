@@ -57,7 +57,7 @@ async function* streamGroq(messages, system, key, signal) {
 
 async function* streamGemini(messages, system, key, signal) {
   const contents = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`
   const res = await fetch(url, {
     method: 'POST', signal,
     headers: { 'Content-Type': 'application/json' },
@@ -84,11 +84,11 @@ async function getApiBase() {
   return customApiBase || 'https://cybercli-api.onrender.com/api/v1'
 }
 
-async function* streamCodeva(messages, system, apiKey, signal) {
+async function* streamCodeva(messages, system, apiKey, signal, targetModel) {
   const apiBase = await getApiBase()
   const headers = { 'Content-Type': 'application/json' }
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`
-  const body = { messages: system ? [{ role: 'system', content: system }, ...messages] : messages, model: 'auto', stream: true }
+  const body = { messages: system ? [{ role: 'system', content: system }, ...messages] : messages, model: targetModel || 'auto', stream: true }
   const res = await fetch(`${apiBase}/completions`, { method: 'POST', headers, body: JSON.stringify(body), signal })
   if (!res.ok) throw new Error(`Codeva ${res.status}`)
   const reader = res.body.getReader()
@@ -113,7 +113,7 @@ async function* streamOpenAI(messages, system, key, signal) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST', signal,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: 'gpt-4o-mini', messages: msgs, temperature: 0.5, stream: true }),
+    body: JSON.stringify({ model: 'gpt-4o', messages: msgs, temperature: 0.5, stream: true }),
   })
   if (!res.ok) throw new Error(`OpenAI ${res.status}`)
   const reader = res.body.getReader()
@@ -136,7 +136,7 @@ async function* streamOpenAI(messages, system, key, signal) {
 async function* streamAnthropic(messages, system, key, signal) {
   const msgs = messages.map(m => ({ role: m.role, content: m.content }))
   const body = {
-    model: 'claude-3-5-sonnet-20241022',
+    model: 'claude-3-7-sonnet-20250219',
     messages: msgs,
     max_tokens: 4096,
     stream: true,
@@ -201,8 +201,17 @@ async function* streamOpenRouter(messages, system, key, signal) {
 }
 
 /** Pick the best available provider and stream. */
-async function* smartStream(messages, system, signal) {
+async function* smartStream(messages, system, signal, targetModel) {
   const keys = await getProviderKeys()
+  
+  // If user selected a specific free model from the dropdown, go straight to the backend
+  if (targetModel && targetModel !== 'auto' && targetModel.includes('/')) {
+    const auth = await getAuth()
+    yield* streamCodeva(messages, system, auth?.apiKey || null, signal, targetModel)
+    return
+  }
+
+  // Otherwise, use local BYOK keys if available
   if (keys.openai) { yield* streamOpenAI(messages, system, keys.openai, signal); return }
   if (keys.anthropic) { yield* streamAnthropic(messages, system, keys.anthropic, signal); return }
   if (keys.openrouter) { yield* streamOpenRouter(messages, system, keys.openrouter, signal); return }
@@ -212,7 +221,7 @@ async function* smartStream(messages, system, signal) {
   // Fallback to Codeva API base (with apiKey if authenticated, or null for guest fallback)
   const auth = await getAuth()
   try {
-    yield* streamCodeva(messages, system, auth?.apiKey || null, signal)
+    yield* streamCodeva(messages, system, auth?.apiKey || null, signal, targetModel)
   } catch (e) {
     // If Codeva backend fails too, give actionable error
     const hasAnyKey = Object.values(keys).some(k => k)
@@ -364,13 +373,13 @@ chrome.runtime.onConnect.addListener((port) => {
             stream = streamAnthropic(msg.messages, msg.system, keys.anthropic, controller.signal)
           } else if (model === 'openrouter' && keys.openrouter) {
             stream = streamOpenRouter(msg.messages, msg.system, keys.openrouter, controller.signal)
-          } else if (model !== 'auto' && !keys[model]) {
-            // User selected a specific provider but has no key
+          } else if (['openai', 'anthropic', 'openrouter'].includes(model) && !keys[model]) {
+            // User selected a specific BYOK provider but has no key
             port.postMessage({ type: 'error', message: 'No API key set for ' + model + '. Go to Settings → Provider API Keys to add one.' })
             return
           } else {
-            // Auto mode or fallback
-            stream = smartStream(msg.messages, msg.system, controller.signal)
+            // Auto mode or specific backend model
+            stream = smartStream(msg.messages, msg.system, controller.signal, model)
           }
 
           for await (const chunk of stream) {

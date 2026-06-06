@@ -21,8 +21,26 @@ const modelDropdown = document.getElementById('modelDropdown');
 const modelLabel = document.getElementById('modelLabel');
 const modelDot = document.getElementById('modelDot');
 
-const MODEL_COLORS = { auto: '#C96442', groq: '#f97316', gemini: '#3b82f6', openai: '#10b981', anthropic: '#d4714f', openrouter: '#a78bfa' };
-const MODEL_LABELS = { auto: 'Codeva Auto', groq: 'Arjun · Groq', gemini: 'Chanakya · Gemini', openai: 'OpenAI · GPT-4o', anthropic: 'Anthropic · Claude', openrouter: 'OpenRouter' };
+const MODEL_COLORS = { 
+  auto: '#E55B3C', 
+  'apifreellm/gpt-4o': '#10b981', 
+  'apifreellm/claude-3.5-sonnet': '#d4714f', 
+  'apifreellm/llama-3-70b': '#f97316', 
+  'opencode/deepseek-v4-pro': '#3b82f6', 
+  'groq/llama-3.3-70b': '#f59e0b', 
+  'groq/deepseek-r1-distill-70b': '#8b5cf6', 
+  'groq/qwen-2.5-coder-32b': '#06b6d4' 
+};
+const MODEL_LABELS = { 
+  auto: 'Codeva Auto', 
+  'apifreellm/gpt-4o': 'GPT-4o (Premium)', 
+  'apifreellm/claude-3.5-sonnet': 'Claude 3.5 Sonnet', 
+  'apifreellm/llama-3-70b': 'Llama 3 70B', 
+  'opencode/deepseek-v4-pro': 'DeepSeek V4 Pro', 
+  'groq/llama-3.3-70b': 'Llama 3.3 70B (Fast)', 
+  'groq/deepseek-r1-distill-70b': 'DeepSeek R1 (Groq)', 
+  'groq/qwen-2.5-coder-32b': 'Qwen 2.5 Coder' 
+};
 
 modelBtn.onclick = (e) => { e.stopPropagation(); modelDropdown.classList.toggle('open'); };
 document.addEventListener('click', () => modelDropdown.classList.remove('open'));
@@ -329,8 +347,8 @@ async function send(textOverride) {
     const messageComplete = new Promise(resolve => { resolvePromise = resolve; });
 
     const system = autoMode
-      ? 'You are CyberCoder, an AI assistant with browser automation capabilities. You can control the browser by outputting JSON commands in a special format. When the user asks you to interact with the page (click, type, navigate, scroll), respond with the action AND a brief explanation. Format automation commands as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain what you are doing. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. The page elements are listed in the context.'
-      : 'You are CyberCoder, an AI assistant in a Chrome browser extension. The user is viewing a web page and may ask about its content. Be concise, helpful, and use markdown for structure. If page content is provided, use it to answer accurately.';
+      ? 'You are CyberCoder, an advanced AI automation agent. You control the browser by outputting JSON commands in a special format. When interacting with the page (click, type, navigate, scroll), respond with the action AND a concise, highly aesthetic explanation. Use rich Markdown (bolding, lists, code blocks). Format automation commands exactly as: [ACTION:{"type":"click","selector":".btn"}] or [ACTION:{"type":"type-text","selector":"#input","text":"hello"}] or [ACTION:{"type":"navigate","url":"https://..."}] or [ACTION:{"type":"scroll-to","selector":"#section"}]. You can chain multiple actions. Always explain your intent clearly. Available action types: click (selector or text), type-text (selector + text), navigate (url), scroll-to (selector or y), get-elements. Use provided page context to guide actions.'
+      : 'You are CyberCoder, a premium AI assistant running inside a Chrome extension. The user is viewing a web page and may ask about its content or request coding help. You MUST use beautiful, rich Markdown formatting. Use strategic bolding, bulleted lists, and clear headers to make your text incredibly readable and aesthetic. If providing code, use fenced code blocks. Be concise, brilliant, and maintain a highly professional, modern tone. Your output should wow the user with its structure and clarity.';
 
     port = chrome.runtime.connect({ name: 'stream' });
     
