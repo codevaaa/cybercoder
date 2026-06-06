@@ -260,15 +260,28 @@ function addToolStep(summary) {
   return el;
 }
 
-function renderMD(t) {
+function renderMD(text) {
+  let processed = text;
+  
+  // Fix reasoning model <think> tags which break markdown rendering
+  const openThinkCount = (processed.match(/<think>/g) || []).length;
+  const closeThinkCount = (processed.match(/<\/think>/g) || []).length;
+  
+  processed = processed.replace(/<think>/g, '<div class="think-block" style="border-left: 3px solid var(--accent); padding-left: 10px; margin-bottom: 10px; color: var(--muted); font-size: 0.9em; font-style: italic;"><strong>🧠 Thinking Process:</strong><br>');
+  processed = processed.replace(/<\/think>/g, '</div>');
+  
+  if (openThinkCount > closeThinkCount) {
+    processed += '</div>';
+  }
+
   if (typeof marked !== 'undefined') {
-    return marked.parse(t);
+    return marked.parse(processed);
   }
   // Fallback if marked fails to load
   var BT = String.fromCharCode(96);
   var RE1 = new RegExp('(' + BT+BT+BT + '[\\w-]*\\n[\\s\\S]*?' + BT+BT+BT + ')', 'g');
   var RE2 = new RegExp('^' + BT+BT+BT + '([\\w-]*)\\n([\\s\\S]*?)' + BT+BT+BT + '$');
-  return t.split(RE1).map(p => {
+  return processed.split(RE1).map(p => {
     const m = p.match(RE2);
     if (m) return '<pre><code>' + esc(m[2]) + '</code></pre>';
     let h = esc(p);
