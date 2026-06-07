@@ -1,6 +1,6 @@
 {
   "name": "cybercoder-cli",
-  "version": "0.1.25",
+  "version": "0.1.27",
   "description": "CyberCoder CLI — fullstack agentic coding assistant by Codeva",
   "type": "module",
   "main": "./dist/index.js",
