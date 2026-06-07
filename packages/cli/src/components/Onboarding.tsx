@@ -92,7 +92,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [tpSelected, setTpSelected] = useState(0);
 
   const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 76);
+  const contentWidth = termWidth - 4;
 
   // HTTP callback server management
   useEffect(() => {

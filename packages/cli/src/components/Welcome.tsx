@@ -28,20 +28,29 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
 
   const { stdout } = useStdout();
   const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 84);
+  // Use full terminal width minus a small margin to be fully responsive
+  const contentWidth = termWidth - 4;
+
+  // Calculate the custom top border with embedded title
+  const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
+  const dashLength = Math.max(2, contentWidth - title.length);
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" paddingX={1}>
+      {/* Custom Top Border to mimic Claude Code exactly */}
+      <Text color={t.accent}>╭─<Text color={t.accent}>{title}</Text>{'─'.repeat(dashLength)}╮</Text>
+      
       <Box
         flexDirection="row"
-        borderStyle="round"
-        borderColor={t.accent}
         paddingX={1}
-        width={contentWidth + 4}
+        width={contentWidth + 2}
+        borderLeftColor={t.accent}
+        borderRightColor={t.accent}
+        borderLeft={true}
+        borderRight={true}
       >
         {/* Left column: mascot + identity */}
-        <Box flexDirection="column" width="42%" paddingRight={1} alignItems="center">
-          <Text bold color={t.accent}>{CYBERCODER_NAME} v{CYBERCODER_VERSION}</Text>
+        <Box flexDirection="column" width="45%" paddingRight={1} alignItems="center">
           <Box marginTop={1}>
             <Text bold color={t.text}>Welcome back, {userName}!</Text>
           </Box>
@@ -57,15 +66,18 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
         </Box>
 
         {/* Vertical divider */}
-        <Box flexDirection="column" paddingX={1}>
-          <Text color={t.dim}>{'│\n'.repeat(8)}</Text>
+        <Box flexDirection="column" paddingX={2}>
+          <Text color={t.accent}>{'│\n'.repeat(8)}</Text>
         </Box>
 
         {/* Right column: tips + what's new */}
-        <Box flexDirection="column" width="52%">
-          <Text bold color={t.accent}>Tips for getting started</Text>
+        <Box flexDirection="column" flexGrow={1}>
+          <Box marginBottom={1}>
+            <Text bold color={t.accent}>Tips for getting started</Text>
+          </Box>
           <Text color={t.muted}>Run <Text color={t.accentAlt}>/init</Text> to create a CYBER.md with project instructions</Text>
-          <Box marginTop={1}>
+          <Text color={t.muted}>Note: You have launched the agent in your home directory. For the best experience, launch it in a project folder.</Text>
+          <Box marginTop={1} marginBottom={1}>
             <Text bold color={t.accent}>What's new</Text>
           </Box>
           <Text color={t.muted}>• Real <Text color={t.text}>/theme</Text> switching repaints the whole UI</Text>
@@ -73,6 +85,9 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
           <Text color={t.muted}>• Working web OAuth sign-in · <Text color={t.text}>/release-notes</Text> for more</Text>
         </Box>
       </Box>
+
+      {/* Custom Bottom Border */}
+      <Text color={t.accent}>╰{'─'.repeat(contentWidth)}╯</Text>
 
       <Box paddingX={1} marginTop={1}>
         <Text color={t.accentAlt} bold>{model}</Text>

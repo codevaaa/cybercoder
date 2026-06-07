@@ -5422,23 +5422,28 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
   const userPlan = profile.plan || "Free";
   const { stdout } = useStdout();
   const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 84);
-  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", children: [
+  const contentWidth = termWidth - 4;
+  const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
+  const dashLength = Math.max(2, contentWidth - title.length);
+  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingX: 1, children: [
+    /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
+      "\u256D\u2500",
+      /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: title }),
+      "\u2500".repeat(dashLength),
+      "\u256E"
+    ] }),
     /* @__PURE__ */ jsxs2(
       Box2,
       {
         flexDirection: "row",
-        borderStyle: "round",
-        borderColor: t.accent,
         paddingX: 1,
-        width: contentWidth + 4,
+        width: contentWidth + 2,
+        borderLeftColor: t.accent,
+        borderRightColor: t.accent,
+        borderLeft: true,
+        borderRight: true,
         children: [
-          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "42%", paddingRight: 1, alignItems: "center", children: [
-            /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.accent, children: [
-              CYBERCODER_NAME,
-              " v",
-              CYBERCODER_VERSION
-            ] }),
+          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "45%", paddingRight: 1, alignItems: "center", children: [
             /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.text, children: [
               "Welcome back, ",
               userName,
@@ -5455,15 +5460,16 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
               /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd2 })
             ] })
           ] }),
-          /* @__PURE__ */ jsx2(Box2, { flexDirection: "column", paddingX: 1, children: /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: "\u2502\n".repeat(8) }) }),
-          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "52%", children: [
-            /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "Tips for getting started" }),
+          /* @__PURE__ */ jsx2(Box2, { flexDirection: "column", paddingX: 2, children: /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502\n".repeat(8) }) }),
+          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", flexGrow: 1, children: [
+            /* @__PURE__ */ jsx2(Box2, { marginBottom: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "Tips for getting started" }) }),
             /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
               "Run ",
               /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: "/init" }),
               " to create a CYBER.md with project instructions"
             ] }),
-            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "What's new" }) }),
+            /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Note: You have launched the agent in your home directory. For the best experience, launch it in a project folder." }),
+            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "What's new" }) }),
             /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
               "\u2022 Real ",
               /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/theme" }),
@@ -5483,6 +5489,11 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
         ]
       }
     ),
+    /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
+      "\u2570",
+      "\u2500".repeat(contentWidth),
+      "\u256F"
+    ] }),
     /* @__PURE__ */ jsxs2(Box2, { paddingX: 1, marginTop: 1, children: [
       /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, bold: true, children: model }),
       /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: " is ready \xB7 " }),
@@ -5781,7 +5792,7 @@ var Onboarding = ({ onComplete }) => {
   const [apiKeyStage, setApiKeyStage] = useState2("provider");
   const [tpSelected, setTpSelected] = useState2(0);
   const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 76);
+  const contentWidth = termWidth - 4;
   useEffect2(() => {
     if (screen === "codeva-login") {
       setWaitingForAuth(true);
