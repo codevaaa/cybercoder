@@ -1,32 +1,80 @@
-import { AnthropicProvider, type AnthropicProviderOptions } from './anthropic.js';
-import type { ProviderInfo } from './types.js';
+import { createLogger } from '@cybermind/shared';
+import type { ChatChunk, ChatRequest, LLMProvider, ProviderInfo } from './types.js';
+import { apiClient } from '../../cli/src/utils/api-client.js';
 
-const DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com';
+const log = createLogger('providers:cybermind-cloud');
+
+export interface CybermindCloudProviderOptions {
+  apiKey?: string;
+  baseURL?: string;
+  defaultModel?: string;
+}
 
 /**
- * `cybermind-cloud` provider talks to your own backend (`cybermindcli.info`)
- * which exposes an Anthropic-compatible `/v1/messages` endpoint. This means
- * we can reuse the AnthropicProvider implementation and just override the
- * baseURL + auth header.
- *
- * The backend forwards to the user's chosen model — including your hosted
- * models (e.g. `minimax-m2.5-free`) — and bills against the user's account.
+ * `cybermind-cloud` provider connects directly to our SaaS Swarm Orchestrator.
+ * It uses the custom apiClient to stream completions using the user's SaaS API key
+ * and token quotas.
  */
-export class CybermindCloudProvider extends AnthropicProvider {
-  public override readonly info: ProviderInfo;
+export class CybermindCloudProvider implements LLMProvider {
+  public readonly info: ProviderInfo;
+  private defaultModel: string;
 
-  constructor(opts: AnthropicProviderOptions = {}) {
-    const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY;
-    super({
-      apiKey,
-      baseURL: opts.baseURL ?? DEFAULT_BASE_URL,
-      defaultModel: opts.defaultModel ?? 'cybermind-default',
-    });
+  constructor(opts: CybermindCloudProviderOptions = {}) {
+    this.defaultModel = opts.defaultModel ?? 'trinity'; // Default to free tier
     this.info = {
       id: 'cybermind-cloud',
-      displayName: 'Codeva Cloud',
+      displayName: 'Codeva Cloud (Swarm)',
       requiresNetwork: true,
-      ready: Boolean(apiKey),
+      ready: true, // We assume true and handle errors during the chat call
     };
+  }
+
+  async listModels(): Promise<string[]> {
+    return ['madhav', 'kali', 'abhimanyu', 'trinity'];
+  }
+
+  async *chat(req: ChatRequest): AsyncIterable<ChatChunk> {
+    const model = req.model || this.defaultModel;
+    log.debug('Starting Codeva Cloud chat request', { model });
+
+    try {
+      // Map ChatRequest to apiClient format
+      let systemPrompt = '';
+      const filteredMessages = [];
+      for (const msg of req.messages) {
+        if (msg.role === 'system') {
+          systemPrompt += (typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)) + '\n';
+        } else {
+          filteredMessages.push({
+            role: msg.role,
+            content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+          });
+        }
+      }
+
+      // We extract the last user message to use as the main prompt for the Swarm
+      const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || '';
+
+      const generator = apiClient.streamCompletion({
+        model: model,
+        system: systemPrompt,
+        messages: filteredMessages,
+        prompt: lastMessage,
+        temperature: req.temperature,
+        max_tokens: req.maxTokens,
+      });
+
+      for await (const chunk of generator) {
+        if (chunk.content) {
+          yield { type: 'text', text: chunk.content };
+        }
+        // Could handle tool calls if Swarm returns them here in the future
+      }
+      yield { type: 'done', reason: 'stop' };
+
+    } catch (err: any) {
+      log.error('Codeva Cloud chat failed', err);
+      yield { type: 'done', reason: 'error', error: err.message || String(err) };
+    }
   }
 }

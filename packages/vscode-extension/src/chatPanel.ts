@@ -414,11 +414,18 @@ export class ChatPanel {
     const m = content.match(/```[\w-]*\n([\s\S]*?)```/)
     const code = m ? m[1] : content
     const sel = ed.selection
-    await ed.edit((b) => {
-      if (sel.isEmpty) b.replace(new vscode.Range(ed.document.positionAt(0), ed.document.positionAt(ed.document.getText().length)), code)
-      else b.replace(sel, code)
-    })
-    void vscode.window.showInformationMessage('CyberCoder applied the edit.')
+    
+    let newText = ed.document.getText();
+    if (sel.isEmpty) {
+      newText = code;
+    } else {
+      newText = newText.slice(0, ed.document.offsetAt(sel.start)) + code + newText.slice(ed.document.offsetAt(sel.end));
+    }
+
+    // Create an untitled document with the new content for the diff view
+    const newDoc = await vscode.workspace.openTextDocument({ content: newText, language: ed.document.languageId });
+    await vscode.commands.executeCommand('vscode.diff', ed.document.uri, newDoc.uri, `CyberCoder: Diff Preview for ${vscode.workspace.asRelativePath(ed.document.uri)}`);
+    void vscode.window.showInformationMessage('CyberCoder generated a diff preview. You can save or discard the right-side file.');
   }
 
   private dispose(): void {

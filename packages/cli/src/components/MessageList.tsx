@@ -102,9 +102,15 @@ function parseContent(content: string) {
               <Text color="black" bold>{langHeader}</Text>
             </Box>
             <Box paddingX={1} flexDirection="column">
-              {codeBlockLines.map((l, idx) => (
-                <Text key={idx} color="white">{l}</Text>
-              ))}
+              {codeBlockLines.map((l, idx) => {
+                let color = "white";
+                if (codeBlockLang.toLowerCase() === 'diff') {
+                  if (l.startsWith('+') && !l.startsWith('+++')) color = "green";
+                  else if (l.startsWith('-') && !l.startsWith('---')) color = "red";
+                  else if (l.startsWith('@@')) color = "cyan";
+                }
+                return <Text key={idx} color={color}>{l}</Text>;
+              })}
             </Box>
           </Box>
         );

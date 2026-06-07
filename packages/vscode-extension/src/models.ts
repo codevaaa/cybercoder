@@ -20,10 +20,10 @@ export const MODEL_GROUPS: ModelGroup[] = [
     group: 'Codeva Mythological Swarm',
     models: [
       { id: 'auto', label: 'Auto (recommended)', detail: 'Routes to the best available persona for the task' },
-      { id: 'codeva-madhav-v1', label: 'Madhav (Strategic Mastermind)', detail: 'Deep codebase understanding, complex architecture planning' },
-      { id: 'codeva-kali-v1', label: 'Kali (Destroyer of Bugs)', detail: 'Relentless debugging, finding edge-case vulnerabilities' },
-      { id: 'codeva-arjun-v1', label: 'Arjun (Precision Archer)', detail: 'Lightning fast UI generation, quick inline edits' },
-      { id: 'codeva-abhimanyu-v1', label: 'Abhimanyu (Fearless Breaker)', detail: 'Fast, deep-dive local reasoning for breaking complex logic traps' },
+      { id: 'madhav', label: 'Madhav (Pro - Strategic Mastermind)', detail: 'Deep codebase understanding, complex architecture planning' },
+      { id: 'kali', label: 'Kali (Standard - Destroyer of Bugs)', detail: 'Relentless debugging, finding edge-case vulnerabilities' },
+      { id: 'abhimanyu', label: 'Abhimanyu (Basic - Deep Context)', detail: 'Deep-dive local reasoning for breaking complex logic traps' },
+      { id: 'trinity', label: 'Trinity (Free - The Powerhouse)', detail: 'Fast, logic-perfect execution for free tier users' },
     ],
   }
 ]

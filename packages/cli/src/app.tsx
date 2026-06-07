@@ -54,6 +54,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [model, setModel] = useState<string>(initialModel ?? 'auto');
   const [provider, setProvider] = useState<string>(initialProvider ?? 'auto');
+  const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined);
   const [, setPromptColor] = useState<string>('cyan');
   const [welcomeVisible, setWelcomeVisible] = useState<boolean>(showWelcome);
   const [exitConfirm, setExitConfirm] = useState<boolean>(false);
@@ -183,8 +184,12 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
           model,
           approvalUI,
           onEvent: (evt) => {
-            if (evt.type === 'text') appendDelta(evt.text);
-            else if (evt.type === 'tool_call') {
+            if ((evt as any).type === 'status') {
+              setStatusMessage((evt as any).text || (evt as any).content || (evt as any).message);
+            } else if (evt.type === 'text') {
+              if (statusMessage) setStatusMessage(undefined);
+              appendDelta(evt.text);
+            } else if (evt.type === 'tool_call') {
               setStatus('awaiting-approval');
               appendDelta(`\n[→ ${evt.name}] ${stringifyArgs(evt.input)}\n`);
             } else if (evt.type === 'tool_result') {
@@ -357,7 +362,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
             {welcomeVisible && <Welcome provider={provider} model={model} />}
             <MessageList messages={messages} />
             {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
-            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} />}
+            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} label={statusMessage} />}
             <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
             <StatusBar status={status} model={model} provider={provider} tokens={totalTokens} cost={totalCost} />
             <HintBar status={status} />
@@ -375,7 +380,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
             )}
             <MessageList messages={messages} />
             {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
-            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} />}
+            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} label={statusMessage} />}
             <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
             <StatusBar status={status} model={model} provider={provider} tokens={totalTokens} cost={totalCost} />
             <HintBar status={status} />
