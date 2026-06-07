@@ -1,5 +1,4 @@
 import { createLogger } from '@cybermind/shared';
-import { AnthropicProvider } from './anthropic.js';
 import { CybermindCloudProvider } from './cybermind-cloud.js';
 import { OllamaProvider } from './ollama.js';
 import { OpenAIProvider } from './openai.js';
@@ -17,8 +16,6 @@ export interface RouterOptions {
   preferred?: ProviderId[];
   /** Always-on local fallback. Defaults to Ollama. */
   fallback?: LLMProvider;
-  /** Anthropic-direct opts (BYOK). */
-  anthropic?: { apiKey?: string };
   /** CyberMind cloud opts (your backend). */
   cloud?: { apiKey?: string; baseURL?: string };
   /** Ollama opts. */
@@ -42,7 +39,6 @@ export class ProviderRouter implements LLMProvider {
   private readonly fallback: LLMProvider;
 
   constructor(opts: RouterOptions = {}) {
-    this.providers.set('anthropic', new AnthropicProvider(opts.anthropic));
     this.providers.set('cybermind-cloud', new CybermindCloudProvider(opts.cloud));
     this.providers.set('openai', new OpenAIProvider(opts.openai));
     this.providers.set('groq', new GroqProvider(opts.groq));
@@ -52,7 +48,7 @@ export class ProviderRouter implements LLMProvider {
     this.providers.set('ollama', ollama);
 
     this.fallback = opts.fallback ?? ollama;
-    this.preferred = opts.preferred ?? ['cybermind-cloud', 'anthropic', 'ollama'];
+    this.preferred = opts.preferred ?? ['cybermind-cloud', 'ollama'];
 
     const active = this.activeProvider();
     this.info = {

@@ -56,6 +56,8 @@ export class Engine {
       const model = rest.join('/')
       if (['anthropic', 'openai', 'groq', 'gemini', 'ollama', 'codeva'].includes(p)) return { provider: p, model }
     }
+    if (id.startsWith('codeva-')) return { provider: 'codeva', model: id }
+    
     // 'auto' or bare id → pick by available key, preferring quality.
     if (keys.anthropic) return { provider: 'anthropic', model: id === 'auto' ? 'claude-3-5-sonnet-20241022' : id }
     if (keys.openai) return { provider: 'openai', model: id === 'auto' ? 'gpt-4o-mini' : id }

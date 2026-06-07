@@ -16,55 +16,16 @@ interface ModelPickerProps {
 
 const PROVIDERS = [
   {
-    id: 'anthropic',
-    label: 'Anthropic',
+    id: 'codeva',
+    label: 'CyberCoder Mythological Swarm',
     models: [
-      { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', context: '200K', desc: 'Best balance of speed and capability' },
-      { id: 'claude-opus-4', name: 'Claude Opus 4', context: '200K', desc: 'Most capable for complex tasks' },
-      { id: 'claude-haiku-4', name: 'Claude Haiku 4', context: '200K', desc: 'Fastest for simple queries' },
+      { id: 'auto', name: 'Auto (recommended)', context: 'Varies', desc: 'Routes to the best persona' },
+      { id: 'codeva-madhav-v1', name: 'Madhav (Strategic Mastermind)', context: '200K', desc: 'Deep architecture and reasoning' },
+      { id: 'codeva-kali-v1', name: 'Kali (Destroyer of Bugs)', context: '200K', desc: 'Relentless debugging and security' },
+      { id: 'codeva-arjun-v1', name: 'Arjun (Precision Archer)', context: '64K', desc: 'Lightning fast UI and inline edits' },
+      { id: 'codeva-abhimanyu-v1', name: 'Abhimanyu (Fearless Breaker)', context: '128K', desc: 'Deep-dive local reasoning traps' },
     ] as ModelInfo[],
-  },
-  {
-    id: 'openai',
-    label: 'OpenAI',
-    models: [
-      { id: 'gpt-4o', name: 'GPT-4o', context: '128K', desc: 'Versatile multimodal model' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', context: '128K', desc: 'Fast and cost-effective' },
-      { id: 'o3-mini', name: 'o3 Mini', context: '200K', desc: 'Reasoning-optimized' },
-    ] as ModelInfo[],
-  },
-  {
-    id: 'google',
-    label: 'Google',
-    models: [
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', context: '1M', desc: 'Long context champion' },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', context: '1M', desc: 'Fast with long context' },
-    ] as ModelInfo[],
-  },
-  {
-    id: 'groq',
-    label: 'Groq',
-    models: [
-      { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', context: '128K', desc: 'Ultra-fast inference' },
-      { id: 'mixtral-8x7b', name: 'Mixtral 8x7B', context: '32K', desc: 'Efficient MoE architecture' },
-    ] as ModelInfo[],
-  },
-  {
-    id: 'openrouter',
-    label: 'OpenRouter',
-    models: [
-      { id: 'auto', name: 'Auto-router', context: 'Varies', desc: 'Picks best model for each query' },
-      { id: 'deepseek-v3', name: 'DeepSeek V3', context: '64K', desc: 'Strong reasoning model' },
-    ] as ModelInfo[],
-  },
-  {
-    id: 'local',
-    label: 'Local (Ollama)',
-    models: [
-      { id: 'llama3.1-local', name: 'Llama 3.1 (local)', context: '128K', desc: 'Runs on your machine' },
-      { id: 'codellama-local', name: 'CodeLlama (local)', context: '16K', desc: 'Code-specialized local model' },
-    ] as ModelInfo[],
-  },
+  }
 ];
 
 export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect, onClose }) => {

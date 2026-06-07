@@ -156,8 +156,7 @@ textarea::placeholder{color:var(--dim)}
 <div class="hint">CyberCoder can be used with your <b>Codeva subscription</b> or billed based on API usage.</div>
 <div class="provs">
 <div class="prov primary" data-login="subscription"><div class="t">Codeva Subscription</div><div class="sub">Use your Codeva Pro, Max, or Team plan</div></div>
-<div class="prov" data-login="apikey"><div class="t">API Key</div><div class="sub">Paste a Codeva API key (sk_cyber_…)</div></div>
-<div class="prov" data-login="byok"><div class="t">Anthropic / OpenAI / Groq / Ollama ↗</div><div class="sub">Use third-party or local providers (BYOK)</div></div>
+<div class="prov" data-login="apikey"><div class="t">CyberCoder API Key</div><div class="sub">Paste a Codeva API key (sk_cyber_…)</div></div>
 </div>
 <div class="hint" style="font-size:12px;margin-top:12px">Prefer the terminal? Run <b>cm</b> or <b>cybercoder</b> in a terminal.</div>
 </div>

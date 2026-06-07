@@ -5,7 +5,6 @@
  */
 export * from './types.js';
 export * from './router.js';
-export { AnthropicProvider } from './anthropic.js';
 export { OllamaProvider } from './ollama.js';
 export { CybermindCloudProvider } from './cybermind-cloud.js';
 export { OpenAIProvider } from './openai.js';
