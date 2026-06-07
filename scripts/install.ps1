@@ -11,11 +11,11 @@ if (!(Get-Command npm -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "[INFO] Found npm. Proceeding with installation..." -ForegroundColor Green
-Write-Host "Running: npm install -g @codeva_chat/cli@latest"
+Write-Host "Running: npm install -g cybercoder-cli@latest"
 Write-Host ""
 
 # Run npm install
-$process = Start-Process -FilePath "npm.cmd" -ArgumentList "install", "-g", "@codeva_chat/cli@latest" -Wait -NoNewWindow -PassThru
+$process = Start-Process -FilePath "npm.cmd" -ArgumentList "install", "-g", "cybercoder-cli@latest" -Wait -NoNewWindow -PassThru
 
 if ($process.ExitCode -ne 0) {
     Write-Host ""

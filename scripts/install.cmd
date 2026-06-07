@@ -15,10 +15,10 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [INFO] Found npm. Proceeding with installation...
-echo Running: npm install -g @codeva_chat/cli@latest
+echo Running: npm install -g cybercoder-cli@latest
 echo.
 
-call npm install -g @codeva_chat/cli@latest
+call npm install -g cybercoder-cli@latest
 
 if %ERRORLEVEL% neq 0 (
     echo.
