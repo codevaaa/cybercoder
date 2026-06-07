@@ -158,7 +158,7 @@ class McpServer {
 }
 
 function readMcpConfig(cwd: string): McpConfig {
-  for (const path of [join(cwd, '.codeva', 'mcp.json'), join(homedir(), '.codeva', 'mcp.json')]) {
+  for (const path of [join(cwd, '.cyber', 'mcp.json'), join(homedir(), '.cyber', 'mcp.json')]) {
     try {
       if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8')) as McpConfig;
     } catch {

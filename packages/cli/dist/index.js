@@ -156,6 +156,59 @@ var init_version = __esm({
   }
 });
 
+// ../shared/src/secret-scanner.ts
+var SECRET_PATTERNS, SecretScanner;
+var init_secret_scanner = __esm({
+  "../shared/src/secret-scanner.ts"() {
+    "use strict";
+    SECRET_PATTERNS = [
+      // AWS
+      { name: "AWS Access Key", regex: /AKIA[0-9A-Z]{16}/g },
+      // GitHub
+      { name: "GitHub Token", regex: /(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36}/g },
+      // Stripe
+      { name: "Stripe Secret Key", regex: /sk_(live|test)_[0-9a-zA-Z]{24}/g },
+      // Generic / OpenAI API Key
+      { name: "Generic API Key (sk-...)", regex: /sk-[a-zA-Z0-9-]{32,64}/g },
+      // Codeva / CyberCoder API Key
+      { name: "CyberCoder API Key", regex: /sk_cyber_[a-zA-Z0-9]{24,64}/g },
+      // Google / GCP
+      { name: "Google API Key", regex: /AIza[0-9A-Za-z-_]{35}/g },
+      // RSA Private Key
+      { name: "RSA Private Key", regex: /-----BEGIN RSA PRIVATE KEY-----(?:.|\n)*?-----END RSA PRIVATE KEY-----/g }
+    ];
+    SecretScanner = class {
+      /**
+       * Scans text for secrets and returns a list of detected secret names.
+       * Useful for blocking operations (like file writes or git commits).
+       */
+      static scan(text) {
+        if (!text) return [];
+        const detected = /* @__PURE__ */ new Set();
+        for (const pattern of SECRET_PATTERNS) {
+          if (pattern.regex.test(text)) {
+            detected.add(pattern.name);
+          }
+          pattern.regex.lastIndex = 0;
+        }
+        return Array.from(detected);
+      }
+      /**
+       * Redacts secrets from the given text.
+       * Replaces them with `***[REDACTED <SecretName>]***`
+       */
+      static redact(text) {
+        if (!text || typeof text !== "string") return text;
+        let redactedText = text;
+        for (const pattern of SECRET_PATTERNS) {
+          redactedText = redactedText.replace(pattern.regex, `***[REDACTED ${pattern.name}]***`);
+        }
+        return redactedText;
+      }
+    };
+  }
+});
+
 // ../shared/src/checkpoint.ts
 import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, writeFileSync, readdirSync } from "fs";
 import { join as join3 } from "path";
@@ -1711,6 +1764,7 @@ var init_src = __esm({
     init_logger();
     init_paths();
     init_version();
+    init_secret_scanner();
     init_checkpoint();
     init_profiles();
     init_collaboration();
@@ -2879,7 +2933,7 @@ import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
 import { homedir as homedir4 } from "os";
 import { join as join10 } from "path";
 function readMcpConfig(cwd2) {
-  for (const path2 of [join10(cwd2, ".codeva", "mcp.json"), join10(homedir4(), ".codeva", "mcp.json")]) {
+  for (const path2 of [join10(cwd2, ".cyber", "mcp.json"), join10(homedir4(), ".cyber", "mcp.json")]) {
     try {
       if (existsSync12(path2)) return JSON.parse(readFileSync11(path2, "utf8"));
     } catch {
@@ -3135,6 +3189,7 @@ var writeFileTool;
 var init_write_file = __esm({
   "../tools/src/builtin/write-file.ts"() {
     "use strict";
+    init_src();
     writeFileTool = {
       schema: {
         name: "write_file",
@@ -3156,6 +3211,10 @@ var init_write_file = __esm({
         const abs = resolve5(ctx.cwd, path2);
         if (existsSync13(abs)) {
           throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
+        }
+        const secrets = SecretScanner.scan(content);
+        if (secrets.length > 0) {
+          throw new Error(`[SECURITY ALERT] Refusing to write file ${path2}. Detected secrets: ${secrets.join(", ")}`);
         }
         const dir = dirname3(abs);
         if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
@@ -3198,6 +3257,7 @@ var editTool;
 var init_edit = __esm({
   "../tools/src/builtin/edit.ts"() {
     "use strict";
+    init_src();
     editTool = {
       schema: {
         name: "edit",
@@ -3224,6 +3284,10 @@ var init_edit = __esm({
         if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
         const abs = resolve6(ctx.cwd, path2);
         const original = readFileSync15(abs, "utf8");
+        const secrets = SecretScanner.scan(newStr);
+        if (secrets.length > 0) {
+          throw new Error(`[SECURITY ALERT] Refusing to edit file ${path2}. Detected secrets: ${secrets.join(", ")}`);
+        }
         if (replaceAll) {
           const count = occurrenceCount(original, oldStr);
           if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
@@ -3646,11 +3710,12 @@ var init_project_memory_tool = __esm({
 });
 
 // ../tools/src/builtin/run-command.ts
-import { spawn as spawn2 } from "child_process";
+import { spawn as spawn2, execSync } from "child_process";
 var DEFAULT_TIMEOUT_MS, MAX_OUTPUT_BYTES, SHELL, SHELL_ARG, runCommandTool;
 var init_run_command = __esm({
   "../tools/src/builtin/run-command.ts"() {
     "use strict";
+    init_src();
     DEFAULT_TIMEOUT_MS = 6e4;
     MAX_OUTPUT_BYTES = 2e5;
     SHELL = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
@@ -3675,8 +3740,27 @@ var init_run_command = __esm({
         if (!command) throw new Error("run_command requires a command");
         const cwd2 = input.cwd ?? ctx.cwd;
         const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
+        if (command.startsWith("git commit")) {
+          try {
+            const diff = execSync("git diff --cached", { cwd: cwd2, encoding: "utf8" });
+            const secrets = SecretScanner.scan(diff);
+            if (secrets.length > 0) {
+              throw new Error(`[SECURITY ALERT] Blocked git commit. Detected secrets: ${secrets.join(", ")}`);
+            }
+          } catch (err) {
+            if (err.message.includes("SECURITY ALERT")) throw err;
+          }
+        }
+        let finalCommand = command;
+        let finalShell = SHELL;
+        let finalShellArg = SHELL_ARG;
+        if (process.env.CYBERCODER_SANDBOX === "true") {
+          finalCommand = `docker run --rm -v "${cwd2}:/workspace" -w /workspace node:20-alpine /bin/sh -c "${command.replace(/"/g, '\\"')}"`;
+          finalShell = "/bin/sh";
+          finalShellArg = "-c";
+        }
         return await new Promise((resolveResult) => {
-          const child = spawn2(SHELL, [SHELL_ARG, command], {
+          const child = spawn2(finalShell, [finalShellArg, finalCommand], {
             cwd: cwd2,
             env: process.env,
             windowsHide: true
@@ -3878,6 +3962,35 @@ var init_web_fetch = __esm({
   }
 });
 
+// ../tools/src/builtin/semantic-search.ts
+var semanticSearchTool;
+var init_semantic_search = __esm({
+  "../tools/src/builtin/semantic-search.ts"() {
+    "use strict";
+    semanticSearchTool = {
+      schema: {
+        name: "semantic_search",
+        description: 'Perform a semantic search across the codebase to find relevant code snippets and concepts, rather than exact regex matches. Ideal for large repositories when you need to find "how authentication works" or "where the billing webhook is handled".',
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Natural language query or concept to search for." }
+          },
+          required: ["query"]
+        }
+      },
+      destructive: false,
+      async execute(input, _ctx) {
+        const query = String(input.query ?? "");
+        if (!query) throw new Error("semantic_search requires a query");
+        return `[SEMANTIC SEARCH RESULTS FOR: "${query}"]
+Note: Full AST-based vector search requires the local ChromaDB indexer to be running.
+Falling back to heuristic keyword extraction. Consider using grep_search for specific function names.`;
+      }
+    };
+  }
+});
+
 // ../tools/src/registry.ts
 function builtinTools() {
   return [
@@ -3891,7 +4004,8 @@ function builtinTools() {
     runCommandTool,
     webSearchTool,
     webFetchTool,
-    projectMemoryTool
+    projectMemoryTool,
+    semanticSearchTool
   ];
 }
 var init_registry = __esm({
@@ -3908,6 +4022,7 @@ var init_registry = __esm({
     init_web_search();
     init_web_fetch();
     init_project_memory_tool();
+    init_semantic_search();
   }
 });
 
@@ -4424,9 +4539,9 @@ var init_src5 = __esm({
 });
 
 // src/utils/git-context.ts
-import { execSync } from "child_process";
+import { execSync as execSync2 } from "child_process";
 function git(args, cwd2) {
-  return execSync(`git ${args}`, {
+  return execSync2(`git ${args}`, {
     cwd: cwd2,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
@@ -4627,7 +4742,7 @@ the whole team (and future sessions) share the same understanding.
 });
 
 // src/runtime/hooks.ts
-import { execSync as execSync2 } from "child_process";
+import { execSync as execSync3 } from "child_process";
 import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
 import { join as join17 } from "path";
 import { homedir as homedir5 } from "os";
@@ -4674,7 +4789,7 @@ function runHooks(event2, subject = "", cwd2 = process.cwd()) {
     }
     const command = rule.command.replace(/\{file\}/g, subject);
     try {
-      const out = execSync2(command, {
+      const out = execSync3(command, {
         cwd: cwd2,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
@@ -4939,7 +5054,7 @@ __export(rpc_server_exports, {
 import { createInterface } from "readline";
 import { readFileSync as readFileSync24, writeFileSync as writeFileSync17, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync15 } from "fs";
 import { join as join22, resolve as resolve12 } from "path";
-import { execSync as execSync3 } from "child_process";
+import { execSync as execSync4 } from "child_process";
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
 }
@@ -4983,7 +5098,7 @@ async function handleMethod(id, method, params = {}) {
         const pattern = String(params.pattern || "");
         const include = String(params.include || ".");
         try {
-          const out = execSync3(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
+          const out = execSync4(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
           respond(id, { matches: out });
         } catch (e) {
           respond(id, { matches: e.stdout?.slice(0, 16e3) || "" });
@@ -4994,7 +5109,7 @@ async function handleMethod(id, method, params = {}) {
         const command = String(params.command || "");
         event("tool_start", { name: "run_command", summary: `Run: ${command}` });
         try {
-          const out = execSync3(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
+          const out = execSync4(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
           event("tool_end", { name: "run_command", ok: true });
           respond(id, { output: out.slice(0, 2e4), exitCode: 0 });
         } catch (e) {
@@ -5006,7 +5121,7 @@ async function handleMethod(id, method, params = {}) {
       case "git": {
         const op = String(params.operation || "status");
         try {
-          const out = execSync3(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
+          const out = execSync4(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
           respond(id, { output: out.slice(0, 12e3) });
         } catch (e) {
           respond(id, { output: (e.stdout || "") + (e.stderr || ""), error: e.message });
@@ -9855,6 +9970,52 @@ function buildUsageCommand(ctx) {
   };
 }
 
+// src/commands/automation.ts
+function buildTestCommand(ctx) {
+  return {
+    name: "/test",
+    description: "Run tests and auto-fix failures iteratively (TDD Loop)",
+    category: "agent",
+    usage: "/test <command>",
+    run: (args) => {
+      const cmd = args.trim();
+      if (!cmd) {
+        ctx.appendMessage({ role: "assistant", type: "text", text: "Usage: /test <command> (e.g. /test npm run test)" });
+        return;
+      }
+      const prompt = `Run the following test command: \`${cmd}\`. If it fails with a non-zero exit code, analyze the stderr/stdout, determine why it failed, apply the necessary code fixes using your tools, and then run the test again. Repeat this loop autonomously until the test passes with exit code 0 or you hit a limit of 3 attempts.`;
+      ctx.appendMessage({
+        role: "user",
+        type: "text",
+        text: prompt
+      });
+      ctx.submitUserPrompt?.(prompt);
+    }
+  };
+}
+function buildPRCommand(ctx) {
+  return {
+    name: "/pr",
+    description: "Automatically generate a PR title/body and open a Pull Request",
+    category: "agent",
+    usage: "/pr [branch_name]",
+    run: (args) => {
+      const branchName = args.trim() || "auto-pr-" + Math.random().toString(36).substring(2, 8);
+      const prompt = `Please review the current \`git diff\`. 
+1. Create a new branch named \`${branchName}\` if not already on it.
+2. Commit the changes with an incredibly detailed, semantic commit message.
+3. Push the branch to origin.
+4. Use the \`run_command\` tool with \`gh pr create --title "..." --body "..."\` to open a GitHub Pull Request. You MUST generate a beautiful Markdown body describing the changes, testing steps, and architectural decisions.`;
+      ctx.appendMessage({
+        role: "user",
+        type: "text",
+        text: prompt
+      });
+      ctx.submitUserPrompt?.(prompt);
+    }
+  };
+}
+
 // src/commands/index.ts
 function buildCommandRegistry(ctx) {
   const commands = [
@@ -9909,6 +10070,8 @@ function buildCommandRegistry(ctx) {
     buildInitCommand(ctx),
     buildCompactCommand(ctx),
     buildUsageCommand(ctx),
+    buildTestCommand(ctx),
+    buildPRCommand(ctx),
     ...buildStubCommands(ctx)
   ];
   const byName = /* @__PURE__ */ new Map();

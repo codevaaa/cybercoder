@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './logger.js';
 export * from './paths.js';
 export * from './version.js';
+export * from './secret-scanner.js';
 export * from './checkpoint.js';
 export * from './profiles.js';
 export * from './collaboration.js';

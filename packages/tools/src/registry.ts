@@ -17,6 +17,8 @@ import type { AgentTool } from './core-types.js';
  * Includes live web research (web_search/web_fetch) — a capability Claude Code
  * lacks natively in the CLI — and project_memory (self-learning .cyber/ store).
  */
+import { semanticSearchTool } from './builtin/semantic-search.js';
+
 export function builtinTools(): AgentTool[] {
   return [
     readFileTool,
@@ -30,6 +32,7 @@ export function builtinTools(): AgentTool[] {
     webSearchTool,
     webFetchTool,
     projectMemoryTool,
+    semanticSearchTool,
   ];
 }
 

@@ -34,6 +34,7 @@ import { buildLoginCommand, buildLogoutCommand, buildProfileCommand as buildAuth
 import { buildInitCommand } from './init.js';
 import { buildCompactCommand } from './compact.js';
 import { buildUsageCommand } from './usage-command.js';
+import { buildTestCommand, buildPRCommand } from './automation.js';
 
 export interface CommandContext {
   clear: () => void;
@@ -146,6 +147,8 @@ export function buildCommandRegistry(ctx: CommandContext): CommandRegistry {
     buildInitCommand(ctx),
     buildCompactCommand(ctx),
     buildUsageCommand(ctx),
+    buildTestCommand(ctx),
+    buildPRCommand(ctx),
     ...buildStubCommands(ctx),
   ];
 

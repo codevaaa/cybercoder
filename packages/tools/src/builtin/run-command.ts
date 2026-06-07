@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
+import { SecretScanner } from '@cybermind/shared';
 import type { AgentTool } from '../types.js';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -29,8 +30,33 @@ export const runCommandTool: AgentTool = {
     const cwd = (input.cwd as string | undefined) ?? ctx.cwd;
     const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
 
+    // 🛡️ 100% Secure Coding: Pre-commit Blocker
+    if (command.startsWith('git commit')) {
+      try {
+        const diff = execSync('git diff --cached', { cwd, encoding: 'utf8' });
+        const secrets = SecretScanner.scan(diff);
+        if (secrets.length > 0) {
+          throw new Error(`[SECURITY ALERT] Blocked git commit. Detected secrets: ${secrets.join(', ')}`);
+        }
+      } catch (err: any) {
+        if (err.message.includes('SECURITY ALERT')) throw err;
+      }
+    }
+
+    // 🛡️ 100% Secure Coding: Command Sandboxing
+    let finalCommand = command;
+    let finalShell = SHELL;
+    let finalShellArg = SHELL_ARG;
+    
+    if (process.env.CYBERCODER_SANDBOX === 'true') {
+        // Run safely inside an isolated container
+        finalCommand = `docker run --rm -v "${cwd}:/workspace" -w /workspace node:20-alpine /bin/sh -c "${command.replace(/"/g, '\\"')}"`;
+        finalShell = '/bin/sh';
+        finalShellArg = '-c';
+    }
+
     return await new Promise<string>((resolveResult) => {
-      const child = spawn(SHELL, [SHELL_ARG, command], {
+      const child = spawn(finalShell, [finalShellArg, finalCommand], {
         cwd,
         env: process.env,
         windowsHide: true,

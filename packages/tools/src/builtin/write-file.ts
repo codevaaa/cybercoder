@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { SecretScanner } from '@cybermind/shared';
 import type { AgentTool } from '../types.js';
 
 export const writeFileTool: AgentTool = {
@@ -24,6 +25,12 @@ export const writeFileTool: AgentTool = {
     const abs = resolve(ctx.cwd, path);
     if (existsSync(abs)) {
       throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
+    }
+
+    // 🛡️ 100% Secure Coding: Scan content for secrets before writing
+    const secrets = SecretScanner.scan(content);
+    if (secrets.length > 0) {
+      throw new Error(`[SECURITY ALERT] Refusing to write file ${path}. Detected secrets: ${secrets.join(', ')}`);
     }
     const dir = dirname(abs);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

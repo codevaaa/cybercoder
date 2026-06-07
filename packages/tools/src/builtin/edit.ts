@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SecretScanner } from '@cybermind/shared';
 import type { AgentTool } from '../types.js';
 
 export const editTool: AgentTool = {
@@ -31,6 +32,12 @@ export const editTool: AgentTool = {
 
     const abs = resolve(ctx.cwd, path);
     const original = readFileSync(abs, 'utf8');
+
+    // 🛡️ 100% Secure Coding: Scan content for secrets before writing
+    const secrets = SecretScanner.scan(newStr);
+    if (secrets.length > 0) {
+      throw new Error(`[SECURITY ALERT] Refusing to edit file ${path}. Detected secrets: ${secrets.join(', ')}`);
+    }
 
     if (replaceAll) {
       const count = occurrenceCount(original, oldStr);
