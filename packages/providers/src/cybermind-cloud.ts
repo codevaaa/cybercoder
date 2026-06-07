@@ -1,6 +1,5 @@
 import { createLogger } from '@cybermind/shared';
 import type { ChatChunk, ChatRequest, LLMProvider, ProviderInfo } from './types.js';
-import { apiClient } from '../../cli/src/utils/api-client.js';
 
 const log = createLogger('providers:cybermind-cloud');
 
@@ -8,18 +7,21 @@ export interface CybermindCloudProviderOptions {
   apiKey?: string;
   baseURL?: string;
   defaultModel?: string;
+  sessionId?: string;
 }
 
 /**
  * `cybermind-cloud` provider connects directly to our SaaS Swarm Orchestrator.
- * It uses the custom apiClient to stream completions using the user's SaaS API key
+ * It uses native fetch to stream completions using the user's SaaS API key
  * and token quotas.
  */
 export class CybermindCloudProvider implements LLMProvider {
   public readonly info: ProviderInfo;
   private defaultModel: string;
+  private opts: CybermindCloudProviderOptions;
 
   constructor(opts: CybermindCloudProviderOptions = {}) {
+    this.opts = opts;
     this.defaultModel = opts.defaultModel ?? 'trinity'; // Default to free tier
     this.info = {
       id: 'cybermind-cloud',
@@ -38,7 +40,6 @@ export class CybermindCloudProvider implements LLMProvider {
     log.debug('Starting Codeva Cloud chat request', { model });
 
     try {
-      // Map ChatRequest to apiClient format
       let systemPrompt = '';
       const filteredMessages = [];
       for (const msg of req.messages) {
@@ -52,24 +53,63 @@ export class CybermindCloudProvider implements LLMProvider {
         }
       }
 
-      // We extract the last user message to use as the main prompt for the Swarm
       const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || '';
+      
+      const baseURL = this.opts.baseURL || 'https://cybercli-api.onrender.com/api/v1';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (this.opts.apiKey) headers['Authorization'] = `Bearer ${this.opts.apiKey}`;
+      if (this.opts.sessionId) headers['x-cli-session'] = this.opts.sessionId;
 
-      const generator = apiClient.streamCompletion({
-        model: model,
-        system: systemPrompt,
-        messages: filteredMessages,
-        prompt: lastMessage,
-        temperature: req.temperature,
-        max_tokens: req.maxTokens,
+      const response = await fetch(`${baseURL}/cli/complete`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model,
+          system: systemPrompt,
+          messages: filteredMessages,
+          prompt: lastMessage,
+          temperature: req.temperature,
+          max_tokens: req.maxTokens,
+          stream: true,
+        }),
       });
 
-      for await (const chunk of generator) {
-        if (chunk.content) {
-          yield { type: 'text', text: chunk.content };
-        }
-        // Could handle tool calls if Swarm returns them here in the future
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Streaming failed: ${response.status} ${errText}`);
       }
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body for streaming');
+      const decoder = new TextDecoder();
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data: ')) continue;
+          const dataStr = trimmed.slice(6).trim();
+          if (dataStr === '[DONE]') {
+            // Note: we don't break here, let the loop finish if there's more chunks
+            continue;
+          }
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.content) {
+              yield { type: 'text', text: parsed.content };
+            }
+          } catch {
+            // ignore JSON parse error on incomplete chunks
+          }
+        }
+      }
+      
       yield { type: 'done', reason: 'stop' };
 
     } catch (err: any) {

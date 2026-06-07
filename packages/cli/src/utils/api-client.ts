@@ -1,5 +1,5 @@
-import { loadConfig, getAuthToken, getSessionId } from './config.js';
-import { os, hostname } from 'node:os';
+import { getAuthToken, getSessionId } from './config.js';
+import { hostname } from 'node:os';
 
 const BACKEND_URL = process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com/api/v1';
 

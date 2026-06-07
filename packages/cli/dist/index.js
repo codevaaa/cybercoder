@@ -2231,179 +2231,100 @@ var init_types2 = __esm({
   }
 });
 
-// ../providers/src/anthropic.ts
-import Anthropic from "@anthropic-ai/sdk";
-function splitSystem(messages, systemPrompt) {
-  const sysFromMessages = messages.filter((m) => m.role === "system").map((m) => m.content);
-  const rest = messages.filter((m) => m.role !== "system");
-  const system = [systemPrompt ?? "", ...sysFromMessages].filter(Boolean).join("\n\n");
-  return { system, messages: rest };
-}
-function toAnthropicMessage(m) {
-  if (m.role === "tool") {
-    return {
-      role: "user",
-      content: [
-        {
-          type: "tool_result",
-          tool_use_id: m.toolCallId ?? "",
-          content: m.content
-        }
-      ]
-    };
-  }
-  if (m.role === "assistant" && m.toolCalls?.length) {
-    const blocks = [];
-    if (m.content) blocks.push({ type: "text", text: m.content });
-    for (const tc of m.toolCalls) {
-      blocks.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.input });
-    }
-    return { role: "assistant", content: blocks };
-  }
-  return {
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: m.content
-  };
-}
-function toAnthropicTool(t) {
-  return {
-    name: t.name,
-    description: t.description,
-    input_schema: t.inputSchema
-  };
-}
-function withToolCaching(tools) {
-  if (!tools || tools.length === 0) return tools;
-  const out = tools.slice();
-  const last = out[out.length - 1];
-  out[out.length - 1] = { ...last, cache_control: { type: "ephemeral" } };
-  return out;
-}
-var log11, AnthropicProvider;
-var init_anthropic = __esm({
-  "../providers/src/anthropic.ts"() {
-    "use strict";
-    init_src();
-    log11 = createLogger("providers:anthropic");
-    AnthropicProvider = class {
-      info;
-      client;
-      defaultModel;
-      constructor(opts = {}) {
-        const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY ?? process.env.ANTHROPIC_API_KEY;
-        this.client = new Anthropic({
-          apiKey: apiKey ?? "",
-          baseURL: opts.baseURL
-        });
-        this.defaultModel = opts.defaultModel ?? "claude-3-5-sonnet-latest";
-        this.info = {
-          id: "anthropic",
-          displayName: "Anthropic",
-          requiresNetwork: true,
-          ready: Boolean(apiKey)
-        };
-      }
-      async listModels() {
-        return [
-          "claude-3-5-sonnet-latest",
-          "claude-3-5-haiku-latest",
-          "claude-3-opus-latest",
-          "claude-sonnet-4-5",
-          "claude-opus-4"
-        ];
-      }
-      async *chat(req) {
-        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-        const { system, messages } = splitSystem(req.messages, req.systemPrompt);
-        log11.debug("anthropic chat", { model, messages: messages.length, tools: req.tools?.length ?? 0 });
-        try {
-          const stream = this.client.messages.stream({
-            model,
-            max_tokens: req.maxTokens ?? 4096,
-            temperature: req.temperature,
-            // Cache the (constant) system prompt across loop iterations so re-sends
-            // are billed at the cheap cache-read rate instead of full input rate.
-            // (cache_control is runtime-supported; the pinned SDK types predate it.)
-            system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : void 0,
-            messages: messages.map(toAnthropicMessage),
-            tools: withToolCaching(req.tools?.map(toAnthropicTool))
-          });
-          const inflightToolCalls = /* @__PURE__ */ new Map();
-          for await (const event2 of stream) {
-            if (event2.type === "content_block_start") {
-              if (event2.content_block.type === "tool_use") {
-                inflightToolCalls.set(event2.index, {
-                  id: event2.content_block.id,
-                  name: event2.content_block.name,
-                  input: {}
-                });
-              }
-            } else if (event2.type === "content_block_delta") {
-              if (event2.delta.type === "text_delta") {
-                yield { type: "text", text: event2.delta.text };
-              } else if (event2.delta.type === "input_json_delta") {
-                const tc = inflightToolCalls.get(event2.index);
-                if (tc) {
-                  tc._raw = (tc._raw ?? "") + event2.delta.partial_json;
-                }
-              }
-            } else if (event2.type === "content_block_stop") {
-              const tc = inflightToolCalls.get(event2.index);
-              if (tc) {
-                const raw = tc._raw ?? "{}";
-                try {
-                  tc.input = raw.length > 0 ? JSON.parse(raw) : {};
-                } catch (err) {
-                  log11.warn("failed to parse tool input json", { raw, err: String(err) });
-                  tc.input = {};
-                }
-                yield { type: "tool_call", toolCall: { id: tc.id, name: tc.name, input: tc.input } };
-                inflightToolCalls.delete(event2.index);
-              }
-            } else if (event2.type === "message_delta") {
-              if (event2.usage) {
-                yield { type: "usage", inputTokens: 0, outputTokens: event2.usage.output_tokens ?? 0 };
-              }
-            } else if (event2.type === "message_stop") {
-            }
-          }
-          const final = await stream.finalMessage();
-          yield {
-            type: "done",
-            reason: final.stop_reason === "tool_use" ? "tool_use" : final.stop_reason === "max_tokens" ? "max_tokens" : final.stop_reason === "end_turn" ? "end_turn" : "stop"
-          };
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          log11.error("anthropic chat failed", msg);
-          yield { type: "done", reason: "error", error: msg };
-        }
-      }
-    };
-  }
-});
-
 // ../providers/src/cybermind-cloud.ts
-var DEFAULT_BASE_URL, CybermindCloudProvider;
+var log11, CybermindCloudProvider;
 var init_cybermind_cloud = __esm({
   "../providers/src/cybermind-cloud.ts"() {
     "use strict";
-    init_anthropic();
-    DEFAULT_BASE_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com";
-    CybermindCloudProvider = class extends AnthropicProvider {
+    init_src();
+    log11 = createLogger("providers:cybermind-cloud");
+    CybermindCloudProvider = class {
       info;
+      defaultModel;
+      opts;
       constructor(opts = {}) {
-        const apiKey = opts.apiKey ?? process.env.CYBERMIND_API_KEY;
-        super({
-          apiKey,
-          baseURL: opts.baseURL ?? DEFAULT_BASE_URL,
-          defaultModel: opts.defaultModel ?? "cybermind-default"
-        });
+        this.opts = opts;
+        this.defaultModel = opts.defaultModel ?? "trinity";
         this.info = {
           id: "cybermind-cloud",
-          displayName: "Codeva Cloud",
+          displayName: "Codeva Cloud (Swarm)",
           requiresNetwork: true,
-          ready: Boolean(apiKey)
+          ready: true
+          // We assume true and handle errors during the chat call
         };
+      }
+      async listModels() {
+        return ["madhav", "kali", "abhimanyu", "trinity"];
+      }
+      async *chat(req) {
+        const model = req.model || this.defaultModel;
+        log11.debug("Starting Codeva Cloud chat request", { model });
+        try {
+          let systemPrompt = "";
+          const filteredMessages = [];
+          for (const msg of req.messages) {
+            if (msg.role === "system") {
+              systemPrompt += (typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)) + "\n";
+            } else {
+              filteredMessages.push({
+                role: msg.role,
+                content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)
+              });
+            }
+          }
+          const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || "";
+          const baseURL = this.opts.baseURL || "https://cybercli-api.onrender.com/api/v1";
+          const headers = { "Content-Type": "application/json" };
+          if (this.opts.apiKey) headers["Authorization"] = `Bearer ${this.opts.apiKey}`;
+          if (this.opts.sessionId) headers["x-cli-session"] = this.opts.sessionId;
+          const response = await fetch(`${baseURL}/cli/complete`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model,
+              system: systemPrompt,
+              messages: filteredMessages,
+              prompt: lastMessage,
+              temperature: req.temperature,
+              max_tokens: req.maxTokens,
+              stream: true
+            })
+          });
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Streaming failed: ${response.status} ${errText}`);
+          }
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No response body for streaming");
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith("data: ")) continue;
+              const dataStr = trimmed.slice(6).trim();
+              if (dataStr === "[DONE]") {
+                continue;
+              }
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.content) {
+                  yield { type: "text", text: parsed.content };
+                }
+              } catch {
+              }
+            }
+          }
+          yield { type: "done", reason: "stop" };
+        } catch (err) {
+          log11.error("Codeva Cloud chat failed", err);
+          yield { type: "done", reason: "error", error: err.message || String(err) };
+        }
       }
     };
   }
@@ -2544,307 +2465,26 @@ var init_ollama = __esm({
   }
 });
 
-// ../providers/src/openai.ts
-function toOpenAIMessage(m) {
-  if (m.role === "tool") {
-    return {
-      role: "tool",
-      content: m.content,
-      tool_call_id: m.toolCallId
-    };
-  }
-  if (m.role === "assistant" && m.toolCalls?.length) {
-    return {
-      role: "assistant",
-      content: m.content || null,
-      tool_calls: m.toolCalls.map((tc) => ({
-        id: tc.id,
-        type: "function",
-        function: {
-          name: tc.name,
-          arguments: JSON.stringify(tc.input)
-        }
-      }))
-    };
-  }
-  return {
-    role: m.role,
-    content: m.content
-  };
-}
-function toOpenAITool(t) {
-  return {
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description,
-      parameters: t.inputSchema
-    }
-  };
-}
-var log13, OpenAIProvider;
-var init_openai = __esm({
-  "../providers/src/openai.ts"() {
-    "use strict";
-    init_src();
-    log13 = createLogger("providers:openai");
-    OpenAIProvider = class {
-      info;
-      apiKey;
-      baseURL;
-      defaultModel;
-      constructor(opts = {}, providerId = "openai", displayName = "OpenAI") {
-        this.apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY ?? "";
-        this.baseURL = opts.baseURL ?? "https://api.openai.com/v1";
-        this.defaultModel = opts.defaultModel ?? "gpt-4o-mini";
-        this.info = {
-          id: providerId,
-          displayName,
-          requiresNetwork: true,
-          ready: Boolean(this.apiKey)
-        };
-      }
-      async listModels() {
-        return ["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview"];
-      }
-      async *chat(req) {
-        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-        log13.debug("openai chat", { model, messages: req.messages.length });
-        const messages = [
-          ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
-          ...req.messages.map(toOpenAIMessage)
-        ];
-        const body = {
-          model,
-          messages,
-          stream: true,
-          temperature: req.temperature ?? 0.7,
-          max_tokens: req.maxTokens ?? 4096,
-          stream_options: { include_usage: true }
-        };
-        if (req.tools?.length) {
-          body.tools = req.tools.map(toOpenAITool);
-        }
-        try {
-          const res = await fetch(`${this.baseURL}/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(body),
-            signal: req.signal
-          });
-          if (!res.ok) {
-            const errText = await res.text().catch(() => res.statusText);
-            yield {
-              type: "done",
-              reason: "error",
-              error: `OpenAI HTTP ${res.status}: ${errText}`
-            };
-            return;
-          }
-          if (!res.body) {
-            yield { type: "done", reason: "error", error: "Response body is null" };
-            return;
-          }
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          let done = false;
-          const toolCallsMap = /* @__PURE__ */ new Map();
-          let usageInfo = null;
-          while (!done) {
-            const { value, done: chunkDone } = await reader.read();
-            if (value) {
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() ?? "";
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                if (trimmed === "data: [DONE]") {
-                  done = true;
-                  break;
-                }
-                if (trimmed.startsWith("data: ")) {
-                  try {
-                    const json = JSON.parse(trimmed.slice(6));
-                    if (json.usage) {
-                      usageInfo = json.usage;
-                    }
-                    const choice = json.choices?.[0];
-                    if (!choice) continue;
-                    if (choice.delta?.content) {
-                      yield { type: "text", text: choice.delta.content };
-                    }
-                    if (choice.delta?.tool_calls) {
-                      for (const tcDelta of choice.delta.tool_calls) {
-                        const idx = tcDelta.index ?? 0;
-                        let tc = toolCallsMap.get(idx);
-                        if (!tc) {
-                          tc = { id: tcDelta.id, name: tcDelta.function?.name, arguments: "" };
-                          toolCallsMap.set(idx, tc);
-                        }
-                        if (tcDelta.id) tc.id = tcDelta.id;
-                        if (tcDelta.function?.name) tc.name = tcDelta.function.name;
-                        if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
-                      }
-                    }
-                  } catch (err) {
-                  }
-                }
-              }
-            }
-            if (chunkDone) done = true;
-          }
-          for (const [, tc] of toolCallsMap) {
-            if (tc.id && tc.name) {
-              let parsedArgs = {};
-              try {
-                parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
-              } catch (e) {
-                log13.warn("Failed to parse tool arguments JSON", tc.arguments);
-              }
-              yield {
-                type: "tool_call",
-                toolCall: {
-                  id: tc.id,
-                  name: tc.name,
-                  input: parsedArgs
-                }
-              };
-            }
-          }
-          if (usageInfo) {
-            yield {
-              type: "usage",
-              inputTokens: usageInfo.prompt_tokens,
-              outputTokens: usageInfo.completion_tokens
-            };
-          }
-          yield { type: "done", reason: toolCallsMap.size > 0 ? "tool_use" : "end_turn" };
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          log13.error("openai stream failed", msg);
-          yield { type: "done", reason: "error", error: msg };
-        }
-      }
-    };
-  }
-});
-
-// ../providers/src/groq.ts
-var GroqProvider;
-var init_groq = __esm({
-  "../providers/src/groq.ts"() {
-    "use strict";
-    init_openai();
-    GroqProvider = class extends OpenAIProvider {
-      constructor(opts = {}) {
-        super(
-          {
-            apiKey: opts.apiKey ?? process.env.GROQ_API_KEY,
-            baseURL: opts.baseURL ?? "https://api.groq.com/openai/v1",
-            defaultModel: opts.defaultModel ?? "llama-3.3-70b-versatile"
-          },
-          "groq",
-          "Groq"
-        );
-      }
-      async listModels() {
-        return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
-      }
-    };
-  }
-});
-
-// ../providers/src/google.ts
-var GoogleProvider;
-var init_google = __esm({
-  "../providers/src/google.ts"() {
-    "use strict";
-    init_openai();
-    GoogleProvider = class extends OpenAIProvider {
-      constructor(opts = {}) {
-        super(
-          {
-            apiKey: opts.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY,
-            baseURL: opts.baseURL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
-            defaultModel: opts.defaultModel ?? "gemini-2.5-flash"
-          },
-          "gemini",
-          "Google Gemini"
-        );
-      }
-      async listModels() {
-        return ["gemini-2.5-flash", "gemini-2.5-pro"];
-      }
-    };
-  }
-});
-
-// ../providers/src/openrouter.ts
-var OpenRouterProvider;
-var init_openrouter = __esm({
-  "../providers/src/openrouter.ts"() {
-    "use strict";
-    init_openai();
-    OpenRouterProvider = class extends OpenAIProvider {
-      constructor(opts = {}) {
-        super(
-          {
-            apiKey: opts.apiKey ?? process.env.OPENROUTER_API_KEY,
-            baseURL: opts.baseURL ?? "https://openrouter.ai/api/v1",
-            defaultModel: opts.defaultModel ?? "google/gemini-2.5-flash"
-          },
-          "openrouter",
-          "OpenRouter"
-        );
-      }
-      async listModels() {
-        return [
-          "google/gemini-2.5-flash",
-          "google/gemini-2.5-pro",
-          "meta-llama/llama-3.3-70b-instruct",
-          "deepseek/deepseek-r1-distill-llama-70b",
-          "anthropic/claude-3.5-sonnet"
-        ];
-      }
-    };
-  }
-});
-
 // ../providers/src/router.ts
-var log14, ProviderRouter;
+var log13, ProviderRouter;
 var init_router = __esm({
   "../providers/src/router.ts"() {
     "use strict";
     init_src();
-    init_anthropic();
     init_cybermind_cloud();
     init_ollama();
-    init_openai();
-    init_groq();
-    init_google();
-    init_openrouter();
-    log14 = createLogger("providers:router");
+    log13 = createLogger("providers:router");
     ProviderRouter = class {
       info;
       providers = /* @__PURE__ */ new Map();
       preferred;
       fallback;
       constructor(opts = {}) {
-        this.providers.set("anthropic", new AnthropicProvider(opts.anthropic));
         this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
-        this.providers.set("openai", new OpenAIProvider(opts.openai));
-        this.providers.set("groq", new GroqProvider(opts.groq));
-        this.providers.set("gemini", new GoogleProvider(opts.google));
-        this.providers.set("openrouter", new OpenRouterProvider(opts.openrouter));
         const ollama = new OllamaProvider(opts.ollama);
         this.providers.set("ollama", ollama);
         this.fallback = opts.fallback ?? ollama;
-        this.preferred = opts.preferred ?? ["cybermind-cloud", "anthropic", "ollama"];
+        this.preferred = opts.preferred ?? ["cybermind-cloud", "ollama"];
         const active = this.activeProvider();
         this.info = {
           id: active.info.id,
@@ -2869,7 +2509,7 @@ var init_router = __esm({
       }
       async *chat(req) {
         const primary = this.activeProvider();
-        log14.debug("routing chat", { primary: primary.info.id });
+        log13.debug("routing chat", { primary: primary.info.id });
         let primaryYieldedSomething = false;
         let primaryError;
         for await (const chunk of primary.chat(req)) {
@@ -2881,7 +2521,7 @@ var init_router = __esm({
           yield chunk;
         }
         if (primaryError !== void 0 && primary !== this.fallback) {
-          log14.warn("primary provider failed; falling back", {
+          log13.warn("primary provider failed; falling back", {
             primary: primary.info.id,
             fallback: this.fallback.info.id,
             error: primaryError
@@ -2901,13 +2541,46 @@ var init_router = __esm({
   }
 });
 
+// ../providers/src/openai.ts
+var log14;
+var init_openai = __esm({
+  "../providers/src/openai.ts"() {
+    "use strict";
+    init_src();
+    log14 = createLogger("providers:openai");
+  }
+});
+
+// ../providers/src/groq.ts
+var init_groq = __esm({
+  "../providers/src/groq.ts"() {
+    "use strict";
+    init_openai();
+  }
+});
+
+// ../providers/src/google.ts
+var init_google = __esm({
+  "../providers/src/google.ts"() {
+    "use strict";
+    init_openai();
+  }
+});
+
+// ../providers/src/openrouter.ts
+var init_openrouter = __esm({
+  "../providers/src/openrouter.ts"() {
+    "use strict";
+    init_openai();
+  }
+});
+
 // ../providers/src/index.ts
 var init_src3 = __esm({
   "../providers/src/index.ts"() {
     "use strict";
     init_types2();
     init_router();
-    init_anthropic();
     init_ollama();
     init_cybermind_cloud();
     init_openai();
@@ -6578,53 +6251,14 @@ import { Box as Box7, Text as Text7, useInput as useInput4 } from "ink";
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var PROVIDERS = [
   {
-    id: "anthropic",
-    label: "Anthropic",
+    id: "codeva",
+    label: "CyberCoder Mythological Swarm",
     models: [
-      { id: "claude-sonnet-4", name: "Claude Sonnet 4", context: "200K", desc: "Best balance of speed and capability" },
-      { id: "claude-opus-4", name: "Claude Opus 4", context: "200K", desc: "Most capable for complex tasks" },
-      { id: "claude-haiku-4", name: "Claude Haiku 4", context: "200K", desc: "Fastest for simple queries" }
-    ]
-  },
-  {
-    id: "openai",
-    label: "OpenAI",
-    models: [
-      { id: "gpt-4o", name: "GPT-4o", context: "128K", desc: "Versatile multimodal model" },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", context: "128K", desc: "Fast and cost-effective" },
-      { id: "o3-mini", name: "o3 Mini", context: "200K", desc: "Reasoning-optimized" }
-    ]
-  },
-  {
-    id: "google",
-    label: "Google",
-    models: [
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", context: "1M", desc: "Long context champion" },
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", context: "1M", desc: "Fast with long context" }
-    ]
-  },
-  {
-    id: "groq",
-    label: "Groq",
-    models: [
-      { id: "llama-3.3-70b", name: "Llama 3.3 70B", context: "128K", desc: "Ultra-fast inference" },
-      { id: "mixtral-8x7b", name: "Mixtral 8x7B", context: "32K", desc: "Efficient MoE architecture" }
-    ]
-  },
-  {
-    id: "openrouter",
-    label: "OpenRouter",
-    models: [
-      { id: "auto", name: "Auto-router", context: "Varies", desc: "Picks best model for each query" },
-      { id: "deepseek-v3", name: "DeepSeek V3", context: "64K", desc: "Strong reasoning model" }
-    ]
-  },
-  {
-    id: "local",
-    label: "Local (Ollama)",
-    models: [
-      { id: "llama3.1-local", name: "Llama 3.1 (local)", context: "128K", desc: "Runs on your machine" },
-      { id: "codellama-local", name: "CodeLlama (local)", context: "16K", desc: "Code-specialized local model" }
+      { id: "auto", name: "Auto (recommended)", context: "Varies", desc: "Routes to the best persona" },
+      { id: "codeva-madhav-v1", name: "Madhav (Strategic Mastermind)", context: "200K", desc: "Deep architecture and reasoning" },
+      { id: "codeva-kali-v1", name: "Kali (Destroyer of Bugs)", context: "200K", desc: "Relentless debugging and security" },
+      { id: "codeva-arjun-v1", name: "Arjun (Precision Archer)", context: "64K", desc: "Lightning fast UI and inline edits" },
+      { id: "codeva-abhimanyu-v1", name: "Abhimanyu (Fearless Breaker)", context: "128K", desc: "Deep-dive local reasoning traps" }
     ]
   }
 ];
@@ -6952,7 +6586,15 @@ function parseContent(content) {
         elements.push(
           /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginY: 1, borderStyle: "round", borderColor: "gray", children: [
             /* @__PURE__ */ jsx10(Box10, { paddingX: 1, backgroundColor: "gray", children: /* @__PURE__ */ jsx10(Text10, { color: "black", bold: true, children: langHeader }) }),
-            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, flexDirection: "column", children: codeBlockLines.map((l, idx) => /* @__PURE__ */ jsx10(Text10, { color: "white", children: l }, idx)) })
+            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, flexDirection: "column", children: codeBlockLines.map((l, idx) => {
+              let color = "white";
+              if (codeBlockLang.toLowerCase() === "diff") {
+                if (l.startsWith("+") && !l.startsWith("+++")) color = "green";
+                else if (l.startsWith("-") && !l.startsWith("---")) color = "red";
+                else if (l.startsWith("@@")) color = "cyan";
+              }
+              return /* @__PURE__ */ jsx10(Text10, { color, children: l }, idx);
+            }) })
           ] }, `code-${i}`)
         );
         codeBlockLines = [];
@@ -10364,6 +10006,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [status, setStatus] = useState9("idle");
   const [model, setModel] = useState9(initialModel ?? "auto");
   const [provider, setProvider] = useState9(initialProvider ?? "auto");
+  const [statusMessage, setStatusMessage] = useState9(void 0);
   const [, setPromptColor] = useState9("cyan");
   const [welcomeVisible, setWelcomeVisible] = useState9(showWelcome);
   const [exitConfirm, setExitConfirm] = useState9(false);
@@ -10471,8 +10114,12 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
           model,
           approvalUI,
           onEvent: (evt) => {
-            if (evt.type === "text") appendDelta(evt.text);
-            else if (evt.type === "tool_call") {
+            if (evt.type === "status") {
+              setStatusMessage(evt.text || evt.content || evt.message);
+            } else if (evt.type === "text") {
+              if (statusMessage) setStatusMessage(void 0);
+              appendDelta(evt.text);
+            } else if (evt.type === "tool_call") {
               setStatus("awaiting-approval");
               appendDelta(`
 [\u2192 ${evt.name}] ${stringifyArgs(evt.input)}
@@ -10622,7 +10269,7 @@ ${trimmed}
           welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
           /* @__PURE__ */ jsx16(MessageList, { messages }),
           pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
-          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens }),
+          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),
           /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
           /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
           /* @__PURE__ */ jsx16(HintBar, { status }),
@@ -10634,7 +10281,7 @@ ${trimmed}
           updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
           /* @__PURE__ */ jsx16(MessageList, { messages }),
           pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
-          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens }),
+          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),
           /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
           /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
           /* @__PURE__ */ jsx16(HintBar, { status }),
