@@ -5,7 +5,7 @@
  * Note: internal npm package scopes remain `@cybermind/*` to avoid churning
  * every import path; only the user-facing display name is "CyberCoder".
  */
-export const CYBERMIND_VERSION = '0.1.22';
+export const CYBERMIND_VERSION = '0.1.39';
 export const CYBERMIND_NAME = 'CyberCoder';
 export const CYBERMIND_TAGLINE = 'Fullstack agentic coding CLI';
 export const CYBERMIND_HOMEPAGE = 'https://cybermindcli.info';

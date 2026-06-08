@@ -166,7 +166,7 @@ var CYBERMIND_VERSION, CYBERMIND_NAME, CYBERCODER_VERSION, CYBERCODER_NAME;
 var init_version = __esm({
   "../shared/src/version.ts"() {
     "use strict";
-    CYBERMIND_VERSION = "0.1.22";
+    CYBERMIND_VERSION = "0.1.39";
     CYBERMIND_NAME = "CyberCoder";
     CYBERCODER_VERSION = CYBERMIND_VERSION;
     CYBERCODER_NAME = CYBERMIND_NAME;
@@ -2611,7 +2611,14 @@ var init_router = __esm({
         };
       }
       /** First preferred-and-ready provider, or the fallback. */
-      activeProvider() {
+      activeProvider(model) {
+        const isCloudModel = ["madhav", "kali", "abhimanyu", "trinity"].includes(model || "");
+        if (isCloudModel && this.providers.has("cybermind-cloud")) {
+          return this.providers.get("cybermind-cloud");
+        }
+        if (model === "auto" && this.preferred.includes("cybermind-cloud")) {
+          return this.providers.get("cybermind-cloud");
+        }
         for (const id of this.preferred) {
           const p2 = this.providers.get(id);
           if (p2?.info.ready) return p2;
@@ -2625,8 +2632,13 @@ var init_router = __esm({
         return this.activeProvider().listModels();
       }
       async *chat(req) {
-        const primary = this.activeProvider();
-        log13.debug("routing chat", { primary: primary.info.id });
+        const isCloudModel = ["madhav", "kali", "abhimanyu", "trinity"].includes(req.model || "");
+        if (isCloudModel && !this.preferred.includes("cybermind-cloud")) {
+          yield { type: "done", reason: "error", error: `Model '${req.model}' requires Codeva Cloud authentication. Please run /login` };
+          return;
+        }
+        const primary = this.activeProvider(req.model);
+        log13.debug("routing chat", { primary: primary.info.id, reqModel: req.model });
         let primaryYieldedSomething = false;
         let primaryError;
         for await (const chunk of primary.chat(req)) {
@@ -2651,6 +2663,11 @@ var init_router = __esm({
           };
           yield* this.fallback.chat(req);
         } else if (primaryError !== void 0) {
+          if (primary.info.id === "ollama" && primaryError.includes("not found")) {
+            primaryError = `${primaryError}
+
+\u{1F4A1} Hint: You are currently offline or not logged in. To use Codeva Cloud models, please run /login. To use local models, ensure Ollama is running and the model is pulled.`;
+          }
           yield { type: "done", reason: "error", error: primaryError };
         }
       }

@@ -48,7 +48,17 @@ export class ProviderRouter implements LLMProvider {
   }
 
   /** First preferred-and-ready provider, or the fallback. */
-  activeProvider(): LLMProvider {
+  activeProvider(model?: string): LLMProvider {
+    const isCloudModel = ['madhav', 'kali', 'abhimanyu', 'trinity'].includes(model || '');
+    
+    if (isCloudModel && this.providers.has('cybermind-cloud')) {
+      return this.providers.get('cybermind-cloud')!;
+    }
+
+    if (model === 'auto' && this.preferred.includes('cybermind-cloud')) {
+      return this.providers.get('cybermind-cloud')!;
+    }
+
     for (const id of this.preferred) {
       const p = this.providers.get(id);
       if (p?.info.ready) return p;
@@ -65,8 +75,15 @@ export class ProviderRouter implements LLMProvider {
   }
 
   async *chat(req: ChatRequest): AsyncIterable<ChatChunk> {
-    const primary = this.activeProvider();
-    log.debug('routing chat', { primary: primary.info.id });
+    const isCloudModel = ['madhav', 'kali', 'abhimanyu', 'trinity'].includes(req.model || '');
+    
+    if (isCloudModel && !this.preferred.includes('cybermind-cloud')) {
+      yield { type: 'done', reason: 'error', error: `Model '${req.model}' requires Codeva Cloud authentication. Please run /login` };
+      return;
+    }
+
+    const primary = this.activeProvider(req.model);
+    log.debug('routing chat', { primary: primary.info.id, reqModel: req.model });
 
     let primaryYieldedSomething = false;
     let primaryError: string | undefined;
@@ -92,6 +109,9 @@ export class ProviderRouter implements LLMProvider {
       };
       yield* this.fallback.chat(req);
     } else if (primaryError !== undefined) {
+      if (primary.info.id === 'ollama' && primaryError.includes('not found')) {
+        primaryError = `${primaryError}\n\n💡 Hint: You are currently offline or not logged in. To use Codeva Cloud models, please run /login. To use local models, ensure Ollama is running and the model is pulled.`;
+      }
       yield { type: 'done', reason: 'error', error: primaryError };
     }
   }
