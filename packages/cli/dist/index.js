@@ -5301,7 +5301,7 @@ import { useCallback, useEffect as useEffect5, useMemo, useRef as useRef2, useSt
 // src/components/Welcome.tsx
 init_src();
 import React from "react";
-import { Box as Box2, Text as Text2, useStdout } from "ink";
+import { Box as Box2, Text as Text2 } from "ink";
 
 // src/components/Mascot.tsx
 import { Box, Text } from "ink";
@@ -5557,8 +5557,7 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
   const t = useTheme();
   const cwd2 = process.cwd();
   const profile = getUserProfile();
-  const userName = profile.name || process.env.USER || process.env.USERNAME || "Coder";
-  const userPlan = profile.plan || "Free";
+  const userPlan = profile.plan || "Free Plan";
   const [updateInfo, setUpdateInfo] = React.useState(null);
   React.useEffect(() => {
     checkForUpdates().then((info) => {
@@ -5567,101 +5566,33 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
       }
     });
   }, []);
-  const { stdout } = useStdout();
-  const termWidth = stdout.columns ?? 80;
-  const contentWidth = termWidth - 4;
-  const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
-  const dashLength = Math.max(2, contentWidth - title.length);
-  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingX: 1, children: [
-    /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
-      "\u256D\u2500",
-      /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: title }),
-      "\u2500".repeat(dashLength),
-      "\u256E"
+  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingX: 1, marginBottom: 1, children: [
+    /* @__PURE__ */ jsxs2(Box2, { flexDirection: "row", children: [
+      /* @__PURE__ */ jsx2(Box2, { marginRight: 2, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
+      /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", children: [
+        /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.text, children: [
+          CYBERCODER_NAME,
+          " v",
+          CYBERCODER_VERSION
+        ] }),
+        /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+          model,
+          " \xB7 ",
+          userPlan
+        ] }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd2 })
+      ] })
     ] }),
-    /* @__PURE__ */ jsxs2(
-      Box2,
-      {
-        flexDirection: "row",
-        paddingX: 1,
-        width: contentWidth + 2,
-        borderLeftColor: t.accent,
-        borderRightColor: t.accent,
-        borderLeft: true,
-        borderRight: true,
-        children: [
-          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", width: "45%", paddingRight: 1, alignItems: "center", children: [
-            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsxs2(Text2, { bold: true, color: t.text, children: [
-              "Welcome back, ",
-              userName,
-              "!"
-            ] }) }),
-            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
-            /* @__PURE__ */ jsxs2(Box2, { marginTop: 1, flexDirection: "column", alignItems: "center", children: [
-              /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-                /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: model }),
-                " \xB7 ",
-                userPlan,
-                " Plan"
-              ] }),
-              /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd2 })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx2(Box2, { flexDirection: "column", paddingX: 2, children: /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502\n".repeat(8) }) }),
-          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", flexGrow: 1, children: [
-            /* @__PURE__ */ jsx2(Box2, { marginBottom: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "Tips for getting started" }) }),
-            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-              "Run ",
-              /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: "/init" }),
-              " to create a CYBER.md with project instructions"
-            ] }),
-            /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Note: You have launched the agent in your home directory. For the best experience, launch it in a project folder." }),
-            /* @__PURE__ */ jsx2(Box2, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accent, children: "What's new" }) }),
-            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-              "\u2022 Real ",
-              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/theme" }),
-              " switching repaints the whole UI"
-            ] }),
-            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-              "\u2022 Multi-model ",
-              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/consensus" }),
-              " mode for hard problems"
-            ] }),
-            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-              "\u2022 Working web OAuth sign-in \xB7 ",
-              /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/release-notes" }),
-              " for more"
-            ] })
-          ] })
-        ]
-      }
-    ),
-    /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
-      "\u2570",
-      "\u2500".repeat(contentWidth),
-      "\u256F"
-    ] }),
-    updateInfo && /* @__PURE__ */ jsx2(Box2, { marginTop: 1, flexDirection: "column", children: /* @__PURE__ */ jsxs2(Box2, { borderStyle: "round", borderColor: "yellow", paddingX: 1, flexDirection: "column", children: [
+    updateInfo && /* @__PURE__ */ jsxs2(Box2, { marginTop: 1, paddingLeft: 2, children: [
       /* @__PURE__ */ jsxs2(Text2, { bold: true, color: "yellow", children: [
         "\u{1F680} Update available: ",
         CYBERCODER_VERSION,
         " \u2192 ",
         updateInfo.latestVersion
       ] }),
-      /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
-        "Run ",
-        /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "npm install -g cybercoder-cli@latest" }),
-        " to update!"
-      ] })
-    ] }) }),
-    /* @__PURE__ */ jsxs2(Box2, { paddingX: 1, marginTop: 1, children: [
-      /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, bold: true, children: model }),
-      /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: " is ready \xB7 " }),
-      /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-        "type ",
-        /* @__PURE__ */ jsx2(Text2, { color: t.text, children: "/model" }),
-        " to switch"
-      ] })
+      /* @__PURE__ */ jsx2(Text2, { color: "gray", children: "  Run " }),
+      /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "npm install -g cybercoder-cli@latest" }),
+      /* @__PURE__ */ jsx2(Text2, { color: "gray", children: " to update!" })
     ] })
   ] });
 };
@@ -5669,7 +5600,7 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
 // src/components/Onboarding.tsx
 init_src();
 import { useState as useState2, useEffect as useEffect2, useRef } from "react";
-import { Box as Box4, Text as Text4, useInput, useApp, useStdout as useStdout2 } from "ink";
+import { Box as Box4, Text as Text4, useInput, useApp, useStdout } from "ink";
 import TextInput from "ink-text-input";
 import { exec } from "child_process";
 import http from "http";
@@ -5941,7 +5872,7 @@ function openBrowser(url) {
 }
 var Onboarding = ({ onComplete }) => {
   const { exit } = useApp();
-  const { stdout } = useStdout2();
+  const { stdout } = useStdout();
   const [screen, setScreen] = useState2("main");
   const [selected, setSelected] = useState2(0);
   const [port, setPort] = useState2(null);
@@ -7224,10 +7155,10 @@ var ApprovalDialog = ({ pending }) => {
 };
 
 // src/components/HintBar.tsx
-import { Box as Box15, Text as Text15, useStdout as useStdout3 } from "ink";
+import { Box as Box15, Text as Text15, useStdout as useStdout2 } from "ink";
 import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
-  const { stdout } = useStdout3();
+  const { stdout } = useStdout2();
   const t = useTheme();
   const termWidth = stdout.columns ?? 80;
   const contentWidth = Math.min(termWidth - 4, 76);
