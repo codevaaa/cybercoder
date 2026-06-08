@@ -94,6 +94,8 @@ function extractSymbols(file: string): string[] {
     return [];
   }
   const symbols = new Set<string>();
+  const imports = new Set<string>();
+  
   const patterns = [
     /export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g,
     /export\s+(?:abstract\s+)?class\s+([A-Za-z0-9_]+)/g,
@@ -104,11 +106,30 @@ function extractSymbols(file: string): string[] {
     /(?:^|\n)func\s+(?:\([^)]*\)\s+)?([A-Za-z0-9_]+)/g, // go
     /(?:^|\n)(?:pub\s+)?fn\s+([A-Za-z0-9_]+)/g, // rust
   ];
+  
+  const importPatterns = [
+    /import\s+.*?from\s+['"]([^'"]+)['"]/g,
+    /require\(['"]([^'"]+)['"]\)/g,
+    /from\s+([A-Za-z0-9_.]+)\s+import/g, // python
+  ];
+
   for (const re of patterns) {
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null && symbols.size < MAX_SYMBOLS_PER_FILE) {
       if (m[1] && m[1].length > 1) symbols.add(m[1]);
     }
   }
-  return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+  
+  for (const re of importPatterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null && imports.size < 5) { // max 5 imports per file for brevity
+      if (m[1] && m[1].length > 1) imports.add(m[1]);
+    }
+  }
+  
+  const result = [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+  if (imports.size > 0) {
+    result.push(`(imports: ${[...imports].join(', ')})`);
+  }
+  return result;
 }

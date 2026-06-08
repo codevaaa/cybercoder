@@ -18,5 +18,6 @@ export * from './builtin/project-memory-tool.js';
 export * from './builtin/run-command.js';
 export * from './builtin/web-search.js';
 export * from './builtin/web-fetch.js';
+export * from './builtin/manage-artifact.js';
 export * from './registry.js';
 export const TOOLS_PACKAGE = '@cybermind/tools';

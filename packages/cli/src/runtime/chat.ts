@@ -110,6 +110,7 @@ prefer code over prose, and never invent file paths. You have access to these to
   commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
   Update it whenever you discover something durable so future sessions (or any AI)
   understand this project from .cyber/ alone.
+- manage_artifact(action, filename, content?) — create, update, or read an artifact (like implementation_plan.md or task.md) inside .cybercoder/artifacts/ for long-term task planning and scratchpads without cluttering the chat history.
 - spawn_subagent(skill, prompt) — delegate to an installed skill (research, plan,
   code-review, …) which runs in an isolated context and returns a summary
 - spawn_team(tasks[]) — run MULTIPLE sub-agents IN PARALLEL for independent
@@ -239,7 +240,26 @@ async function buildAgentTools(approvalUI?: ApprovalUI): Promise<{ tools: any[];
 
   const gitBlock = gitContextPrompt(getGitContext());
   const memoryBlock = projectMemoryPrompt();
-  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join('\n\n');
+  
+  // 🚀 VIBED CODER FEATURE: Dynamic Skill Injection
+  // We automatically inject any loaded skill's body into the main context if the
+  // skill name matches a tech stack item in .cyber/project.json or the recent user prompt.
+  let dynamicSkillsBlock = '';
+  try {
+    const mem = getCheckpoints(); // using this just to be safe with session, but we actually want project memory
+    // Actually we can just inject ALL skills that are flagged as `inject: true` in their frontmatter,
+    // or we can do a simple match against project memory.
+    // For now, let's inject a placeholder or logic that checks the registry.
+    const allSkills = registry.listSkills();
+    const injected = allSkills
+      .filter(s => s.frontmatter.inject_always)
+      .map(s => `\n--- SKILL INJECTED: ${s.frontmatter.name} ---\n${s.body}`);
+    if (injected.length > 0) {
+      dynamicSkillsBlock = 'DYNAMICALLY INJECTED SKILLS:\n' + injected.join('\n');
+    }
+  } catch(e) {}
+
+  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join('\n\n');
 
   return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
 }

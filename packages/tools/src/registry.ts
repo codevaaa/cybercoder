@@ -18,6 +18,7 @@ import type { AgentTool } from './core-types.js';
  * lacks natively in the CLI — and project_memory (self-learning .cyber/ store).
  */
 import { semanticSearchTool } from './builtin/semantic-search.js';
+import { manageArtifactTool } from './builtin/manage-artifact.js';
 
 export function builtinTools(): AgentTool[] {
   return [
@@ -33,6 +34,7 @@ export function builtinTools(): AgentTool[] {
     webFetchTool,
     projectMemoryTool,
     semanticSearchTool,
+    manageArtifactTool,
   ];
 }
 

@@ -3579,6 +3579,7 @@ function extractSymbols(file) {
     return [];
   }
   const symbols = /* @__PURE__ */ new Set();
+  const imports = /* @__PURE__ */ new Set();
   const patterns = [
     /export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g,
     /export\s+(?:abstract\s+)?class\s+([A-Za-z0-9_]+)/g,
@@ -3592,13 +3593,29 @@ function extractSymbols(file) {
     /(?:^|\n)(?:pub\s+)?fn\s+([A-Za-z0-9_]+)/g
     // rust
   ];
+  const importPatterns = [
+    /import\s+.*?from\s+['"]([^'"]+)['"]/g,
+    /require\(['"]([^'"]+)['"]\)/g,
+    /from\s+([A-Za-z0-9_.]+)\s+import/g
+    // python
+  ];
   for (const re of patterns) {
     let m;
     while ((m = re.exec(text)) !== null && symbols.size < MAX_SYMBOLS_PER_FILE) {
       if (m[1] && m[1].length > 1) symbols.add(m[1]);
     }
   }
-  return [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+  for (const re of importPatterns) {
+    let m;
+    while ((m = re.exec(text)) !== null && imports.size < 5) {
+      if (m[1] && m[1].length > 1) imports.add(m[1]);
+    }
+  }
+  const result = [...symbols].slice(0, MAX_SYMBOLS_PER_FILE);
+  if (imports.size > 0) {
+    result.push(`(imports: ${[...imports].join(", ")})`);
+  }
+  return result;
 }
 var IGNORE_DIRS, CODE_EXT, MAX_FILES2, MAX_SYMBOLS_PER_FILE, repoMapTool;
 var init_repo_map = __esm({
@@ -4070,6 +4087,64 @@ var init_web_fetch = __esm({
   }
 });
 
+// ../tools/src/builtin/manage-artifact.ts
+import { existsSync as existsSync15, mkdirSync as mkdirSync13, readFileSync as readFileSync19, writeFileSync as writeFileSync14 } from "fs";
+import { join as join15 } from "path";
+function ensureDir2(cwd2) {
+  const d = join15(cwd2, ARTIFACT_DIR);
+  if (!existsSync15(d)) mkdirSync13(d, { recursive: true });
+}
+var ARTIFACT_DIR, manageArtifactTool;
+var init_manage_artifact = __esm({
+  "../tools/src/builtin/manage-artifact.ts"() {
+    "use strict";
+    ARTIFACT_DIR = join15(".cybercoder", "artifacts");
+    manageArtifactTool = {
+      schema: {
+        name: "manage_artifact",
+        description: "Create, update, or read an artifact (like an implementation_plan.md or task.md) for long-term memory in the current session. Artifacts are saved to .cybercoder/artifacts/. Use this to maintain scratchpads and checklists without polluting context.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["read", "write"], description: "read or write" },
+            filename: { type: "string", description: 'Name of the artifact, e.g. "task.md" or "implementation_plan.md"' },
+            content: { type: "string", description: "Markdown content to write. Required for write action." }
+          },
+          required: ["action", "filename"]
+        }
+      },
+      destructive: false,
+      // Writing to .cybercoder is safe
+      async execute(input, ctx) {
+        const cwd2 = ctx.cwd;
+        const action = String(input.action);
+        const filename = String(input.filename).replace(/[^a-zA-Z0-9_.-]/g, "");
+        if (!filename) return "Invalid filename";
+        ensureDir2(cwd2);
+        const filePath = join15(cwd2, ARTIFACT_DIR, filename);
+        if (action === "read") {
+          if (!existsSync15(filePath)) return `Artifact ${filename} does not exist.`;
+          try {
+            return readFileSync19(filePath, "utf8");
+          } catch (e) {
+            return `Failed to read artifact: ${e.message}`;
+          }
+        }
+        if (action === "write") {
+          const content = String(input.content ?? "");
+          try {
+            writeFileSync14(filePath, content, "utf8");
+            return `Artifact ${filename} saved successfully to ${ARTIFACT_DIR}/${filename}`;
+          } catch (e) {
+            return `Failed to write artifact: ${e.message}`;
+          }
+        }
+        return "Invalid action";
+      }
+    };
+  }
+});
+
 // ../tools/src/builtin/semantic-search.ts
 var semanticSearchTool;
 var init_semantic_search = __esm({
@@ -4113,7 +4188,8 @@ function builtinTools() {
     webSearchTool,
     webFetchTool,
     projectMemoryTool,
-    semanticSearchTool
+    semanticSearchTool,
+    manageArtifactTool
   ];
 }
 var init_registry = __esm({
@@ -4131,6 +4207,7 @@ var init_registry = __esm({
     init_web_fetch();
     init_project_memory_tool();
     init_semantic_search();
+    init_manage_artifact();
   }
 });
 
@@ -4153,6 +4230,7 @@ var init_src4 = __esm({
     init_run_command();
     init_web_search();
     init_web_fetch();
+    init_manage_artifact();
     init_registry();
   }
 });
@@ -4224,15 +4302,15 @@ var init_parser = __esm({
 });
 
 // ../skills/src/loader.ts
-import { existsSync as existsSync15, readFileSync as readFileSync19, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
-import { dirname as dirname4, join as join15, resolve as resolve10 } from "path";
+import { existsSync as existsSync16, readFileSync as readFileSync20, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
+import { dirname as dirname4, join as join16, resolve as resolve10 } from "path";
 import { fileURLToPath } from "url";
 function getBundledDir() {
   const here = dirname4(fileURLToPath(import.meta.url));
   let dir = here;
   for (let i = 0; i < 8; i++) {
     const candidate = resolve10(dir, "skills-bundled");
-    if (existsSync15(candidate)) return candidate;
+    if (existsSync16(candidate)) return candidate;
     const parent = resolve10(dir, "..");
     if (parent === dir) break;
     dir = parent;
@@ -4240,7 +4318,7 @@ function getBundledDir() {
   return resolve10(here, "..", "..", "..", "skills-bundled");
 }
 function scanDir(root, source) {
-  if (!existsSync15(root)) return [];
+  if (!existsSync16(root)) return [];
   const out = [];
   let entries;
   try {
@@ -4250,7 +4328,7 @@ function scanDir(root, source) {
     return [];
   }
   for (const name of entries) {
-    const folder = join15(root, name);
+    const folder = join16(root, name);
     let stat;
     try {
       stat = statSync6(folder);
@@ -4258,10 +4336,10 @@ function scanDir(root, source) {
       continue;
     }
     if (!stat.isDirectory()) continue;
-    const skillFile = join15(folder, "SKILL.md");
-    if (!existsSync15(skillFile)) continue;
+    const skillFile = join16(folder, "SKILL.md");
+    if (!existsSync16(skillFile)) continue;
     try {
-      const raw = readFileSync19(skillFile, "utf8");
+      const raw = readFileSync20(skillFile, "utf8");
       const { frontmatter, body } = parseSkillSource(raw);
       const id = `${source}/${frontmatter.name}`;
       out.push({ id, source, path: skillFile, frontmatter, body });
@@ -4729,23 +4807,23 @@ var init_git_context = __esm({
 });
 
 // src/utils/project-memory.ts
-import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync7 } from "fs";
-import { join as join16 } from "path";
+import { existsSync as existsSync17, mkdirSync as mkdirSync14, readFileSync as readFileSync21, writeFileSync as writeFileSync15, statSync as statSync7 } from "fs";
+import { join as join17 } from "path";
 function cyberPath(cwd2, ...parts) {
-  return join16(cwd2, CYBER_DIR2, ...parts);
+  return join17(cwd2, CYBER_DIR2, ...parts);
 }
 function cyberDirExists(cwd2 = process.cwd()) {
   try {
-    return statSync7(join16(cwd2, CYBER_DIR2)).isDirectory();
+    return statSync7(join17(cwd2, CYBER_DIR2)).isDirectory();
   } catch {
     return false;
   }
 }
 function readProjectMemory(cwd2 = process.cwd()) {
   const file = cyberPath(cwd2, "project.json");
-  if (!existsSync16(file)) return null;
+  if (!existsSync17(file)) return null;
   try {
-    const raw = readFileSync20(file, "utf8");
+    const raw = readFileSync21(file, "utf8");
     const parsed = JSON.parse(raw);
     return { ...DEFAULT_MEMORY, ...parsed };
   } catch {
@@ -4754,16 +4832,16 @@ function readProjectMemory(cwd2 = process.cwd()) {
 }
 function readProjectMemoryNotes(cwd2 = process.cwd()) {
   const file = cyberPath(cwd2, "memory.md");
-  if (!existsSync16(file)) return "";
+  if (!existsSync17(file)) return "";
   try {
-    return readFileSync20(file, "utf8");
+    return readFileSync21(file, "utf8");
   } catch {
     return "";
   }
 }
 function ensureCyberDir(cwd2) {
-  const dir = join16(cwd2, CYBER_DIR2);
-  if (!existsSync16(dir)) mkdirSync13(dir, { recursive: true });
+  const dir = join17(cwd2, CYBER_DIR2);
+  if (!existsSync17(dir)) mkdirSync14(dir, { recursive: true });
 }
 function initProjectMemory(cwd2 = process.cwd(), seed) {
   ensureCyberDir(cwd2);
@@ -4777,12 +4855,12 @@ function initProjectMemory(cwd2 = process.cwd(), seed) {
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
   };
-  writeFileSync14(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
-  if (!existsSync16(cyberPath(cwd2, "README.md"))) {
-    writeFileSync14(cyberPath(cwd2, "README.md"), README, "utf8");
+  writeFileSync15(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
+  if (!existsSync17(cyberPath(cwd2, "README.md"))) {
+    writeFileSync15(cyberPath(cwd2, "README.md"), README, "utf8");
   }
-  if (!existsSync16(cyberPath(cwd2, "memory.md"))) {
-    writeFileSync14(cyberPath(cwd2, "memory.md"), `# Project Memory Log
+  if (!existsSync17(cyberPath(cwd2, "memory.md"))) {
+    writeFileSync15(cyberPath(cwd2, "memory.md"), `# Project Memory Log
 
 _CyberCoder records learnings and decisions here as it works._
 `, "utf8");
@@ -4851,20 +4929,20 @@ the whole team (and future sessions) share the same understanding.
 
 // src/runtime/hooks.ts
 import { execSync as execSync3 } from "child_process";
-import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
-import { join as join17 } from "path";
+import { existsSync as existsSync18, readFileSync as readFileSync22 } from "fs";
+import { join as join18 } from "path";
 import { homedir as homedir5 } from "os";
 function readHooksFile(path3) {
   try {
-    if (existsSync17(path3)) return JSON.parse(readFileSync21(path3, "utf8"));
+    if (existsSync18(path3)) return JSON.parse(readFileSync22(path3, "utf8"));
   } catch {
   }
   return {};
 }
 function loadHooks(cwd2 = process.cwd()) {
   if (cached) return cached;
-  const global = readHooksFile(join17(homedir5(), ".codeva", "hooks.json"));
-  const project = readHooksFile(join17(cwd2, ".codeva", "hooks.json"));
+  const global = readHooksFile(join18(homedir5(), ".codeva", "hooks.json"));
+  const project = readHooksFile(join18(cwd2, ".codeva", "hooks.json"));
   const merged = { ...global };
   for (const key of Object.keys(project)) {
     merged[key] = project[key];
@@ -5077,7 +5155,19 @@ ${h.output}`;
   }));
   const gitBlock = gitContextPrompt(getGitContext());
   const memoryBlock = projectMemoryPrompt();
-  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
+  let dynamicSkillsBlock = "";
+  try {
+    const mem = getCheckpoints();
+    const allSkills = registry.listSkills();
+    const injected = allSkills.filter((s) => s.frontmatter.inject_always).map((s) => `
+--- SKILL INJECTED: ${s.frontmatter.name} ---
+${s.body}`);
+    if (injected.length > 0) {
+      dynamicSkillsBlock = "DYNAMICALLY INJECTED SKILLS:\n" + injected.join("\n");
+    }
+  } catch (e) {
+  }
+  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join("\n\n");
   return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
 }
 async function runChat(history, opts) {
@@ -5168,6 +5258,7 @@ prefer code over prose, and never invent file paths. You have access to these to
   commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
   Update it whenever you discover something durable so future sessions (or any AI)
   understand this project from .cyber/ alone.
+- manage_artifact(action, filename, content?) \u2014 create, update, or read an artifact (like implementation_plan.md or task.md) inside .cybercoder/artifacts/ for long-term task planning and scratchpads without cluttering the chat history.
 - spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
   code-review, \u2026) which runs in an isolated context and returns a summary
 - spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
@@ -5187,8 +5278,8 @@ __export(rpc_server_exports, {
   startRpcServer: () => startRpcServer
 });
 import { createInterface } from "readline";
-import { readFileSync as readFileSync24, writeFileSync as writeFileSync17, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync15 } from "fs";
-import { join as join22, resolve as resolve12 } from "path";
+import { readFileSync as readFileSync25, writeFileSync as writeFileSync18, readdirSync as readdirSync10, existsSync as existsSync22, mkdirSync as mkdirSync16 } from "fs";
+import { join as join23, resolve as resolve12 } from "path";
 import { execSync as execSync4 } from "child_process";
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
@@ -5210,16 +5301,16 @@ async function handleMethod(id, method, params = {}) {
         break;
       case "read_file": {
         const path3 = resolve12(cwd, String(params.path || ""));
-        const text = readFileSync24(path3, "utf8");
+        const text = readFileSync25(path3, "utf8");
         const lines = text.split("\n").slice(0, Number(params.limit || 2e3));
         respond(id, { content: lines.map((l, i) => `${i + 1}	${l}`).join("\n") });
         break;
       }
       case "write_file": {
         const path3 = resolve12(cwd, String(params.path || ""));
-        const dir = join22(path3, "..");
-        if (!existsSync21(dir)) mkdirSync15(dir, { recursive: true });
-        writeFileSync17(path3, String(params.content || ""), "utf8");
+        const dir = join23(path3, "..");
+        if (!existsSync22(dir)) mkdirSync16(dir, { recursive: true });
+        writeFileSync18(path3, String(params.content || ""), "utf8");
         respond(id, { written: path3 });
         break;
       }
@@ -7876,7 +7967,7 @@ function buildReleaseNotesCommand(ctx) {
 // src/commands/hooks.ts
 init_hooks();
 import { homedir as homedir6 } from "os";
-import { join as join18 } from "path";
+import { join as join19 } from "path";
 function buildHooksCommand(ctx) {
   return {
     name: "hooks",
@@ -7896,7 +7987,7 @@ function buildHooksCommand(ctx) {
         reply(
           `No hooks configured.
 
-Create ${join18(process.cwd(), ".codeva", "hooks.json")} (project) or ${join18(homedir6(), ".codeva", "hooks.json")} (global). Example:
+Create ${join19(process.cwd(), ".codeva", "hooks.json")} (project) or ${join19(homedir6(), ".codeva", "hooks.json")} (global). Example:
 
 {
   "postEdit":  [{ "match": "\\\\.ts$", "command": "npx prettier --write {file}" }],
@@ -7922,8 +8013,8 @@ Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, session
 }
 
 // src/commands/workflow.ts
-import { existsSync as existsSync18, readFileSync as readFileSync22, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
-import { join as join19, resolve as resolve11 } from "path";
+import { existsSync as existsSync19, readFileSync as readFileSync23, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
+import { join as join20, resolve as resolve11 } from "path";
 import { parse as parseYaml2 } from "yaml";
 import { z as z10 } from "zod";
 var WORKFLOW_DIR = ".cybercoder/workflows";
@@ -7948,7 +8039,7 @@ function buildWorkflowCommand(ctx) {
       const reply = (content) => ctx.appendMessage({ id: `wf-${Date.now()}`, role: "system", content, createdAt: Date.now() });
       const workflowsDir = resolve11(process.cwd(), WORKFLOW_DIR);
       if (!trimmed || trimmed === "list") {
-        if (!existsSync18(workflowsDir)) {
+        if (!existsSync19(workflowsDir)) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
           return;
         }
@@ -7970,8 +8061,8 @@ function buildWorkflowCommand(ctx) {
       }
       let path3 = "";
       for (const ext of [".yml", ".yaml"]) {
-        const candidate = join19(workflowsDir, name + ext);
-        if (existsSync18(candidate) && statSync8(candidate).isFile()) {
+        const candidate = join20(workflowsDir, name + ext);
+        if (existsSync19(candidate) && statSync8(candidate).isFile()) {
           path3 = candidate;
           break;
         }
@@ -7982,7 +8073,7 @@ function buildWorkflowCommand(ctx) {
       }
       let parsed;
       try {
-        const raw = readFileSync22(path3, "utf8");
+        const raw = readFileSync23(path3, "utf8");
         const doc = parseYaml2(raw);
         parsed = WorkflowSchema.parse(doc);
       } catch (err) {
@@ -8839,16 +8930,16 @@ File size: ${html.length} characters`);
 
 // src/commands/ecosystem.ts
 init_src();
-import { existsSync as existsSync19, readFileSync as readFileSync23, writeFileSync as writeFileSync15, mkdirSync as mkdirSync14 } from "fs";
+import { existsSync as existsSync20, readFileSync as readFileSync24, writeFileSync as writeFileSync16, mkdirSync as mkdirSync15 } from "fs";
 import { homedir as homedir7 } from "os";
-import { join as join20, dirname as dirname5 } from "path";
+import { join as join21, dirname as dirname5 } from "path";
 function mcpConfigPath() {
-  return join20(process.cwd(), ".codeva", "mcp.json");
+  return join21(process.cwd(), ".codeva", "mcp.json");
 }
 function readMcp() {
-  for (const p2 of [mcpConfigPath(), join20(homedir7(), ".codeva", "mcp.json")]) {
+  for (const p2 of [mcpConfigPath(), join21(homedir7(), ".codeva", "mcp.json")]) {
     try {
-      if (existsSync19(p2)) return JSON.parse(readFileSync23(p2, "utf8"));
+      if (existsSync20(p2)) return JSON.parse(readFileSync24(p2, "utf8"));
     } catch {
     }
   }
@@ -8856,8 +8947,8 @@ function readMcp() {
 }
 function writeMcp(cfg) {
   const p2 = mcpConfigPath();
-  mkdirSync14(dirname5(p2), { recursive: true });
-  writeFileSync15(p2, JSON.stringify(cfg, null, 2), "utf8");
+  mkdirSync15(dirname5(p2), { recursive: true });
+  writeFileSync16(p2, JSON.stringify(cfg, null, 2), "utf8");
 }
 function buildMCPCommand(ctx) {
   return {
