@@ -2431,7 +2431,11 @@ var init_cybermind_cloud = __esm({
               }
               try {
                 const parsed = JSON.parse(dataStr);
-                if (parsed.content) {
+                if (parsed.type === "status") {
+                  yield { type: "status", text: parsed.content };
+                } else if (parsed.type === "usage") {
+                  yield { type: "usage", inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0 };
+                } else if (parsed.content !== void 0) {
                   yield { type: "text", text: parsed.content };
                 }
               } catch {
@@ -10357,7 +10361,7 @@ async function getUpdateMessage() {
 }
 
 // src/app.tsx
-import { Fragment as Fragment3, jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
+import { jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
@@ -10643,17 +10647,6 @@ ${trimmed}
       case "release-notes":
         return /* @__PURE__ */ jsx16(ReleaseNotes, { onClose: handleReleaseNotesClose });
       case "welcome":
-        return /* @__PURE__ */ jsxs15(Fragment3, { children: [
-          updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
-          welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
-          /* @__PURE__ */ jsx16(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
-          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),
-          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
-          /* @__PURE__ */ jsx16(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
-        ] });
       case "chat":
       default:
         return /* @__PURE__ */ jsxs15(Box16, { flexDirection: "column", flexGrow: 1, children: [
@@ -10670,7 +10663,7 @@ ${trimmed}
         ] });
     }
   };
-  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", height: terminalHeight, children: renderScreen() });
+  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", minHeight: terminalHeight, children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;

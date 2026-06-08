@@ -103,7 +103,11 @@ export class CybermindCloudProvider implements LLMProvider {
           }
           try {
             const parsed = JSON.parse(dataStr);
-            if (parsed.content) {
+            if (parsed.type === 'status') {
+              yield { type: 'status', text: parsed.content };
+            } else if (parsed.type === 'usage') {
+              yield { type: 'usage', inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0 };
+            } else if (parsed.content !== undefined) {
               yield { type: 'text', text: parsed.content };
             }
           } catch {

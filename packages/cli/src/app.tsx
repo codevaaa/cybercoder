@@ -361,23 +361,6 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       case 'release-notes':
         return <ReleaseNotes onClose={handleReleaseNotesClose} />;
       case 'welcome':
-        return (
-          <>
-            {updateNotice && (
-              <Box marginBottom={1}>
-                <Text color="yellow">{updateNotice}</Text>
-              </Box>
-            )}
-            {welcomeVisible && <Welcome provider={provider} model={model} />}
-            <MessageList messages={messages} />
-            {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
-            {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} label={statusMessage} />}
-            <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
-            <StatusBar status={status} model={model} provider={provider} tokens={totalTokens} cost={totalCost} />
-            <HintBar status={status} />
-            {exitConfirm && <ExitConfirm />}
-          </>
-        );
       case 'chat':
       default:
         return (
@@ -404,7 +387,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   };
 
   return (
-    <Box flexDirection="column" height={terminalHeight}>
+    <Box flexDirection="column" minHeight={terminalHeight}>
       {renderScreen()}
     </Box>
   );
