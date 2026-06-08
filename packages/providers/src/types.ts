@@ -40,10 +40,17 @@ export interface ChatRequest {
   signal?: AbortSignal;
 }
 
+export interface UsageChunk {
+  type: 'usage';
+  inputTokens: number;
+  outputTokens: number;
+  cost?: number;
+}
+
 export type ChatChunk =
   | { type: 'text'; text: string }
   | { type: 'tool_call'; toolCall: ProviderToolCall }
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
+  | UsageChunk
   | { type: 'done'; reason: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop' | 'error'; error?: string };
 
 export interface ProviderInfo {
