@@ -1,7 +1,7 @@
-import { runAgentLoop, type AgentEvent } from '@cybercoder/core';
-import { runGoal, runPlan } from '@cybercoder/core';
-import { ProviderRouter, type ProviderId } from '@cybercoder/providers';
-import type { ProviderMessage } from '@cybercoder/providers';
+import { runAgentLoop, type AgentEvent } from '@cybermind/core';
+import { runGoal, runPlan } from '@cybermind/core';
+import { ProviderRouter, type ProviderId } from '@cybermind/providers';
+import type { ProviderMessage } from '@cybermind/providers';
 import {
   ApprovalGate,
   HeadlessApprovalUI,
@@ -9,8 +9,8 @@ import {
   WorkspaceCheckpoints,
   loadMcpTools,
   type ApprovalUI,
-} from '@cybercoder/tools';
-import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from '@cybercoder/skills';
+} from '@cybermind/tools';
+import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from '@cybermind/skills';
 import type { SessionMessage } from '../state/session.js';
 import { loadConfig } from '../utils/config.js';
 import { getGitContext, gitContextPrompt } from '../utils/git-context.js';

@@ -1,4 +1,4 @@
-import { ProfileManager } from '@cybercoder/shared';
+import { ProfileManager } from '@cybermind/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**

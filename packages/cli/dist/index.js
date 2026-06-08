@@ -58,8 +58,14 @@ import { join, resolve } from "path";
 function getHomeDir() {
   return process.env.CYBERMIND_HOME ? resolve(process.env.CYBERMIND_HOME) : join(homedir(), ".cybermind");
 }
+function getSettingsPath() {
+  return join(getHomeDir(), "settings.json");
+}
 function getTrustPath() {
   return join(getHomeDir(), "trust.json");
+}
+function getSkillsDir() {
+  return join(getHomeDir(), "skills");
 }
 function getLogsDir() {
   return join(getHomeDir(), "logs");
@@ -69,6 +75,12 @@ function getDataDir() {
 }
 function getSecretsPath() {
   return join(getHomeDir(), "secrets.enc");
+}
+function getProjectDir(cwd2 = process.cwd()) {
+  return join(cwd2, ".cybermind");
+}
+function getProjectSkillsDir(cwd2 = process.cwd()) {
+  return join(getProjectDir(cwd2), "skills");
 }
 var init_paths = __esm({
   "../shared/src/paths.ts"() {
@@ -333,7 +345,7 @@ var init_checkpoint = __esm({
 // ../shared/src/profiles.ts
 import { existsSync as existsSync3, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "fs";
 import { z as z3 } from "zod";
-var log2, ProfileSchema, SettingsSchema;
+var log2, ProfileSchema, DEFAULT_PROFILES, SettingsSchema, ProfileManager;
 var init_profiles = __esm({
   "../shared/src/profiles.ts"() {
     "use strict";
@@ -354,10 +366,140 @@ var init_profiles = __esm({
       /** Custom accent color */
       accentColor: z3.string().optional()
     });
+    DEFAULT_PROFILES = {
+      default: {
+        name: "default",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: false,
+        autoCheckpoint: true,
+        accentColor: "blue"
+      },
+      "strict-ts": {
+        name: "strict-ts",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: true,
+        autoCheckpoint: true,
+        accentColor: "red"
+      },
+      hobby: {
+        name: "hobby",
+        model: "claude-3-haiku-20241022",
+        provider: "anthropic",
+        approvalMode: "session-bypass",
+        telemetryEnabled: false,
+        autoCheckpoint: false,
+        accentColor: "green"
+      },
+      paranoid: {
+        name: "paranoid",
+        model: "claude-3-5-sonnet-20241022",
+        provider: "anthropic",
+        approvalMode: "always-ask",
+        telemetryEnabled: false,
+        autoCheckpoint: true,
+        accentColor: "orange"
+      }
+    };
     SettingsSchema = z3.object({
       activeProfile: z3.string(),
       profiles: z3.record(z3.string(), ProfileSchema)
     });
+    ProfileManager = class {
+      settingsPath;
+      constructor() {
+        this.settingsPath = getSettingsPath();
+      }
+      /** Get the current active profile */
+      getActiveProfile() {
+        const settings = this.loadSettings();
+        const active = settings.profiles[settings.activeProfile];
+        if (!active) {
+          log2.warn("Active profile not found, falling back to default");
+          return DEFAULT_PROFILES.default;
+        }
+        return active;
+      }
+      /** Set the active profile by name */
+      setActiveProfile(name) {
+        const settings = this.loadSettings();
+        if (!settings.profiles[name]) {
+          log2.warn("Profile not found", { name });
+          return false;
+        }
+        settings.activeProfile = name;
+        this.saveSettings(settings);
+        log2.info("Switched profile", { name });
+        return true;
+      }
+      /** Get all available profiles */
+      listProfiles() {
+        const settings = this.loadSettings();
+        return settings.profiles;
+      }
+      /** Update a profile's settings */
+      updateProfile(name, updates) {
+        const settings = this.loadSettings();
+        if (!settings.profiles[name]) {
+          log2.warn("Profile not found for update", { name });
+          return false;
+        }
+        settings.profiles[name] = { ...settings.profiles[name], ...updates };
+        this.saveSettings(settings);
+        log2.info("Updated profile", { name, updates: Object.keys(updates) });
+        return true;
+      }
+      /** Reset a profile to its default configuration */
+      resetProfile(name) {
+        const defaultConfig = DEFAULT_PROFILES[name];
+        if (!defaultConfig) {
+          log2.warn("Cannot reset unknown profile", { name });
+          return false;
+        }
+        const { name: _, ...configWithoutName } = defaultConfig;
+        return this.updateProfile(name, configWithoutName);
+      }
+      loadSettings() {
+        if (!existsSync3(this.settingsPath)) {
+          const profiles = {};
+          for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
+            profiles[name] = { ...profile };
+          }
+          const settings = {
+            activeProfile: "default",
+            profiles
+          };
+          this.saveSettings(settings);
+          return settings;
+        }
+        try {
+          const raw = readFileSync2(this.settingsPath, "utf8");
+          const parsed = JSON.parse(raw);
+          const settings = SettingsSchema.parse(parsed);
+          return settings;
+        } catch (err) {
+          log2.error("Failed to load settings, using defaults", { error: String(err) });
+          const profiles = {};
+          for (const [name, profile] of Object.entries(DEFAULT_PROFILES)) {
+            profiles[name] = { ...profile };
+          }
+          return {
+            activeProfile: "default",
+            profiles
+          };
+        }
+      }
+      saveSettings(settings) {
+        try {
+          writeFileSync2(this.settingsPath, JSON.stringify(settings, null, 2), "utf8");
+        } catch (err) {
+          log2.error("Failed to save settings", { error: String(err) });
+        }
+      }
+    };
   }
 });
 
@@ -788,7 +930,7 @@ var init_web_mirror = __esm({
 import { existsSync as existsSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync5, writeFileSync as writeFileSync5 } from "fs";
 import { join as join6 } from "path";
 import { z as z6 } from "zod";
-var log5, CostMetricsSchema;
+var log5, CostMetricsSchema, RichIOManager;
 var init_rich_io = __esm({
   "../shared/src/rich-io.ts"() {
     "use strict";
@@ -804,6 +946,287 @@ var init_rich_io = __esm({
       sessionStart: z6.number(),
       lastUpdate: z6.number()
     });
+    RichIOManager = class {
+      dataDir;
+      imagesDir;
+      screenshotsDir;
+      costMetrics;
+      constructor() {
+        this.dataDir = getDataDir();
+        this.imagesDir = join6(this.dataDir, "images");
+        this.screenshotsDir = join6(this.dataDir, "screenshots");
+        if (!existsSync6(this.imagesDir)) mkdirSync5(this.imagesDir, { recursive: true });
+        if (!existsSync6(this.screenshotsDir)) mkdirSync5(this.screenshotsDir, { recursive: true });
+        this.costMetrics = this.loadCostMetrics();
+      }
+      /** Process and store an image from various sources */
+      async processImage(input, alt, caption) {
+        let src;
+        if (typeof input === "string") {
+          if (input.startsWith("data:")) {
+            src = input;
+          } else if (input.startsWith("http")) {
+            src = input;
+            log5.info("Image URL provided", { url: input });
+          } else {
+            if (!existsSync6(input)) {
+              throw new Error(`Image file not found: ${input}`);
+            }
+            const buffer = readFileSync5(input);
+            const base64 = buffer.toString("base64");
+            const mimeType = this.getMimeType(input);
+            src = `data:${mimeType};base64,${base64}`;
+          }
+        } else {
+          const base64 = input.toString("base64");
+          src = "data:image/png;base64," + base64;
+        }
+        const image = {
+          type: "image",
+          src,
+          alt,
+          caption
+        };
+        log5.info("Processed image", { alt, hasCaption: !!caption });
+        return image;
+      }
+      /** Create a mermaid diagram */
+      createMermaidDiagram(code, title, theme = "default") {
+        const diagram = {
+          type: "mermaid",
+          code,
+          title,
+          theme
+        };
+        log5.info("Created mermaid diagram", { title, theme, codeLength: code.length });
+        return diagram;
+      }
+      /** Update cost metrics */
+      updateCostMetrics(model, tokens, cost) {
+        this.costMetrics.totalTokens += tokens;
+        this.costMetrics.totalCost += cost;
+        if (!this.costMetrics.modelBreakdown[model]) {
+          this.costMetrics.modelBreakdown[model] = { tokens: 0, cost: 0 };
+        }
+        this.costMetrics.modelBreakdown[model].tokens += tokens;
+        this.costMetrics.modelBreakdown[model].cost += cost;
+        this.costMetrics.lastUpdate = Date.now();
+        this.saveCostMetrics();
+        log5.debug("Updated cost metrics", { model, tokens, cost, totalCost: this.costMetrics.totalCost });
+      }
+      /** Get current cost metrics */
+      getCostMetrics() {
+        return { ...this.costMetrics };
+      }
+      /** Get cost formatted as string */
+      getCostString() {
+        const { totalCost, totalTokens } = this.costMetrics;
+        const duration = Date.now() - this.costMetrics.sessionStart;
+        const minutes = Math.floor(duration / 6e4);
+        return `$${totalCost.toFixed(4)} \u2022 ${totalTokens.toLocaleString()} tokens \u2022 ${minutes}m`;
+      }
+      /** Get default hotkey bindings */
+      getDefaultHotkeys() {
+        return [
+          // Navigation
+          { key: "k", modifiers: ["ctrl"], action: "clear", description: "Clear screen", category: "navigation" },
+          { key: "c", modifiers: ["ctrl"], action: "exit", description: "Exit CyberMind", category: "navigation" },
+          { key: "/", modifiers: [], action: "focus-input", description: "Focus input", category: "navigation" },
+          { key: "ArrowUp", modifiers: ["ctrl"], action: "history-prev", description: "Previous command", category: "navigation" },
+          { key: "ArrowDown", modifiers: ["ctrl"], action: "history-next", description: "Next command", category: "navigation" },
+          // Editing
+          { key: "l", modifiers: ["ctrl"], action: "clear-input", description: "Clear input", category: "editing" },
+          { key: "a", modifiers: ["ctrl"], action: "select-all", description: "Select all", category: "editing" },
+          { key: "z", modifiers: ["ctrl"], action: "undo", description: "Undo", category: "editing" },
+          { key: "y", modifiers: ["ctrl"], action: "redo", description: "Redo", category: "editing" },
+          // Session
+          { key: "s", modifiers: ["ctrl"], action: "save-session", description: "Save session", category: "session" },
+          { key: "r", modifiers: ["ctrl"], action: "rewind", description: "Open rewind menu", category: "session" },
+          { key: "p", modifiers: ["ctrl"], action: "profile", description: "Switch profile", category: "session" },
+          // Tools
+          { key: "t", modifiers: ["ctrl"], action: "trust", description: "Trust settings", category: "tools" },
+          { key: "m", modifiers: ["ctrl"], action: "model", description: "Model settings", category: "tools" },
+          { key: "h", modifiers: ["ctrl"], action: "help", description: "Show help", category: "tools" }
+        ];
+      }
+      /** Show hotkey palette */
+      getHotkeyPalette() {
+        const hotkeys = this.getDefaultHotkeys();
+        const grouped = /* @__PURE__ */ new Map();
+        for (const hotkey of hotkeys) {
+          if (!grouped.has(hotkey.category)) {
+            grouped.set(hotkey.category, []);
+          }
+          grouped.get(hotkey.category).push(hotkey);
+        }
+        return Array.from(grouped.entries()).map(([category, bindings]) => ({
+          category: category.charAt(0).toUpperCase() + category.slice(1),
+          bindings: bindings.sort((a, b) => a.key.localeCompare(b.key))
+        }));
+      }
+      /** Analyze a screenshot */
+      async analyzeScreenshot(imagePath) {
+        if (!existsSync6(imagePath)) {
+          throw new Error(`Screenshot file not found: ${imagePath}`);
+        }
+        const analysis = {
+          type: "screenshot",
+          imagePath,
+          analysis: {
+            description: "Screenshot captured successfully",
+            elements: [
+              {
+                type: "window",
+                description: "Application window",
+                position: { x: 0, y: 0, width: 1920, height: 1080 }
+              }
+            ],
+            suggestions: [
+              "Consider using this screenshot as reference for UI development",
+              "You can ask questions about specific elements in the image"
+            ]
+          },
+          timestamp: Date.now()
+        };
+        log5.info("Analyzed screenshot", { imagePath, elementCount: analysis.analysis.elements.length });
+        return analysis;
+      }
+      /** Generate mobile-responsive HTML for content */
+      generateMobileHTML(content, images, diagrams) {
+        return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberMind Mobile</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a; 
+            color: #fff; 
+            line-height: 1.6;
+            padding: 1rem;
+        }
+        .container { max-width: 100%; margin: 0 auto; }
+        .content { margin-bottom: 2rem; white-space: pre-wrap; }
+        .image { 
+            margin: 1rem 0; 
+            border-radius: 8px; 
+            overflow: hidden;
+            max-width: 100%;
+        }
+        .image img { 
+            width: 100%; 
+            height: auto; 
+            display: block;
+        }
+        .image-caption { 
+            font-size: 0.875rem; 
+            color: #9ca3af; 
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+        .diagram { 
+            margin: 1rem 0; 
+            background: #1a1a1a; 
+            padding: 1rem; 
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .diagram-title { 
+            font-weight: bold; 
+            margin-bottom: 0.5rem; 
+        }
+        .cost-meter {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            padding: 0.75rem;
+            border-top: 1px solid #333;
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        @media (min-width: 768px) {
+            body { padding: 2rem; }
+            .container { max-width: 768px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">${content}</div>
+        ${images?.map((img) => `
+            <div class="image">
+                <img src="${img.src}" alt="${img.alt}" />
+                ${img.caption ? `<div class="image-caption">${img.caption}</div>` : ""}
+            </div>
+        `).join("") || ""}
+        ${diagrams?.map((diagram) => `
+            <div class="diagram">
+                ${diagram.title ? `<div class="diagram-title">${diagram.title}</div>` : ""}
+                <pre class="mermaid">${diagram.code}</pre>
+            </div>
+        `).join("") || ""}
+    </div>
+    <div class="cost-meter">${this.getCostString()}</div>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ theme: 'dark' });</script>
+</body>
+</html>`;
+      }
+      getMimeType(filePath) {
+        const ext = filePath.toLowerCase().split(".").pop();
+        const mimeTypes = {
+          "jpg": "image/jpeg",
+          "jpeg": "image/jpeg",
+          "png": "image/png",
+          "gif": "image/gif",
+          "webp": "image/webp",
+          "svg": "image/svg+xml"
+        };
+        return mimeTypes[ext || ""] || "image/png";
+      }
+      loadCostMetrics() {
+        const path3 = join6(this.dataDir, "cost-metrics.json");
+        if (!existsSync6(path3)) {
+          const metrics = {
+            totalTokens: 0,
+            totalCost: 0,
+            modelBreakdown: {},
+            sessionStart: Date.now(),
+            lastUpdate: Date.now()
+          };
+          writeFileSync5(path3, JSON.stringify(metrics, null, 2), "utf8");
+          return metrics;
+        }
+        try {
+          const raw = readFileSync5(path3, "utf8");
+          const parsed = JSON.parse(raw);
+          return CostMetricsSchema.parse(parsed);
+        } catch (err) {
+          log5.warn("Failed to load cost metrics, using defaults", { error: String(err) });
+          return {
+            totalTokens: 0,
+            totalCost: 0,
+            modelBreakdown: {},
+            sessionStart: Date.now(),
+            lastUpdate: Date.now()
+          };
+        }
+      }
+      saveCostMetrics() {
+        const path3 = join6(this.dataDir, "cost-metrics.json");
+        try {
+          writeFileSync5(path3, JSON.stringify(this.costMetrics, null, 2), "utf8");
+        } catch (err) {
+          log5.error("Failed to save cost metrics", { error: String(err) });
+        }
+      }
+    };
   }
 });
 
@@ -1053,8 +1476,8 @@ var init_ecosystem = __esm({
       getInstalledSkills() {
         try {
           if (!existsSync7(this.skillsDir)) return [];
-          const { readdirSync: readdirSync10 } = __require("fs");
-          const files = readdirSync10(this.skillsDir).filter((f) => f.endsWith(".json"));
+          const { readdirSync: readdirSync11 } = __require("fs");
+          const files = readdirSync11(this.skillsDir).filter((f) => f.endsWith(".json"));
           const skills = [];
           for (const file of files) {
             try {
@@ -1140,12 +1563,227 @@ var init_ollama_config = __esm({
 });
 
 // ../shared/src/providers/custom-server.ts
-var log8;
+var log8, DEFAULT_CUSTOM_SERVER_CONFIG, CustomServerManager;
 var init_custom_server = __esm({
   "../shared/src/providers/custom-server.ts"() {
     "use strict";
     init_logger();
     log8 = createLogger("custom-server");
+    DEFAULT_CUSTOM_SERVER_CONFIG = {
+      baseUrl: "https://api.cybermind.ai/v1",
+      models: [
+        {
+          id: "cybermind-ultra",
+          name: "CyberMind Ultra",
+          provider: "CyberMind",
+          description: "Most powerful model for complex tasks",
+          contextWindow: 2e5,
+          inputCost: 5,
+          outputCost: 15,
+          capabilities: ["code", "reasoning", "analysis", "multimodal"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-pro",
+          name: "CyberMind Pro",
+          provider: "CyberMind",
+          description: "Balanced model for most tasks",
+          contextWindow: 128e3,
+          inputCost: 2,
+          outputCost: 6,
+          capabilities: ["code", "reasoning", "analysis"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-speed",
+          name: "CyberMind Speed",
+          provider: "CyberMind",
+          description: "Fast model for quick responses",
+          contextWindow: 32e3,
+          inputCost: 0.5,
+          outputCost: 1.5,
+          capabilities: ["code", "basic-reasoning"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-code",
+          name: "CyberMind Code",
+          provider: "CyberMind",
+          description: "Specialized for coding tasks",
+          contextWindow: 128e3,
+          inputCost: 1.5,
+          outputCost: 4.5,
+          capabilities: ["code", "debugging", "refactoring"],
+          endpoint: "/chat/completions",
+          isActive: true
+        },
+        {
+          id: "cybermind-creative",
+          name: "CyberMind Creative",
+          provider: "CyberMind",
+          description: "Creative and design tasks",
+          contextWindow: 64e3,
+          inputCost: 1,
+          outputCost: 3,
+          capabilities: ["creative", "design", "writing"],
+          endpoint: "/chat/completions",
+          isActive: true
+        }
+      ],
+      timeout: 6e4,
+      retries: 3,
+      rateLimit: {
+        requestsPerMinute: 60,
+        tokensPerMinute: 1e6
+      }
+    };
+    CustomServerManager = class {
+      config;
+      apiKey = null;
+      constructor(config = {}) {
+        this.config = { ...DEFAULT_CUSTOM_SERVER_CONFIG, ...config };
+      }
+      setApiKey(apiKey) {
+        this.apiKey = apiKey;
+        log8.info("Custom server API key set");
+      }
+      getApiKey() {
+        return this.apiKey;
+      }
+      async testConnection() {
+        try {
+          const response = await fetch(`${this.config.baseUrl}/models`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
+            },
+            signal: AbortSignal.timeout(5e3)
+          });
+          if (!response.ok) {
+            log8.warn("Custom server connection failed", { status: response.status });
+            return false;
+          }
+          const data = await response.json();
+          log8.info("Custom server connected successfully", { models: data.data?.length || 0 });
+          return true;
+        } catch (error) {
+          log8.warn("Custom server connection error", { error: String(error) });
+          return false;
+        }
+      }
+      async listModels() {
+        try {
+          const response = await fetch(`${this.config.baseUrl}/models`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...this.apiKey && { "Authorization": `Bearer ${this.apiKey}` }
+            },
+            signal: AbortSignal.timeout(this.config.timeout)
+          });
+          if (!response.ok) {
+            throw new Error(`Custom server API error: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.data || this.config.models;
+        } catch (error) {
+          log8.error("Failed to list custom server models", { error: String(error) });
+          return this.config.models;
+        }
+      }
+      async generateResponse(modelId, messages) {
+        if (!this.apiKey) {
+          throw new Error("API key required for custom server");
+        }
+        try {
+          const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+              model: modelId,
+              messages,
+              stream: false,
+              temperature: 0.7,
+              max_tokens: 2048
+            }),
+            signal: AbortSignal.timeout(this.config.timeout)
+          });
+          if (!response.ok) {
+            throw new Error(`Generation failed: ${response.status}`);
+          }
+          const data = await response.json();
+          return data.choices[0]?.message?.content || "";
+        } catch (error) {
+          log8.error("Failed to generate response from custom server", { model: modelId, error: String(error) });
+          throw error;
+        }
+      }
+      getModel(modelId) {
+        return this.config.models.find((model) => model.id === modelId) || null;
+      }
+      getActiveModels() {
+        return this.config.models.filter((model) => model.isActive);
+      }
+      getModelsByCapability(capability) {
+        return this.config.models.filter(
+          (model) => model.isActive && model.capabilities.includes(capability)
+        );
+      }
+      calculateCost(modelId, inputTokens, outputTokens) {
+        const model = this.getModel(modelId);
+        if (!model) return 0;
+        const inputCost = inputTokens / 1e6 * model.inputCost;
+        const outputCost = outputTokens / 1e6 * model.outputCost;
+        return inputCost + outputCost;
+      }
+      updateConfig(updates) {
+        this.config = { ...this.config, ...updates };
+        log8.info("Custom server config updated", { updates: Object.keys(updates) });
+      }
+      addCustomModel(model) {
+        this.config.models.push(model);
+        log8.info("Custom model added", { modelId: model.id, name: model.name });
+      }
+      removeModel(modelId) {
+        const index = this.config.models.findIndex((model) => model.id === modelId);
+        if (index !== -1) {
+          this.config.models.splice(index, 1);
+          log8.info("Model removed", { modelId });
+          return true;
+        }
+        return false;
+      }
+      getConfig() {
+        return { ...this.config };
+      }
+      // Rate limiting
+      rateLimitTracker = {
+        requests: [],
+        tokens: []
+      };
+      async checkRateLimit() {
+        const now = Date.now();
+        const oneMinuteAgo = now - 6e4;
+        this.rateLimitTracker.requests = this.rateLimitTracker.requests.filter((time) => time > oneMinuteAgo);
+        this.rateLimitTracker.tokens = this.rateLimitTracker.tokens.filter((time) => time > oneMinuteAgo);
+        if (this.rateLimitTracker.requests.length >= this.config.rateLimit.requestsPerMinute) {
+          log8.warn("Rate limit exceeded for requests");
+          return false;
+        }
+        return true;
+      }
+      recordRequest(tokenCount = 0) {
+        this.rateLimitTracker.requests.push(Date.now());
+        this.rateLimitTracker.tokens.push(tokenCount);
+      }
+    };
   }
 });
 
@@ -1300,569 +1938,802 @@ var init_config = __esm({
   }
 });
 
-// src/utils/git-context.ts
-import { execSync } from "child_process";
-function git(args, cwd2) {
-  return execSync(`git ${args}`, {
-    cwd: cwd2,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-    windowsHide: true,
-    timeout: 4e3
-  }).trim();
+// ../core/src/context.ts
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
 }
-function getGitContext(cwd2 = process.cwd()) {
-  const empty = {
-    isRepo: false,
-    staged: 0,
-    unstaged: 0,
-    untracked: 0,
-    lastCommits: []
-  };
-  try {
-    const inside = git("rev-parse --is-inside-work-tree", cwd2);
-    if (inside !== "true") return empty;
-  } catch {
-    return empty;
-  }
-  const ctx = { ...empty, isRepo: true };
-  try {
-    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd2);
-  } catch {
-  }
-  try {
-    const status = git("status --porcelain", cwd2);
-    if (status) {
-      for (const line of status.split("\n")) {
-        const x = line[0];
-        const y = line[1];
-        if (x === "?" && y === "?") ctx.untracked++;
-        else {
-          if (x && x !== " ") ctx.staged++;
-          if (y && y !== " ") ctx.unstaged++;
-        }
+function estimateMessagesTokens(messages) {
+  let total = 0;
+  for (const m of messages) {
+    total += estimateTokens(m.content);
+    if (m.toolCalls) {
+      for (const tc of m.toolCalls) {
+        total += estimateTokens(tc.name) + estimateTokens(JSON.stringify(tc.input));
       }
     }
-  } catch {
   }
-  try {
-    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd2);
-    const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
-    ctx.behind = behind;
-    ctx.ahead = ahead;
-  } catch {
-  }
-  try {
-    const log15 = git("log --oneline -5", cwd2);
-    ctx.lastCommits = log15 ? log15.split("\n") : [];
-  } catch {
-  }
-  try {
-    ctx.remoteUrl = git("remote get-url origin", cwd2) || void 0;
-  } catch {
-  }
-  return ctx;
+  return total;
 }
-function gitContextPrompt(ctx) {
-  if (!ctx.isRepo) return "";
-  const parts = ["[Git context]"];
-  parts.push(`branch: ${ctx.branch ?? "(detached)"}`);
-  const dirty = [];
-  if (ctx.staged) dirty.push(`${ctx.staged} staged`);
-  if (ctx.unstaged) dirty.push(`${ctx.unstaged} modified`);
-  if (ctx.untracked) dirty.push(`${ctx.untracked} untracked`);
-  parts.push(`working tree: ${dirty.length ? dirty.join(", ") : "clean"}`);
-  if (ctx.ahead || ctx.behind) parts.push(`vs upstream: ${ctx.ahead ?? 0} ahead, ${ctx.behind ?? 0} behind`);
-  if (ctx.lastCommits.length) parts.push(`recent: ${ctx.lastCommits.slice(0, 3).join(" / ")}`);
+function trimToolOutput(output, opts = {}) {
+  const maxChars = opts.maxChars ?? 12e3;
+  if (output.length <= maxChars) return output;
+  const headTail = opts.headTail ?? Math.floor(maxChars / 2) - 40;
+  const head = output.slice(0, headTail);
+  const tail = output.slice(output.length - headTail);
+  const elided = output.length - head.length - tail.length;
+  return `${head}
+
+\u2026 [${elided} chars elided to save context \u2014 re-read with offset/limit if you need the middle] \u2026
+
+${tail}`;
+}
+function manageContext(messages, budget) {
+  const highWater = budget.highWater ?? 0.75;
+  const keepRecent = budget.keepRecent ?? 6;
+  const limit = Math.floor(budget.windowTokens * highWater);
+  const tokens = estimateMessagesTokens(messages);
+  if (tokens <= limit || messages.length <= keepRecent + 1) {
+    return { messages, compacted: false, tokens };
+  }
+  const splitAt = messages.length - keepRecent;
+  const old = messages.slice(0, splitAt);
+  let recent = messages.slice(splitAt);
+  while (recent.length && recent[0].role === "tool") {
+    recent = recent.slice(1);
+  }
+  const synopsis = condense(old);
+  const synopsisMsg = {
+    role: "system",
+    content: synopsis
+  };
+  const next = [synopsisMsg, ...recent];
+  return {
+    messages: next,
+    compacted: true,
+    tokens: estimateMessagesTokens(next),
+    note: `context auto-compacted: ${old.length} older turns \u2192 synopsis (${tokens} \u2192 ~${estimateMessagesTokens(next)} tok)`
+  };
+}
+function condense(old) {
+  const userAsks = [];
+  const toolActions = [];
+  let lastAssistant = "";
+  for (const m of old) {
+    if (m.role === "user") {
+      const oneLine = m.content.replace(/\s+/g, " ").trim().slice(0, 160);
+      if (oneLine) userAsks.push(oneLine);
+    } else if (m.role === "assistant") {
+      if (m.content.trim()) lastAssistant = m.content.replace(/\s+/g, " ").trim().slice(0, 240);
+      for (const tc of m.toolCalls ?? []) {
+        const target = tc.input.path || tc.input.command || tc.input.pattern || "";
+        toolActions.push(`${tc.name}(${String(target).slice(0, 60)})`);
+      }
+    }
+  }
+  const parts = ["[Earlier conversation compacted to save context]"];
+  if (userAsks.length) parts.push(`Goals: ${userAsks.slice(-4).join(" | ")}`);
+  if (toolActions.length) {
+    const uniq = Array.from(new Set(toolActions)).slice(-12);
+    parts.push(`Actions taken: ${uniq.join(", ")}`);
+  }
+  if (lastAssistant) parts.push(`Last note: ${lastAssistant}`);
   return parts.join("\n");
 }
-var init_git_context = __esm({
-  "src/utils/git-context.ts"() {
+function windowForModel(model) {
+  const m = model.toLowerCase();
+  if (m.includes("gpt-4o") || m.includes("claude") || m.includes("gemini-1.5") || m.includes("gemini-2")) return 128e3;
+  if (m.includes("llama-3.1") || m.includes("llama-3.3")) return 128e3;
+  if (m.includes("mixtral") || m.includes("mistral")) return 32e3;
+  if (m.includes("gemma")) return 8192;
+  return 16e3;
+}
+var init_context = __esm({
+  "../core/src/context.ts"() {
     "use strict";
   }
 });
 
-// src/utils/project-memory.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8, statSync } from "fs";
-import { join as join9 } from "path";
-function cyberPath(cwd2, ...parts) {
-  return join9(cwd2, CYBER_DIR, ...parts);
-}
-function cyberDirExists(cwd2 = process.cwd()) {
-  try {
-    return statSync(join9(cwd2, CYBER_DIR)).isDirectory();
-  } catch {
-    return false;
-  }
-}
-function readProjectMemory(cwd2 = process.cwd()) {
-  const file = cyberPath(cwd2, "project.json");
-  if (!existsSync9(file)) return null;
-  try {
-    const raw = readFileSync8(file, "utf8");
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_MEMORY, ...parsed };
-  } catch {
-    return null;
-  }
-}
-function readProjectMemoryNotes(cwd2 = process.cwd()) {
-  const file = cyberPath(cwd2, "memory.md");
-  if (!existsSync9(file)) return "";
-  try {
-    return readFileSync8(file, "utf8");
-  } catch {
-    return "";
-  }
-}
-function ensureCyberDir(cwd2) {
-  const dir = join9(cwd2, CYBER_DIR);
-  if (!existsSync9(dir)) mkdirSync8(dir, { recursive: true });
-}
-function initProjectMemory(cwd2 = process.cwd(), seed) {
-  ensureCyberDir(cwd2);
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const existing = readProjectMemory(cwd2);
-  const memory = {
-    ...DEFAULT_MEMORY,
-    ...existing,
-    ...seed,
-    version: 1,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now
+// ../core/src/agent-loop.ts
+async function* runAgentLoop(messages, opts) {
+  const tools = opts.tools ?? [];
+  const toolMap = new Map(tools.map((t) => [t.schema.name, t]));
+  const toolSchemas = tools.map((t) => t.schema);
+  const max = opts.maxIterations ?? 10;
+  const ctx = { cwd: process.cwd() };
+  const maxToolChars = opts.maxToolOutputChars ?? 12e3;
+  const budget = {
+    windowTokens: opts.contextBudget?.windowTokens ?? windowForModel(opts.model ?? "auto"),
+    highWater: opts.contextBudget?.highWater ?? 0.75,
+    keepRecent: opts.contextBudget?.keepRecent ?? 6
   };
-  writeFileSync8(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
-  if (!existsSync9(cyberPath(cwd2, "README.md"))) {
-    writeFileSync8(cyberPath(cwd2, "README.md"), README, "utf8");
-  }
-  if (!existsSync9(cyberPath(cwd2, "memory.md"))) {
-    writeFileSync8(cyberPath(cwd2, "memory.md"), `# Project Memory Log
-
-_CyberCoder records learnings and decisions here as it works._
-`, "utf8");
-  }
-  return memory;
-}
-function projectMemoryPrompt(cwd2 = process.cwd()) {
-  const mem = readProjectMemory(cwd2);
-  const notes = readProjectMemoryNotes(cwd2);
-  if (!mem && !notes) return "";
-  const parts = ["[Project memory \u2014 .cyber/ (read this to understand the project)]"];
-  if (mem?.name) parts.push(`name: ${mem.name}`);
-  if (mem?.summary) parts.push(`summary: ${mem.summary}`);
-  if (mem?.stack?.length) parts.push(`stack: ${mem.stack.join(", ")}`);
-  if (mem?.entryPoints?.length) parts.push(`entry points: ${mem.entryPoints.join(", ")}`);
-  if (mem?.commands && Object.keys(mem.commands).length) {
-    parts.push(`commands: ${Object.entries(mem.commands).map(([k, v]) => `${k}=\`${v}\``).join(", ")}`);
-  }
-  if (mem?.conventions?.length) parts.push(`conventions: ${mem.conventions.slice(0, 8).join("; ")}`);
-  if (mem?.importantPaths?.length) {
-    parts.push(`key paths: ${mem.importantPaths.slice(0, 8).map((p2) => `${p2.path} (${p2.note})`).join("; ")}`);
-  }
-  if (mem?.glossary?.length) {
-    parts.push(`glossary: ${mem.glossary.slice(0, 8).map((g) => `${g.term}=${g.meaning}`).join("; ")}`);
-  }
-  if (mem?.decisions?.length) parts.push(`decisions: ${mem.decisions.slice(0, 6).join("; ")}`);
-  let block = parts.join("\n");
-  if (notes) {
-    const trimmedNotes = notes.length > 2e3 ? notes.slice(notes.length - 2e3) : notes;
-    block += `
-
-[Recent learnings \u2014 .cyber/memory.md]
-${trimmedNotes.trim()}`;
-  }
-  return block.length > 6e3 ? block.slice(0, 6e3) + "\n\u2026[memory truncated]" : block;
-}
-var CYBER_DIR, DEFAULT_MEMORY, README;
-var init_project_memory = __esm({
-  "src/utils/project-memory.ts"() {
-    "use strict";
-    CYBER_DIR = ".cyber";
-    DEFAULT_MEMORY = {
-      version: 1,
-      stack: [],
-      entryPoints: [],
-      commands: {},
-      conventions: [],
-      importantPaths: [],
-      glossary: [],
-      decisions: []
+  let buffer = [...messages];
+  for (let iter = 0; iter < max; iter++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted" };
+      return;
+    }
+    yield { type: "iteration", index: iter, max };
+    const managed = manageContext(buffer, budget);
+    if (managed.compacted) {
+      buffer = managed.messages;
+      yield { type: "context", note: managed.note ?? "context compacted", tokens: managed.tokens };
+    }
+    const req = {
+      model: opts.model ?? "auto",
+      messages: buffer,
+      systemPrompt: opts.systemPrompt,
+      tools: toolSchemas.length > 0 ? toolSchemas : void 0,
+      signal: opts.signal
     };
-    README = `# .cyber \u2014 Project Memory
-
-This folder is CyberCoder's self-learning memory for **this** project.
-
-**Contract:** To understand this project, an AI agent should read THIS folder
-first. \`project.json\` holds structured facts (stack, entry points, commands,
-conventions). \`memory.md\` is a running log of learnings and decisions.
-
-CyberCoder maintains these files automatically as it works. You can edit them
-by hand too \u2014 they're plain JSON/Markdown. Safe to commit to version control so
-the whole team (and future sessions) share the same understanding.
-`;
-  }
-});
-
-// src/runtime/hooks.ts
-import { execSync as execSync2 } from "child_process";
-import { existsSync as existsSync10, readFileSync as readFileSync9 } from "fs";
-import { join as join10 } from "path";
-import { homedir as homedir3 } from "os";
-function readHooksFile(path3) {
-  try {
-    if (existsSync10(path3)) return JSON.parse(readFileSync9(path3, "utf8"));
-  } catch {
-  }
-  return {};
-}
-function loadHooks(cwd2 = process.cwd()) {
-  if (cached) return cached;
-  const global = readHooksFile(join10(homedir3(), ".codeva", "hooks.json"));
-  const project = readHooksFile(join10(cwd2, ".codeva", "hooks.json"));
-  const merged = { ...global };
-  for (const key of Object.keys(project)) {
-    merged[key] = project[key];
-  }
-  cached = merged;
-  return merged;
-}
-function reloadHooks() {
-  cached = null;
-}
-function runHooks(event2, subject = "", cwd2 = process.cwd()) {
-  const rules = loadHooks(cwd2)[event2] ?? [];
-  if (rules.length === 0) return { ran: false, blocked: false, output: "" };
-  const outputs = [];
-  let blocked = false;
-  for (const rule of rules) {
-    if (rule.match) {
-      let re;
-      try {
-        re = new RegExp(rule.match);
-      } catch {
+    let assistantText = "";
+    let assistantToolCalls = [];
+    let stopReason = { type: "done", reason: "end_turn" };
+    let attempt = 0;
+    while (true) {
+      assistantText = "";
+      assistantToolCalls = [];
+      stopReason = { type: "done", reason: "end_turn" };
+      let sawError;
+      for await (const chunk of opts.provider.chat(req)) {
+        if (chunk.type === "text") {
+          assistantText += chunk.text;
+          yield { type: "text", text: chunk.text };
+        } else if (chunk.type === "tool_call") {
+          assistantToolCalls.push(chunk.toolCall);
+          yield {
+            type: "tool_call",
+            name: chunk.toolCall.name,
+            input: chunk.toolCall.input,
+            id: chunk.toolCall.id
+          };
+        } else if (chunk.type === "usage") {
+          yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+        } else if (chunk.type === "done") {
+          stopReason = chunk;
+          if (chunk.reason === "error") sawError = chunk.error;
+        }
+      }
+      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
+        attempt++;
+        log10.warn("provider transient error; retrying once", { error: sawError });
+        yield { type: "context", note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
+        await delay(400);
         continue;
       }
-      if (!re.test(subject)) continue;
+      break;
     }
-    if (rule.block) {
-      blocked = true;
-      outputs.push(`[hook] blocked by rule (match: ${rule.match ?? "*"})`);
-      continue;
+    buffer.push({
+      role: "assistant",
+      content: assistantText,
+      toolCalls: assistantToolCalls.length ? assistantToolCalls : void 0
+    });
+    if (stopReason.reason === "error") {
+      yield { type: "done", reason: "error", error: stopReason.error };
+      return;
     }
-    const command = rule.command.replace(/\{file\}/g, subject);
-    try {
-      const out = execSync2(command, {
-        cwd: cwd2,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        windowsHide: true,
-        timeout: rule.timeoutMs ?? 3e4
-      });
-      outputs.push(`[hook ${event2}] ${command}
-${out.trim().slice(0, 2e3)}`);
-    } catch (err) {
-      const e = err;
-      outputs.push(`[hook ${event2}] ${command} (failed)
-${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
+    if (assistantToolCalls.length === 0) {
+      yield { type: "done", reason: "end_turn" };
+      return;
+    }
+    const results = await executeToolCalls(assistantToolCalls, toolMap, ctx, maxToolChars);
+    for (const r of results) {
+      yield { type: "tool_result", name: r.name, id: r.id, output: r.output, ok: r.ok };
+      buffer.push({ role: "tool", content: r.output, toolCallId: r.id });
     }
   }
-  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
+  yield { type: "done", reason: "max_iterations" };
 }
-var cached;
-var init_hooks = __esm({
-  "src/runtime/hooks.ts"() {
+async function executeToolCalls(calls, toolMap, ctx, maxToolChars) {
+  const results = new Array(calls.length);
+  const runOne = async (tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (!tool) {
+      results[index] = { name: tc.name, id: tc.id, output: `Tool '${tc.name}' is not registered.`, ok: false };
+      return;
+    }
+    try {
+      if (ctx.approve) {
+        const ok = await ctx.approve(tc.name, tc.input);
+        if (!ok) {
+          results[index] = { name: tc.name, id: tc.id, output: `[user denied tool '${tc.name}']`, ok: false };
+          return;
+        }
+      }
+      let output = await tool.execute(tc.input, ctx);
+      if (tool.verify) {
+        const problem = await tool.verify(tc.input, output, ctx);
+        if (problem) {
+          results[index] = {
+            name: tc.name,
+            id: tc.id,
+            output: `${output}
+
+[verify] ${problem}`,
+            ok: false
+          };
+          return;
+        }
+      }
+      output = trimToolOutput(output, { maxChars: maxToolChars });
+      results[index] = { name: tc.name, id: tc.id, output, ok: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log10.error("tool execution failed", { tool: tc.name, err: msg });
+      results[index] = { name: tc.name, id: tc.id, output: `Error: ${msg}`, ok: false };
+    }
+  };
+  const parallel = [];
+  const sequential = [];
+  calls.forEach((tc, index) => {
+    const tool = toolMap.get(tc.name);
+    if (tool && tool.destructive) {
+      sequential.push({ tc, index });
+    } else {
+      parallel.push(runOne(tc, index));
+    }
+  });
+  await Promise.all(parallel);
+  for (const { tc, index } of sequential) {
+    await runOne(tc, index);
+  }
+  return results;
+}
+function isTransient(error) {
+  const e = error.toLowerCase();
+  return e.includes("429") || e.includes("rate limit") || e.includes("timeout") || e.includes("econnreset") || e.includes("etimedout") || e.includes("503") || e.includes("502") || e.includes("overloaded") || e.includes("fetch failed");
+}
+function delay(ms) {
+  return new Promise((resolve13) => setTimeout(resolve13, ms));
+}
+var log10;
+var init_agent_loop = __esm({
+  "../core/src/agent-loop.ts"() {
     "use strict";
-    cached = null;
+    init_src();
+    init_context();
+    log10 = createLogger("core:agent");
   }
 });
 
-// src/runtime/chat.ts
-var chat_exports = {};
-__export(chat_exports, {
-  getCheckpoints: () => getCheckpoints,
-  getRouter: () => getRouter,
-  getSkillRegistry: () => getSkillRegistry,
-  runChat: () => runChat,
-  runGoalChat: () => runGoalChat,
-  runPlanChat: () => runPlanChat,
-  toProviderMessages: () => toProviderMessages
-});
-import { runAgentLoop } from "@cybercoder/core";
-import { runGoal, runPlan } from "@cybercoder/core";
-import { ProviderRouter } from "@cybercoder/providers";
-import {
-  ApprovalGate,
-  HeadlessApprovalUI,
-  builtinTools,
-  WorkspaceCheckpoints,
-  loadMcpTools
-} from "@cybercoder/tools";
-import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from "@cybercoder/skills";
-function getCheckpoints() {
-  if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
-  return singletonCheckpoints;
-}
-function getRouter() {
-  const config = loadConfig();
-  const configKeys = config.apiKeys ?? {};
-  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
-  if (!singletonRouter) {
-    singletonRouter = new ProviderRouter({
-      preferred: defaultProviderOrder(config, configKeys),
-      anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
-      cloud: {
-        apiKey: cloudApiKey,
-        baseURL: process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com"
-      },
-      openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
-      groq: { apiKey: process.env.GROQ_API_KEY ?? configKeys.groq },
-      google: { apiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? configKeys.google ?? configKeys.gemini },
-      openrouter: { apiKey: process.env.OPENROUTER_API_KEY ?? configKeys.openrouter },
-      ollama: {
-        defaultModel: config.lastModel || "auto"
+// ../core/src/consensus.ts
+async function runConsensus(messages, opts) {
+  const timeout = opts.timeoutMs ?? 6e4;
+  const tasks = opts.providers.map(async (p2, i) => {
+    const req = {
+      model: opts.models?.[i] ?? "auto",
+      messages,
+      systemPrompt: opts.systemPrompt
+    };
+    const out = { text: "" };
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeout);
+    try {
+      for await (const chunk of p2.chat({ ...req, signal: ac.signal })) {
+        if (chunk.type === "text") out.text += chunk.text;
+        else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
       }
+    } catch (err) {
+      out.error = err instanceof Error ? err.message : String(err);
+    } finally {
+      clearTimeout(timer);
+    }
+    return { provider: p2.info.id, model: req.model, text: out.text, error: out.error };
+  });
+  const perProvider = await Promise.all(tasks);
+  const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
+  return { perProvider, merged };
+}
+function mergeAnswers(answers) {
+  if (answers.length === 0) return "";
+  if (answers.length === 1) return answers[0] ?? "";
+  const sorted = [...answers].sort((a, b) => b.length - a.length);
+  const spine = sorted[0] ?? "";
+  const seen = new Set(spine.split("\n").map((l) => l.trim()));
+  const extras = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const lines = (sorted[i] ?? "").split("\n");
+    for (const line of lines) {
+      const t = line.trim();
+      if (t.length > 0 && !seen.has(t)) {
+        seen.add(t);
+        extras.push(line);
+      }
+    }
+  }
+  return extras.length > 0 ? `${spine}
+
+--- additional perspectives ---
+${extras.join("\n")}` : spine;
+}
+var init_consensus = __esm({
+  "../core/src/consensus.ts"() {
+    "use strict";
+  }
+});
+
+// ../core/src/plan-act.ts
+async function runPlan(messages, opts) {
+  const readonly = opts.tools.filter((t) => !t.destructive);
+  let text = "";
+  for await (const evt of runAgentLoop(messages, {
+    provider: opts.provider,
+    systemPrompt: PLAN_SYSTEM,
+    model: opts.model ?? "auto",
+    tools: readonly,
+    maxIterations: 6,
+    signal: opts.signal
+  })) {
+    opts.onEvent?.(evt);
+    if (evt.type === "text") text += evt.text;
+  }
+  const steps = text.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("STEP:")).map((l) => l.replace(/^STEP:\s*/, ""));
+  return { plan: text.trim(), steps };
+}
+async function* runGoal(initialMessages, opts) {
+  const maxRounds = opts.maxRounds ?? 8;
+  const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
+  const buffer = [...initialMessages];
+  for (let round = 0; round < maxRounds; round++) {
+    if (opts.signal?.aborted) {
+      yield { type: "done", reason: "error", error: "aborted", round };
+      return;
+    }
+    let roundText = "";
+    let endedTurn = false;
+    for await (const evt of runAgentLoop(buffer, {
+      provider: opts.provider,
+      systemPrompt: system,
+      model: opts.model ?? "auto",
+      tools: opts.tools,
+      signal: opts.signal
+    })) {
+      if (evt.type === "text") roundText += evt.text;
+      if (evt.type === "done") endedTurn = true;
+      yield { ...evt, round };
+    }
+    buffer.push({ role: "assistant", content: roundText });
+    if (roundText.includes(GOAL_SENTINEL)) {
+      yield { type: "done", reason: "end_turn", round };
+      return;
+    }
+    if (!endedTurn) {
+      return;
+    }
+    buffer.push({
+      role: "user",
+      content: `Continue working toward the goal. If it is fully done and verified, reply with ${GOAL_SENTINEL}.`
     });
   }
-  return singletonRouter;
+  yield { type: "done", reason: "max_iterations" };
 }
-function getSkillRegistry() {
-  if (!singletonRegistry) singletonRegistry = new SkillRegistry();
-  return singletonRegistry;
-}
-function defaultProviderOrder(config, configKeys) {
-  const order = [];
-  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
-  if (cloudApiKey) {
-    order.push("cybercoder-cloud");
-  }
-  if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
-    order.push("anthropic");
-  }
-  if (process.env.OPENAI_API_KEY || configKeys.openai) {
-    order.push("openai");
-  }
-  if (process.env.GROQ_API_KEY || configKeys.groq) {
-    order.push("groq");
-  }
-  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || configKeys.google || configKeys.gemini) {
-    order.push("gemini");
-  }
-  if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
-    order.push("openrouter");
-  }
-  order.push("ollama");
-  return order;
-}
-function toProviderMessages(messages) {
-  return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
-}
-async function getMcpTools() {
-  if (mcpToolsCache) return mcpToolsCache;
-  try {
-    const { tools } = await loadMcpTools();
-    mcpToolsCache = tools;
-  } catch {
-    mcpToolsCache = [];
-  }
-  return mcpToolsCache;
-}
-async function buildAgentTools(approvalUI) {
-  const router = getRouter();
-  const registry = getSkillRegistry();
-  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
-  const builtins = builtinTools();
-  const wrappedBuiltins = builtins.map((t) => ({
-    schema: t.schema,
-    destructive: t.destructive,
-    verify: t.verify,
-    execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: summarizeCall(t.schema.name, input)
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      if (t.schema.name === "run_command") {
-        const cmd = typeof input.command === "string" ? input.command : "";
-        const pre = runHooks("preCommand", cmd);
-        if (pre.blocked) return `[blocked by preCommand hook]
-${pre.output}`;
-      }
-      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
-        const target = input.path;
-        if (typeof target === "string" && target) {
-          try {
-            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
-          } catch {
-          }
-        }
-      }
-      const result = await t.execute(input, { cwd: ctx.cwd });
-      try {
-        if (t.schema.name === "edit") {
-          const h = runHooks("postEdit", String(input.path ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        } else if (t.schema.name === "write_file") {
-          const h = runHooks("postWrite", String(input.path ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        } else if (t.schema.name === "run_command") {
-          const h = runHooks("postCommand", String(input.command ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        }
-      } catch {
-      }
-      return result;
-    }
-  }));
-  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
-  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
-  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
-  const mcpRaw = await getMcpTools();
-  const mcpWrapped = mcpRaw.map((t) => ({
-    schema: t.schema,
-    destructive: t.destructive,
-    execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: `MCP: ${t.schema.name}`
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      return t.execute(input, ctx);
-    }
-  }));
-  const gitBlock = gitContextPrompt(getGitContext());
-  const memoryBlock = projectMemoryPrompt();
-  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
-  return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
-}
-async function runChat(history, opts) {
-  const router = getRouter();
-  const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
-  for await (const evt of runAgentLoop(providerMessages, {
-    provider: router,
-    systemPrompt,
-    model: opts.model ?? "auto",
-    signal: opts.signal,
-    tools
-  })) {
-    opts.onEvent(evt);
-  }
-}
-async function runGoalChat(history, opts) {
-  const router = getRouter();
-  const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
-  for await (const evt of runGoal(providerMessages, {
-    provider: router,
-    systemPrompt,
-    model: opts.model ?? "auto",
-    signal: opts.signal,
-    tools,
-    maxRounds: opts.maxRounds ?? 8,
-    onEvent: opts.onEvent
-  })) {
-    opts.onEvent(evt);
-  }
-}
-async function runPlanChat(history, opts) {
-  const router = getRouter();
-  const providerMessages = toProviderMessages(history);
-  const { tools } = await buildAgentTools(opts.approvalUI);
-  return runPlan(providerMessages, {
-    provider: router,
-    model: opts.model ?? "auto",
-    tools,
-    signal: opts.signal,
-    onEvent: opts.onEvent
-  });
-}
-function summarizeCall(name, input) {
-  if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
-  if (name === "write_file") return `Create file: ${String(input.path ?? "")}`;
-  if (name === "edit") return `Edit file: ${String(input.path ?? "")}`;
-  if (name === "read_file") return `Read: ${String(input.path ?? "")}`;
-  if (name === "list_dir") return `List: ${String(input.path ?? "")}`;
-  if (name === "grep") return `Grep: /${String(input.pattern ?? "")}/`;
-  return `${name}(${Object.keys(input).join(", ")})`;
-}
-var singletonRouter, singletonRegistry, singletonCheckpoints, SESSION_ID, SYSTEM_PROMPT, mcpToolsCache;
-var init_chat = __esm({
-  "src/runtime/chat.ts"() {
+var PLAN_SYSTEM, GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
+var init_plan_act = __esm({
+  "../core/src/plan-act.ts"() {
     "use strict";
-    init_config();
-    init_git_context();
-    init_project_memory();
-    init_hooks();
-    singletonRouter = null;
-    singletonRegistry = null;
-    singletonCheckpoints = null;
-    SESSION_ID = `sess-${Date.now().toString(36)}`;
-    SYSTEM_PROMPT = `You are CyberCoder, a fullstack agentic coding assistant running inside a terminal.
-You help with reading, editing, and running code across the user's project. Be concise,
-prefer code over prose, and never invent file paths. You have access to these tools:
-- read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
-- read_many(paths[]) \u2014 read SEVERAL files in one call (use to grok a feature fast)
-- list_dir(path) \u2014 lists a directory
-- grep(pattern, path?, include?) \u2014 ripgrep-style search
-- repo_map(path?) \u2014 compact map of the project (dirs + key symbols per file);
-  call this FIRST on an unfamiliar repo to navigate efficiently
-- write_file(path, content) \u2014 create a NEW file (fails on overwrite)
-- edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
-- run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
-- web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
-- web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
-- project_memory(action, \u2026) \u2014 self-learning project memory in .cyber/: action='read'
-  to recall what's known, 'update' to save durable facts (stack, entry points,
-  commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
-  Update it whenever you discover something durable so future sessions (or any AI)
-  understand this project from .cyber/ alone.
-- spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
-  code-review, \u2026) which runs in an isolated context and returns a summary
-- spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
-  pieces of work (e.g. research + review + plan at once), returns all results
-Destructive tools (write_file, edit, run_command) require user approval each turn
-unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
-broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
-\u2014 it produces tighter summaries and keeps your main context clean. When a goal has
-several independent parts, prefer spawn_team to do them concurrently.`;
-    mcpToolsCache = null;
+    init_agent_loop();
+    PLAN_SYSTEM = `You are in PLANNING mode. Produce a concise, ordered implementation
+plan for the user's goal. Use read-only tools (read_file, read_many, list_dir,
+grep, web_search) to ground the plan in the actual codebase. DO NOT modify any
+files or run mutating commands. End with a numbered task list, one task per line,
+prefixed "STEP:".`;
+    GOAL_SENTINEL = "GOAL_COMPLETE";
+    GOAL_SYSTEM_SUFFIX = `
+
+You are working toward a GOAL until it is fully achieved.
+After each round, assess whether the goal is met. When \u2014 and only when \u2014 the goal
+is fully complete and verified, end your message with the exact token ${GOAL_SENTINEL}
+on its own line. If not complete, keep going: take the next concrete action.`;
+  }
+});
+
+// ../core/src/index.ts
+var init_src2 = __esm({
+  "../core/src/index.ts"() {
+    "use strict";
+    init_agent_loop();
+    init_consensus();
+    init_context();
+    init_plan_act();
+  }
+});
+
+// ../providers/src/types.ts
+import { z as z8 } from "zod";
+var ProviderRoleSchema;
+var init_types2 = __esm({
+  "../providers/src/types.ts"() {
+    "use strict";
+    ProviderRoleSchema = z8.enum(["system", "user", "assistant", "tool"]);
+  }
+});
+
+// ../providers/src/cybermind-cloud.ts
+var log11, CybermindCloudProvider;
+var init_cybermind_cloud = __esm({
+  "../providers/src/cybermind-cloud.ts"() {
+    "use strict";
+    init_src();
+    log11 = createLogger("providers:cybermind-cloud");
+    CybermindCloudProvider = class {
+      info;
+      defaultModel;
+      opts;
+      constructor(opts = {}) {
+        this.opts = opts;
+        this.defaultModel = opts.defaultModel ?? "trinity";
+        this.info = {
+          id: "cybermind-cloud",
+          displayName: "Codeva Cloud (Swarm)",
+          requiresNetwork: true,
+          ready: true
+          // We assume true and handle errors during the chat call
+        };
+      }
+      async listModels() {
+        return ["madhav", "kali", "abhimanyu", "trinity"];
+      }
+      async *chat(req) {
+        const model = req.model || this.defaultModel;
+        log11.debug("Starting Codeva Cloud chat request", { model });
+        try {
+          let systemPrompt = "";
+          const filteredMessages = [];
+          for (const msg of req.messages) {
+            if (msg.role === "system") {
+              systemPrompt += (typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)) + "\n";
+            } else {
+              filteredMessages.push({
+                role: msg.role,
+                content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)
+              });
+            }
+          }
+          const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || "";
+          const baseURL = this.opts.baseURL || "https://cybercli-api.onrender.com/api/v1";
+          const headers = { "Content-Type": "application/json" };
+          if (this.opts.apiKey) headers["Authorization"] = `Bearer ${this.opts.apiKey}`;
+          if (this.opts.sessionId) headers["x-cli-session"] = this.opts.sessionId;
+          const response = await fetch(`${baseURL}/cli/complete`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model,
+              system: systemPrompt,
+              messages: filteredMessages,
+              prompt: lastMessage,
+              temperature: req.temperature,
+              max_tokens: req.maxTokens,
+              stream: true
+            })
+          });
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Streaming failed: ${response.status} ${errText}`);
+          }
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No response body for streaming");
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith("data: ")) continue;
+              const dataStr = trimmed.slice(6).trim();
+              if (dataStr === "[DONE]") {
+                continue;
+              }
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.content) {
+                  yield { type: "text", text: parsed.content };
+                }
+              } catch {
+              }
+            }
+          }
+          yield { type: "done", reason: "stop" };
+        } catch (err) {
+          log11.error("Codeva Cloud chat failed", err);
+          yield { type: "done", reason: "error", error: err.message || String(err) };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/ollama.ts
+function toOllamaMessage(m) {
+  if (m.role === "tool") {
+    return { role: "tool", content: m.content, tool_call_id: m.toolCallId };
+  }
+  return { role: m.role, content: m.content };
+}
+var log12, OllamaProvider;
+var init_ollama = __esm({
+  "../providers/src/ollama.ts"() {
+    "use strict";
+    init_src();
+    log12 = createLogger("providers:ollama");
+    OllamaProvider = class {
+      info;
+      baseURL;
+      defaultModel;
+      constructor(opts = {}) {
+        this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
+        this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? "llama3.1";
+        this.info = {
+          id: "ollama",
+          displayName: "Ollama (local)",
+          requiresNetwork: false,
+          ready: true
+          // Optimistic; reachability is checked lazily on first call.
+        };
+      }
+      async listModels() {
+        try {
+          const res = await fetch(`${this.baseURL}/api/tags`, { method: "GET" });
+          if (!res.ok) return [];
+          const json = await res.json();
+          return json.models?.map((m) => m.name) ?? [];
+        } catch (err) {
+          log12.warn("ollama listModels failed", String(err));
+          return [];
+        }
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        log12.debug("ollama chat", { model, messages: req.messages.length });
+        const body = {
+          model,
+          messages: [
+            ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
+            ...req.messages.map(toOllamaMessage)
+          ],
+          stream: true,
+          options: {
+            temperature: req.temperature,
+            num_predict: req.maxTokens
+          },
+          tools: req.tools?.map((t) => ({
+            type: "function",
+            function: { name: t.name, description: t.description, parameters: t.inputSchema }
+          }))
+        };
+        try {
+          const res = await fetch(`${this.baseURL}/api/chat`, {
+            method: "POST",
+            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json" },
+            signal: req.signal
+          });
+          if (!res.ok || !res.body) {
+            yield {
+              type: "done",
+              reason: "error",
+              error: `ollama HTTP ${res.status}: ${await res.text().catch(() => res.statusText)}`
+            };
+            return;
+          }
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let done = false;
+          let stopReason = { type: "done", reason: "stop" };
+          while (!done) {
+            const { value, done: chunkDone } = await reader.read();
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                  const evt = JSON.parse(trimmed);
+                  if (evt.message?.content) {
+                    yield { type: "text", text: evt.message.content };
+                  }
+                  if (evt.message?.tool_calls?.length) {
+                    for (const raw of evt.message.tool_calls) {
+                      const tc = {
+                        id: raw.id ?? `tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        name: raw.function.name,
+                        input: raw.function.arguments ?? {}
+                      };
+                      yield { type: "tool_call", toolCall: tc };
+                    }
+                  }
+                  if (evt.done) {
+                    if (evt.eval_count != null && evt.prompt_eval_count != null) {
+                      yield {
+                        type: "usage",
+                        inputTokens: evt.prompt_eval_count,
+                        outputTokens: evt.eval_count
+                      };
+                    }
+                    stopReason = {
+                      type: "done",
+                      reason: evt.done_reason === "length" ? "max_tokens" : evt.message?.tool_calls?.length ? "tool_use" : "end_turn"
+                    };
+                    done = true;
+                    break;
+                  }
+                } catch (err) {
+                  log12.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
+                }
+              }
+            }
+            if (chunkDone) done = true;
+          }
+          yield stopReason;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log12.error("ollama chat failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/router.ts
+var log13, ProviderRouter;
+var init_router = __esm({
+  "../providers/src/router.ts"() {
+    "use strict";
+    init_src();
+    init_cybermind_cloud();
+    init_ollama();
+    log13 = createLogger("providers:router");
+    ProviderRouter = class {
+      info;
+      providers = /* @__PURE__ */ new Map();
+      preferred;
+      fallback;
+      constructor(opts = {}) {
+        this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
+        const ollama = new OllamaProvider(opts.ollama);
+        this.providers.set("ollama", ollama);
+        this.fallback = opts.fallback ?? ollama;
+        this.preferred = opts.preferred ?? ["cybermind-cloud", "ollama"];
+        const active = this.activeProvider();
+        this.info = {
+          id: active.info.id,
+          displayName: `Router (${active.info.displayName})`,
+          requiresNetwork: active.info.requiresNetwork,
+          ready: active.info.ready
+        };
+      }
+      /** First preferred-and-ready provider, or the fallback. */
+      activeProvider() {
+        for (const id of this.preferred) {
+          const p2 = this.providers.get(id);
+          if (p2?.info.ready) return p2;
+        }
+        return this.fallback;
+      }
+      get(id) {
+        return this.providers.get(id);
+      }
+      async listModels() {
+        return this.activeProvider().listModels();
+      }
+      async *chat(req) {
+        const primary = this.activeProvider();
+        log13.debug("routing chat", { primary: primary.info.id });
+        let primaryYieldedSomething = false;
+        let primaryError;
+        for await (const chunk of primary.chat(req)) {
+          if (chunk.type === "done" && chunk.reason === "error" && !primaryYieldedSomething) {
+            primaryError = chunk.error;
+            break;
+          }
+          primaryYieldedSomething = true;
+          yield chunk;
+        }
+        if (primaryError !== void 0 && primary !== this.fallback) {
+          log13.warn("primary provider failed; falling back", {
+            primary: primary.info.id,
+            fallback: this.fallback.info.id,
+            error: primaryError
+          });
+          yield {
+            type: "text",
+            text: `
+[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.
+`
+          };
+          yield* this.fallback.chat(req);
+        } else if (primaryError !== void 0) {
+          yield { type: "done", reason: "error", error: primaryError };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/openai.ts
+var log14;
+var init_openai = __esm({
+  "../providers/src/openai.ts"() {
+    "use strict";
+    init_src();
+    log14 = createLogger("providers:openai");
+  }
+});
+
+// ../providers/src/groq.ts
+var init_groq = __esm({
+  "../providers/src/groq.ts"() {
+    "use strict";
+    init_openai();
+  }
+});
+
+// ../providers/src/google.ts
+var init_google = __esm({
+  "../providers/src/google.ts"() {
+    "use strict";
+    init_openai();
+  }
+});
+
+// ../providers/src/openrouter.ts
+var init_openrouter = __esm({
+  "../providers/src/openrouter.ts"() {
+    "use strict";
+    init_openai();
+  }
+});
+
+// ../providers/src/index.ts
+var init_src3 = __esm({
+  "../providers/src/index.ts"() {
+    "use strict";
+    init_types2();
+    init_router();
+    init_ollama();
+    init_cybermind_cloud();
+    init_openai();
+    init_groq();
+    init_google();
+    init_openrouter();
   }
 });
 
 // ../tools/src/approval.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync9, readFileSync as readFileSync10, writeFileSync as writeFileSync9 } from "fs";
+import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8 } from "fs";
 import { dirname } from "path";
 function loadTrustStore() {
   const path3 = getTrustPath();
-  if (!existsSync11(path3)) return { tools: [] };
+  if (!existsSync9(path3)) return { tools: [] };
   try {
-    const raw = readFileSync10(path3, "utf8");
+    const raw = readFileSync8(path3, "utf8");
     const parsed = JSON.parse(raw);
     return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
   } catch (err) {
-    log10.warn("failed to load trust store", String(err));
+    log15.warn("failed to load trust store", String(err));
     return { tools: [] };
   }
 }
 function saveTrustStore(store) {
   const path3 = getTrustPath();
-  if (!existsSync11(dirname(path3))) mkdirSync9(dirname(path3), { recursive: true });
-  writeFileSync9(path3, JSON.stringify(store, null, 2), "utf8");
+  if (!existsSync9(dirname(path3))) mkdirSync8(dirname(path3), { recursive: true });
+  writeFileSync8(path3, JSON.stringify(store, null, 2), "utf8");
 }
-var log10, ApprovalGate2, HeadlessApprovalUI2;
+var log15, ApprovalGate, HeadlessApprovalUI;
 var init_approval = __esm({
   "../tools/src/approval.ts"() {
     "use strict";
     init_src();
-    log10 = createLogger("tools:approval");
-    ApprovalGate2 = class {
+    log15 = createLogger("tools:approval");
+    ApprovalGate = class {
       constructor(ui) {
         this.ui = ui;
         this.persistent = new Set(loadTrustStore().tools);
@@ -1882,7 +2753,7 @@ var init_approval = __esm({
       trustPersistent(toolName) {
         this.persistent.add(toolName);
         saveTrustStore({ tools: [...this.persistent] });
-        log10.info("tool persistently trusted", { toolName });
+        log15.info("tool persistently trusted", { toolName });
       }
       /** Revoke persistent trust. */
       revoke(toolName) {
@@ -1917,7 +2788,7 @@ var init_approval = __esm({
         }
       }
     };
-    HeadlessApprovalUI2 = class {
+    HeadlessApprovalUI = class {
       async ask(prompt) {
         return prompt.destructive ? "deny" : "allow";
       }
@@ -1926,14 +2797,14 @@ var init_approval = __esm({
 });
 
 // ../tools/src/secrets.ts
-import { existsSync as existsSync12, mkdirSync as mkdirSync10, readFileSync as readFileSync11, writeFileSync as writeFileSync10 } from "fs";
+import { existsSync as existsSync10, mkdirSync as mkdirSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync9 } from "fs";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
-var log11, ALGO, IV_LEN, SALT_LEN, KEY_LEN, SecretsVault;
+var log16, ALGO, IV_LEN, SALT_LEN, KEY_LEN, SecretsVault;
 var init_secrets = __esm({
   "../tools/src/secrets.ts"() {
     "use strict";
     init_src();
-    log11 = createLogger("tools:secrets");
+    log16 = createLogger("tools:secrets");
     ALGO = "aes-256-gcm";
     IV_LEN = 12;
     SALT_LEN = 16;
@@ -1965,12 +2836,12 @@ var init_secrets = __esm({
       load() {
         if (this.cache) return this.cache;
         const path3 = getSecretsPath();
-        if (!existsSync12(path3)) {
+        if (!existsSync10(path3)) {
           this.cache = {};
           return this.cache;
         }
         try {
-          const buf = readFileSync11(path3);
+          const buf = readFileSync9(path3);
           const salt = buf.subarray(0, SALT_LEN);
           const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
           const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
@@ -1982,21 +2853,21 @@ var init_secrets = __esm({
           this.cache = JSON.parse(plain.toString("utf8"));
           return this.cache;
         } catch (err) {
-          log11.error("failed to decrypt secrets vault; treating as empty", String(err));
+          log16.error("failed to decrypt secrets vault; treating as empty", String(err));
           this.cache = {};
           return this.cache;
         }
       }
       save(all) {
         const path3 = getSecretsPath();
-        if (!existsSync12(getHomeDir())) mkdirSync10(getHomeDir(), { recursive: true });
+        if (!existsSync10(getHomeDir())) mkdirSync9(getHomeDir(), { recursive: true });
         const salt = randomBytes(SALT_LEN);
         const iv = randomBytes(IV_LEN);
         const key = scryptSync(this.pepper(), salt, KEY_LEN);
         const cipher = createCipheriv(ALGO, key, iv);
         const ciphertext = Buffer.concat([cipher.update(JSON.stringify(all), "utf8"), cipher.final()]);
         const tag = cipher.getAuthTag();
-        writeFileSync10(path3, Buffer.concat([salt, iv, tag, ciphertext]));
+        writeFileSync9(path3, Buffer.concat([salt, iv, tag, ciphertext]));
         this.cache = { ...all };
       }
       /**
@@ -2012,29 +2883,263 @@ var init_secrets = __esm({
 });
 
 // ../tools/src/workspace-checkpoint.ts
-import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync12, writeFileSync as writeFileSync11, readdirSync as readdirSync4, rmSync } from "fs";
-import { homedir as homedir4 } from "os";
-import { join as join11, resolve as resolve2, relative, dirname as dirname2 } from "path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync } from "fs";
+import { homedir as homedir3 } from "os";
+import { join as join9, resolve as resolve2, relative, dirname as dirname2 } from "path";
 import { createHash as createHash2 } from "crypto";
+function checkpointRoot() {
+  const dir = join9(homedir3(), ".codeva", "checkpoints");
+  if (!existsSync11(dir)) mkdirSync10(dir, { recursive: true });
+  return dir;
+}
+var WorkspaceCheckpoints;
 var init_workspace_checkpoint = __esm({
   "../tools/src/workspace-checkpoint.ts"() {
     "use strict";
+    WorkspaceCheckpoints = class {
+      constructor(sessionId, cwd2 = process.cwd()) {
+        this.cwd = cwd2;
+        this.dir = join9(checkpointRoot(), sessionId);
+        if (!existsSync11(this.dir)) mkdirSync10(this.dir, { recursive: true });
+        this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);
+      }
+      cwd;
+      dir;
+      seq = 0;
+      /**
+       * Snapshot the given files (by absolute or cwd-relative path) before they are
+       * modified. Files that don't exist yet are recorded as "existed:false" so a
+       * rewind deletes them. Returns the checkpoint sequence number.
+       */
+      snapshot(paths, label) {
+        const seq = ++this.seq;
+        const cpDir = join9(this.dir, String(seq));
+        mkdirSync10(cpDir, { recursive: true });
+        const files = [];
+        for (const p2 of paths) {
+          const abs = resolve2(this.cwd, p2);
+          const existed = existsSync11(abs);
+          const safeName = createHash2("sha1").update(abs).digest("hex");
+          if (existed) {
+            try {
+              const content = readFileSync10(abs);
+              writeFileSync10(join9(cpDir, safeName), content);
+            } catch {
+              continue;
+            }
+          }
+          files.push({ path: abs, existed });
+        }
+        const entry = { seq, label, createdAt: Date.now(), files };
+        writeFileSync10(join9(cpDir, "manifest.json"), JSON.stringify(entry, null, 2), "utf8");
+        return seq;
+      }
+      /** List checkpoints, newest first. */
+      list() {
+        if (!existsSync11(this.dir)) return [];
+        const out = [];
+        for (const name of readdirSync4(this.dir)) {
+          const manifest = join9(this.dir, name, "manifest.json");
+          if (existsSync11(manifest)) {
+            try {
+              out.push(JSON.parse(readFileSync10(manifest, "utf8")));
+            } catch {
+            }
+          }
+        }
+        return out.sort((a, b) => b.seq - a.seq);
+      }
+      /**
+       * Restore the workspace to the state captured at `seq` (and undo everything
+       * after it). Files that didn't exist at snapshot time are deleted; existing
+       * files are rewritten with their captured bytes.
+       */
+      restore(seq) {
+        let restored = 0;
+        let deleted = 0;
+        const entries = this.list().filter((e) => e.seq >= seq).sort((a, b) => b.seq - a.seq);
+        for (const entry of entries) {
+          const cpDir = join9(this.dir, String(entry.seq));
+          for (const f of entry.files) {
+            const safeName = createHash2("sha1").update(f.path).digest("hex");
+            const snapPath = join9(cpDir, safeName);
+            if (f.existed && existsSync11(snapPath)) {
+              try {
+                const d = dirname2(f.path);
+                if (!existsSync11(d)) mkdirSync10(d, { recursive: true });
+                writeFileSync10(f.path, readFileSync10(snapPath));
+                restored++;
+              } catch {
+              }
+            } else if (!f.existed && existsSync11(f.path)) {
+              try {
+                rmSync(f.path, { force: true });
+                deleted++;
+              } catch {
+              }
+            }
+          }
+        }
+        return { restored, deleted };
+      }
+      /** Human-readable relative path for display. */
+      rel(abs) {
+        return relative(this.cwd, abs) || abs;
+      }
+    };
   }
 });
 
 // ../tools/src/mcp-client.ts
 import { spawn } from "child_process";
-import { existsSync as existsSync14, readFileSync as readFileSync13 } from "fs";
-import { homedir as homedir5 } from "os";
-import { join as join12 } from "path";
+import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
+import { homedir as homedir4 } from "os";
+import { join as join10 } from "path";
+function readMcpConfig(cwd2) {
+  for (const path3 of [join10(cwd2, ".cyber", "mcp.json"), join10(homedir4(), ".cyber", "mcp.json")]) {
+    try {
+      if (existsSync12(path3)) return JSON.parse(readFileSync11(path3, "utf8"));
+    } catch {
+    }
+  }
+  return {};
+}
+async function loadMcpTools(cwd2 = process.cwd()) {
+  const cfg = readMcpConfig(cwd2);
+  const servers = [];
+  const tools = [];
+  const entries = Object.entries(cfg.mcpServers ?? {});
+  await Promise.all(
+    entries.map(async ([name, sc]) => {
+      const server = new McpServer(name, sc);
+      try {
+        await server.start();
+        servers.push(server);
+        for (const t of server.tools) {
+          tools.push({
+            schema: {
+              name: `mcp__${name}__${t.name}`,
+              description: `[MCP:${name}] ${t.description}`,
+              inputSchema: t.inputSchema ?? { type: "object", properties: {} }
+            },
+            destructive: true,
+            // MCP tools can do anything; gate them by default
+            async execute(input) {
+              return server.callTool(t.name, input);
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })
+  );
+  return { tools, servers };
+}
+var McpServer;
 var init_mcp_client = __esm({
   "../tools/src/mcp-client.ts"() {
     "use strict";
+    McpServer = class {
+      constructor(name, cfg) {
+        this.name = name;
+        this.cfg = cfg;
+      }
+      name;
+      cfg;
+      proc = null;
+      nextId = 1;
+      pending = /* @__PURE__ */ new Map();
+      buffer = "";
+      tools = [];
+      async start(timeoutMs = 15e3) {
+        const isWin = process.platform === "win32";
+        const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
+        this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
+          env: { ...process.env, ...this.cfg.env ?? {} },
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+          shell: needsShell
+        });
+        this.proc.stdout.setEncoding("utf8");
+        this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+        this.proc.on("error", () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
+        this.proc.on("exit", () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
+        await this.rpc("initialize", {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "cybercoder", version: "0.1.0" }
+        }, timeoutMs);
+        this.notify("notifications/initialized", {});
+        const listed = await this.rpc("tools/list", {}, timeoutMs);
+        this.tools = listed?.tools ?? [];
+      }
+      async callTool(toolName, args, timeoutMs = 6e4) {
+        const res = await this.rpc("tools/call", { name: toolName, arguments: args }, timeoutMs);
+        const text = (res?.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : `[${c.type}]`).join("\n");
+        return res?.isError ? `[MCP error] ${text}` : text || "[no content]";
+      }
+      stop() {
+        try {
+          this.proc?.kill();
+        } catch {
+        }
+      }
+      onData(chunk) {
+        this.buffer += chunk;
+        let idx;
+        while ((idx = this.buffer.indexOf("\n")) !== -1) {
+          const line = this.buffer.slice(0, idx).trim();
+          this.buffer = this.buffer.slice(idx + 1);
+          if (!line) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (typeof msg.id === "number" && this.pending.has(msg.id)) {
+              const p2 = this.pending.get(msg.id);
+              this.pending.delete(msg.id);
+              if (msg.error) p2.reject(new Error(msg.error.message ?? "MCP error"));
+              else p2.resolve(msg.result);
+            }
+          } catch {
+          }
+        }
+      }
+      rpc(method, params, timeoutMs) {
+        if (!this.proc) return Promise.reject(new Error("MCP server not started"));
+        const id = this.nextId++;
+        const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
+        return new Promise((resolve13, reject) => {
+          const timer = setTimeout(() => {
+            this.pending.delete(id);
+            reject(new Error(`MCP '${this.name}' ${method} timed out`));
+          }, timeoutMs);
+          this.pending.set(id, {
+            resolve: (v) => {
+              clearTimeout(timer);
+              resolve13(v);
+            },
+            reject: (e) => {
+              clearTimeout(timer);
+              reject(e);
+            }
+          });
+          this.proc.stdin.write(payload);
+        });
+      }
+      notify(method, params) {
+        if (!this.proc) return;
+        this.proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
+      }
+      failAll(err) {
+        for (const p2 of this.pending.values()) p2.reject(err);
+        this.pending.clear();
+      }
+    };
   }
 });
 
 // ../tools/src/builtin/read-file.ts
-import { readFileSync as readFileSync14 } from "fs";
+import { readFileSync as readFileSync12 } from "fs";
 import { resolve as resolve3 } from "path";
 function numberLines(text, offset, limit) {
   const lines = text.split("\n");
@@ -2068,7 +3173,7 @@ var init_read_file = __esm({
         const path3 = String(input.path ?? "");
         if (!path3) throw new Error("read_file requires a non-empty path");
         const abs = resolve3(ctx.cwd, path3);
-        const raw = readFileSync14(abs);
+        const raw = readFileSync12(abs);
         if (raw.byteLength > MAX_BYTES) {
           const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
           return numberLines(truncated, input.offset, input.limit) + `
@@ -2082,7 +3187,7 @@ var init_read_file = __esm({
 });
 
 // ../tools/src/builtin/read-many.ts
-import { readFileSync as readFileSync15, statSync as statSync2 } from "fs";
+import { readFileSync as readFileSync13, statSync } from "fs";
 import { resolve as resolve4 } from "path";
 function numberLines2(text) {
   const lines = text.split("\n");
@@ -2119,10 +3224,10 @@ var init_read_many = __esm({
         const blocks = limited.map((p2) => {
           const abs = resolve4(ctx.cwd, p2);
           try {
-            const st = statSync2(abs);
+            const st = statSync(abs);
             if (!st.isFile()) return `### ${p2}
 [not a file]`;
-            const raw = readFileSync15(abs);
+            const raw = readFileSync13(abs);
             const text = raw.byteLength > MAX_BYTES_PER_FILE ? raw.subarray(0, MAX_BYTES_PER_FILE).toString("utf8") + "\n[truncated]" : raw.toString("utf8");
             return `### ${p2}
 ${numberLines2(text)}`;
@@ -2141,7 +3246,7 @@ ${numberLines2(text)}`;
 });
 
 // ../tools/src/builtin/write-file.ts
-import { existsSync as existsSync15, mkdirSync as mkdirSync12, readFileSync as readFileSync16, writeFileSync as writeFileSync12 } from "fs";
+import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync11 } from "fs";
 import { dirname as dirname3, resolve as resolve5 } from "path";
 var writeFileTool;
 var init_write_file = __esm({
@@ -2167,7 +3272,7 @@ var init_write_file = __esm({
         const content = String(input.content ?? "");
         if (!path3) throw new Error("write_file requires a path");
         const abs = resolve5(ctx.cwd, path3);
-        if (existsSync15(abs)) {
+        if (existsSync13(abs)) {
           throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
         }
         const secrets = SecretScanner.scan(content);
@@ -2175,8 +3280,8 @@ var init_write_file = __esm({
           throw new Error(`[SECURITY ALERT] Refusing to write file ${path3}. Detected secrets: ${secrets.join(", ")}`);
         }
         const dir = dirname3(abs);
-        if (!existsSync15(dir)) mkdirSync12(dir, { recursive: true });
-        writeFileSync12(abs, content, "utf8");
+        if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
+        writeFileSync11(abs, content, "utf8");
         return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
       },
       // Self-correction: confirm the file now exists with the expected size.
@@ -2184,8 +3289,8 @@ var init_write_file = __esm({
         try {
           const abs = resolve5(ctx.cwd, String(input.path ?? ""));
           const content = String(input.content ?? "");
-          if (!existsSync15(abs)) return "write_file verification failed: file does not exist after writing.";
-          const written = readFileSync16(abs, "utf8");
+          if (!existsSync13(abs)) return "write_file verification failed: file does not exist after writing.";
+          const written = readFileSync14(abs, "utf8");
           if (written.length !== content.length) {
             return `write_file verification warning: written size (${written.length}) differs from intended (${content.length}).`;
           }
@@ -2199,7 +3304,7 @@ var init_write_file = __esm({
 });
 
 // ../tools/src/builtin/edit.ts
-import { readFileSync as readFileSync17, writeFileSync as writeFileSync13 } from "fs";
+import { readFileSync as readFileSync15, writeFileSync as writeFileSync12 } from "fs";
 import { resolve as resolve6 } from "path";
 function occurrenceCount(haystack, needle) {
   if (!needle) return 0;
@@ -2241,7 +3346,7 @@ var init_edit = __esm({
         if (!oldStr) throw new Error("edit requires a non-empty old_string");
         if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
         const abs = resolve6(ctx.cwd, path3);
-        const original = readFileSync17(abs, "utf8");
+        const original = readFileSync15(abs, "utf8");
         const secrets = SecretScanner.scan(newStr);
         if (secrets.length > 0) {
           throw new Error(`[SECURITY ALERT] Refusing to edit file ${path3}. Detected secrets: ${secrets.join(", ")}`);
@@ -2250,7 +3355,7 @@ var init_edit = __esm({
           const count = occurrenceCount(original, oldStr);
           if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
           const next2 = original.split(oldStr).join(newStr);
-          writeFileSync13(abs, next2, "utf8");
+          writeFileSync12(abs, next2, "utf8");
           return `Replaced ${count} occurrence(s) in ${abs}.`;
         }
         const idx = original.indexOf(oldStr);
@@ -2261,7 +3366,7 @@ var init_edit = __esm({
           );
         }
         const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
-        writeFileSync13(abs, next, "utf8");
+        writeFileSync12(abs, next, "utf8");
         return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
       },
       // Self-correction: re-read the file and confirm the edit actually landed.
@@ -2269,7 +3374,7 @@ var init_edit = __esm({
         try {
           const abs = resolve6(ctx.cwd, String(input.path ?? ""));
           const newStr = String(input.new_string ?? "");
-          const current = readFileSync17(abs, "utf8");
+          const current = readFileSync15(abs, "utf8");
           if (newStr && !current.includes(newStr)) {
             return "Edit verification failed: new_string is not present in the file after writing. The change may not have applied as intended.";
           }
@@ -2283,8 +3388,8 @@ var init_edit = __esm({
 });
 
 // ../tools/src/builtin/list-dir.ts
-import { readdirSync as readdirSync5, statSync as statSync3 } from "fs";
-import { join as join13, resolve as resolve7 } from "path";
+import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
+import { join as join11, resolve as resolve7 } from "path";
 var MAX_ENTRIES, listDirTool;
 var init_list_dir = __esm({
   "../tools/src/builtin/list-dir.ts"() {
@@ -2309,10 +3414,10 @@ var init_list_dir = __esm({
         const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
         const lines = [];
         for (const e of entries) {
-          const full = join13(abs, e.name);
+          const full = join11(abs, e.name);
           let size = "";
           try {
-            if (e.isFile()) size = `${statSync3(full).size}b`;
+            if (e.isFile()) size = `${statSync2(full).size}b`;
             else if (e.isDirectory()) size = "dir";
             else if (e.isSymbolicLink()) size = "symlink";
           } catch {
@@ -2327,8 +3432,8 @@ var init_list_dir = __esm({
 });
 
 // ../tools/src/builtin/grep.ts
-import { readdirSync as readdirSync6, readFileSync as readFileSync18, statSync as statSync4 } from "fs";
-import { join as join14, resolve as resolve8 } from "path";
+import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
+import { join as join12, resolve as resolve8 } from "path";
 function extToRegex(glob) {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
   return new RegExp(`${escaped}$`, "i");
@@ -2339,7 +3444,7 @@ function walk(root, visit) {
     const cur = stack.pop();
     let stat;
     try {
-      stat = statSync4(cur);
+      stat = statSync3(cur);
     } catch {
       continue;
     }
@@ -2356,7 +3461,7 @@ function walk(root, visit) {
     }
     for (const e of entries) {
       if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
-      stack.push(join14(cur, e.name));
+      stack.push(join12(cur, e.name));
     }
   }
 }
@@ -2395,9 +3500,9 @@ var init_grep = __esm({
           if (matches.length >= MAX_MATCHES) return false;
           if (include && !include.test(file)) return true;
           try {
-            const stat = statSync4(file);
+            const stat = statSync3(file);
             if (stat.size > MAX_FILE_BYTES) return true;
-            const text = readFileSync18(file, "utf8");
+            const text = readFileSync16(file, "utf8");
             const lines = text.split("\n");
             for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
               const line = lines[i] ?? "";
@@ -2417,14 +3522,14 @@ var init_grep = __esm({
 });
 
 // ../tools/src/builtin/repo-map.ts
-import { readdirSync as readdirSync7, readFileSync as readFileSync19, statSync as statSync5 } from "fs";
-import { join as join15, resolve as resolve9, relative as relative2, extname } from "path";
+import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
+import { join as join13, resolve as resolve9, relative as relative2, extname } from "path";
 function extractSymbols(file) {
   let text;
   try {
-    const st = statSync5(file);
+    const st = statSync4(file);
     if (st.size > 4e5) return [];
-    text = readFileSync19(file, "utf8");
+    text = readFileSync17(file, "utf8");
   } catch {
     return [];
   }
@@ -2503,7 +3608,7 @@ var init_repo_map = __esm({
             if (files.length >= MAX_FILES2) break;
             if (e.name.startsWith(".") && e.name !== ".codeva") continue;
             if (IGNORE_DIRS.has(e.name)) continue;
-            const full = join15(dir, e.name);
+            const full = join13(dir, e.name);
             if (e.isDirectory()) walk2(full, depth + 1);
             else if (e.isFile() && CODE_EXT.has(extname(e.name))) files.push(full);
           }
@@ -2540,29 +3645,29 @@ var init_repo_map = __esm({
 });
 
 // ../tools/src/builtin/project-memory-tool.ts
-import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync6 } from "fs";
-import { join as join16 } from "path";
+import { existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync18, writeFileSync as writeFileSync13, statSync as statSync5 } from "fs";
+import { join as join14 } from "path";
 function p(cwd2, ...parts) {
-  return join16(cwd2, CYBER_DIR2, ...parts);
+  return join14(cwd2, CYBER_DIR, ...parts);
 }
 function ensureDir(cwd2) {
-  const d = join16(cwd2, CYBER_DIR2);
-  if (!existsSync16(d)) mkdirSync13(d, { recursive: true });
+  const d = join14(cwd2, CYBER_DIR);
+  if (!existsSync14(d)) mkdirSync12(d, { recursive: true });
 }
 function read(cwd2) {
   const f = p(cwd2, "project.json");
-  if (!existsSync16(f)) return null;
+  if (!existsSync14(f)) return null;
   try {
-    return { ...DEFAULTS, ...JSON.parse(readFileSync20(f, "utf8")) };
+    return { ...DEFAULTS, ...JSON.parse(readFileSync18(f, "utf8")) };
   } catch {
     return null;
   }
 }
 function readNotes(cwd2) {
   const f = p(cwd2, "memory.md");
-  if (!existsSync16(f)) return "";
+  if (!existsSync14(f)) return "";
   try {
-    return readFileSync20(f, "utf8");
+    return readFileSync18(f, "utf8");
   } catch {
     return "";
   }
@@ -2579,11 +3684,11 @@ function mergeArr(a, b) {
   }
   return out;
 }
-var CYBER_DIR2, DEFAULTS, projectMemoryTool;
+var CYBER_DIR, DEFAULTS, projectMemoryTool;
 var init_project_memory_tool = __esm({
   "../tools/src/builtin/project-memory-tool.ts"() {
     "use strict";
-    CYBER_DIR2 = ".cyber";
+    CYBER_DIR = ".cyber";
     DEFAULTS = {
       version: 1,
       stack: [],
@@ -2632,7 +3737,7 @@ var init_project_memory_tool = __esm({
           ensureDir(cwd2);
           const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ");
           const prev = readNotes(cwd2) || "# Project Memory Log\n";
-          writeFileSync14(p(cwd2, "memory.md"), `${prev}
+          writeFileSync13(p(cwd2, "memory.md"), `${prev}
 - [${stamp}] ${note}
 `, "utf8");
           return `Recorded learning to .cyber/memory.md`;
@@ -2656,10 +3761,10 @@ var init_project_memory_tool = __esm({
           createdAt: current.createdAt ?? now,
           updatedAt: now
         };
-        writeFileSync14(p(cwd2, "project.json"), JSON.stringify(next, null, 2), "utf8");
+        writeFileSync13(p(cwd2, "project.json"), JSON.stringify(next, null, 2), "utf8");
         const readme = p(cwd2, "README.md");
-        if (!existsSync16(readme)) {
-          writeFileSync14(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
+        if (!existsSync14(readme)) {
+          writeFileSync13(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
         }
         return `Updated .cyber/project.json (${Object.keys(patch).filter((k) => k !== "action").join(", ") || "no fields"}).`;
       }
@@ -2668,7 +3773,7 @@ var init_project_memory_tool = __esm({
 });
 
 // ../tools/src/builtin/run-command.ts
-import { spawn as spawn2, execSync as execSync3 } from "child_process";
+import { spawn as spawn2, execSync } from "child_process";
 var DEFAULT_TIMEOUT_MS, MAX_OUTPUT_BYTES, SHELL, SHELL_ARG, runCommandTool;
 var init_run_command = __esm({
   "../tools/src/builtin/run-command.ts"() {
@@ -2700,7 +3805,7 @@ var init_run_command = __esm({
         const timeoutMs = Number(input.timeout_ms ?? DEFAULT_TIMEOUT_MS);
         if (command.startsWith("git commit")) {
           try {
-            const diff = execSync3("git diff --cached", { cwd: cwd2, encoding: "utf8" });
+            const diff = execSync("git diff --cached", { cwd: cwd2, encoding: "utf8" });
             const secrets = SecretScanner.scan(diff);
             if (secrets.length > 0) {
               throw new Error(`[SECURITY ALERT] Blocked git commit. Detected secrets: ${secrets.join(", ")}`);
@@ -2950,7 +4055,7 @@ Falling back to heuristic keyword extraction. Consider using grep_search for spe
 });
 
 // ../tools/src/registry.ts
-function builtinTools2() {
+function builtinTools() {
   return [
     readFileTool,
     readManyTool,
@@ -2985,7 +4090,7 @@ var init_registry = __esm({
 });
 
 // ../tools/src/index.ts
-var init_src2 = __esm({
+var init_src4 = __esm({
   "../tools/src/index.ts"() {
     "use strict";
     init_approval();
@@ -3007,14 +4112,1033 @@ var init_src2 = __esm({
   }
 });
 
+// ../skills/src/types.ts
+import { z as z9 } from "zod";
+var SkillIOSchema, SkillFrontmatterSchema;
+var init_types3 = __esm({
+  "../skills/src/types.ts"() {
+    "use strict";
+    SkillIOSchema = z9.object({
+      name: z9.string(),
+      type: z9.string(),
+      required: z9.boolean().optional(),
+      description: z9.string().optional()
+    });
+    SkillFrontmatterSchema = z9.object({
+      name: z9.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9-]*$/, "name must be kebab-case"),
+      description: z9.string().min(1),
+      version: z9.string().default("0.1.0"),
+      inputs: z9.array(SkillIOSchema).default([]),
+      outputs: z9.array(SkillIOSchema).default([]),
+      /** Capabilities the skill needs to run. */
+      requires: z9.object({
+        tools: z9.array(z9.string()).default([]),
+        /** Reserved for M13 — MCP servers the skill expects. */
+        mcp: z9.array(z9.string()).default([])
+      }).default({ tools: [], mcp: [] }),
+      /** Free-form trigger phrases shown in /help and used by skill discovery. */
+      triggers: z9.array(z9.string()).default([]),
+      license: z9.string().optional(),
+      author: z9.string().optional(),
+      category: z9.string().optional(),
+      /** Used by the marketplace to flag curated/official skills. */
+      official: z9.boolean().default(false)
+    });
+  }
+});
+
+// ../skills/src/parser.ts
+import { parse as parseYaml } from "yaml";
+function parseSkillSource(source) {
+  const match = source.match(FRONTMATTER_RE);
+  if (!match) {
+    throw new Error('SKILL.md must begin with a YAML frontmatter block delimited by "---" lines');
+  }
+  const [, yamlBlock, body] = match;
+  let raw;
+  try {
+    raw = parseYaml(yamlBlock ?? "");
+  } catch (err) {
+    throw new Error(`SKILL.md frontmatter is not valid YAML: ${err.message}`);
+  }
+  const parsed = SkillFrontmatterSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
+    throw new Error(`SKILL.md frontmatter failed validation:
+${issues}`);
+  }
+  return { frontmatter: parsed.data, body: (body ?? "").trim() };
+}
+var FRONTMATTER_RE;
+var init_parser = __esm({
+  "../skills/src/parser.ts"() {
+    "use strict";
+    init_types3();
+    FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+  }
+});
+
+// ../skills/src/loader.ts
+import { existsSync as existsSync15, readFileSync as readFileSync19, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
+import { dirname as dirname4, join as join15, resolve as resolve10 } from "path";
+import { fileURLToPath } from "url";
+function getBundledDir() {
+  const here = dirname4(fileURLToPath(import.meta.url));
+  let dir = here;
+  for (let i = 0; i < 8; i++) {
+    const candidate = resolve10(dir, "skills-bundled");
+    if (existsSync15(candidate)) return candidate;
+    const parent = resolve10(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return resolve10(here, "..", "..", "..", "skills-bundled");
+}
+function scanDir(root, source) {
+  if (!existsSync15(root)) return [];
+  const out = [];
+  let entries;
+  try {
+    entries = readdirSync8(root);
+  } catch (err) {
+    log17.warn("failed to read skills dir", { root, err: String(err) });
+    return [];
+  }
+  for (const name of entries) {
+    const folder = join15(root, name);
+    let stat;
+    try {
+      stat = statSync6(folder);
+    } catch {
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    const skillFile = join15(folder, "SKILL.md");
+    if (!existsSync15(skillFile)) continue;
+    try {
+      const raw = readFileSync19(skillFile, "utf8");
+      const { frontmatter, body } = parseSkillSource(raw);
+      const id = `${source}/${frontmatter.name}`;
+      out.push({ id, source, path: skillFile, frontmatter, body });
+    } catch (err) {
+      log17.warn("skipping malformed skill", { skillFile, err: String(err) });
+    }
+  }
+  return out;
+}
+function loadAllSkills(opts = {}) {
+  const cwd2 = opts.cwd ?? process.cwd();
+  const skip = new Set(opts.skip ?? []);
+  const sources = [];
+  if (!skip.has("project")) sources.push({ source: "project", dir: getProjectSkillsDir(cwd2) });
+  if (!skip.has("user")) sources.push({ source: "user", dir: getSkillsDir() });
+  if (!skip.has("bundled")) sources.push({ source: "bundled", dir: opts.bundledDir ?? getBundledDir() });
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const { source, dir } of sources) {
+    for (const skill of scanDir(dir, source)) {
+      if (seen.has(skill.frontmatter.name)) continue;
+      seen.add(skill.frontmatter.name);
+      out.push(skill);
+    }
+  }
+  return out;
+}
+var log17;
+var init_loader = __esm({
+  "../skills/src/loader.ts"() {
+    "use strict";
+    init_src();
+    init_parser();
+    log17 = createLogger("skills:loader");
+  }
+});
+
+// ../skills/src/registry.ts
+var SkillRegistry;
+var init_registry2 = __esm({
+  "../skills/src/registry.ts"() {
+    "use strict";
+    init_loader();
+    SkillRegistry = class {
+      constructor(opts = {}) {
+        this.opts = opts;
+        this.reload();
+      }
+      opts;
+      skills = [];
+      byName = /* @__PURE__ */ new Map();
+      reload() {
+        this.skills = loadAllSkills(this.opts);
+        this.byName.clear();
+        for (const s of this.skills) this.byName.set(s.frontmatter.name, s);
+      }
+      list() {
+        return [...this.skills];
+      }
+      get(name) {
+        return this.byName.get(name);
+      }
+      has(name) {
+        return this.byName.has(name);
+      }
+      /** Group skills by source for /skills UI output. */
+      bySource() {
+        const out = {
+          bundled: [],
+          user: [],
+          project: [],
+          marketplace: []
+        };
+        for (const s of this.skills) out[s.source].push(s);
+        return out;
+      }
+    };
+  }
+});
+
+// ../skills/src/runner.ts
+function buildSubagentSystemPrompt(skill) {
+  return [
+    `You are the "${skill.frontmatter.name}" sub-agent inside CyberMind CLI.`,
+    skill.frontmatter.description,
+    "",
+    skill.body,
+    "",
+    "Rules:",
+    "- You run in an isolated context; the user only sees your final summary.",
+    "- Be concise. Prefer code/path references over prose.",
+    "- When you have completed the task, stop calling tools and emit one final",
+    "  message summarising what you found / did."
+  ].join("\n");
+}
+function selectTools(skill, pool) {
+  const allowed = new Set(skill.frontmatter.requires.tools);
+  if (allowed.size === 0) return [];
+  return pool.filter((t) => allowed.has(t.schema.name));
+}
+async function spawnSubagent(opts) {
+  const { skill, prompt, provider, toolPool } = opts;
+  const tools = selectTools(skill, toolPool);
+  const systemPrompt = buildSubagentSystemPrompt(skill);
+  const messages = [{ role: "user", content: prompt }];
+  let summary = "";
+  let toolCalls = 0;
+  let usage = { inputTokens: 0, outputTokens: 0 };
+  let reason = "end_turn";
+  let error;
+  log18.debug("spawning subagent", {
+    skill: skill.frontmatter.name,
+    tools: tools.map((t) => t.schema.name)
+  });
+  for await (const evt of runAgentLoop(messages, {
+    provider,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    tools,
+    maxIterations: opts.maxIterations ?? 6,
+    signal: opts.signal
+  })) {
+    opts.onEvent?.(evt);
+    if (evt.type === "text") summary += evt.text;
+    else if (evt.type === "tool_call") toolCalls++;
+    else if (evt.type === "usage") {
+      usage.inputTokens += evt.inputTokens;
+      usage.outputTokens += evt.outputTokens;
+    } else if (evt.type === "done") {
+      reason = evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
+      error = evt.error;
+    }
+  }
+  return { summary: summary.trim(), toolCalls, usage, reason, error };
+}
+var log18;
+var init_runner = __esm({
+  "../skills/src/runner.ts"() {
+    "use strict";
+    init_src2();
+    init_src();
+    log18 = createLogger("skills:runner");
+  }
+});
+
+// ../skills/src/spawn-tool.ts
+function buildSpawnSubagentTool(deps) {
+  return {
+    schema: {
+      name: "spawn_subagent",
+      description: "Spawn an isolated sub-agent that runs the named skill against the given prompt. Use this for read-only exploration (research), planning (plan), code review (code-review), or any other installed skill. Returns the sub-agent's final summary as the tool result.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          skill: {
+            type: "string",
+            description: "Name of the skill to invoke. Must match an installed SKILL.md name."
+          },
+          prompt: {
+            type: "string",
+            description: "The task description / user prompt to give the sub-agent."
+          }
+        },
+        required: ["skill", "prompt"]
+      }
+    },
+    async execute(input, _ctx) {
+      const name = String(input.skill ?? "").trim();
+      const prompt = String(input.prompt ?? "").trim();
+      if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
+      if (!prompt) return 'Error: spawn_subagent requires a non-empty "prompt".';
+      const skill = deps.registry.get(name);
+      if (!skill) {
+        const available = deps.registry.list().map((s) => s.frontmatter.name).join(", ");
+        return `Error: skill "${name}" is not installed. Available skills: ${available || "(none)"}`;
+      }
+      const result = await spawnSubagent({
+        skill,
+        prompt,
+        provider: deps.provider,
+        toolPool: deps.toolPool
+      });
+      if (result.reason === "error") {
+        return `[sub-agent ${name} failed: ${result.error ?? "unknown"}]`;
+      }
+      if (result.reason === "max_iterations") {
+        return `[sub-agent ${name} hit iteration cap]
+
+${result.summary}`;
+      }
+      return result.summary || `[sub-agent ${name} completed with no output]`;
+    }
+  };
+}
+var init_spawn_tool = __esm({
+  "../skills/src/spawn-tool.ts"() {
+    "use strict";
+    init_runner();
+  }
+});
+
+// ../skills/src/orchestrator.ts
+async function orchestrate(tasks, opts) {
+  const concurrency = Math.max(1, opts.concurrency ?? 3);
+  const results = new Array(tasks.length);
+  let cursor = 0;
+  log19.debug("orchestrating tasks", { count: tasks.length, concurrency });
+  async function worker() {
+    while (true) {
+      if (opts.signal?.aborted) return;
+      const index = cursor++;
+      if (index >= tasks.length) return;
+      const task = tasks[index];
+      const skill = opts.registry.get(task.skill);
+      const start = Date.now();
+      opts.onTaskStart?.(task, index);
+      if (!skill) {
+        const available = opts.registry.list().map((s) => s.frontmatter.name).join(", ");
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: `skill "${task.skill}" not installed. Available: ${available || "(none)"}`,
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      let sub;
+      try {
+        sub = await spawnSubagent({
+          skill,
+          prompt: task.prompt,
+          provider: opts.provider,
+          toolPool: opts.toolPool,
+          model: opts.model,
+          signal: opts.signal
+        });
+      } catch (err) {
+        results[index] = {
+          task,
+          summary: "",
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          toolCalls: 0,
+          durationMs: Date.now() - start
+        };
+        opts.onTaskDone?.(task, index, results[index]);
+        continue;
+      }
+      results[index] = {
+        task,
+        summary: sub.summary,
+        ok: sub.reason !== "error",
+        error: sub.error,
+        toolCalls: sub.toolCalls,
+        durationMs: Date.now() - start
+      };
+      opts.onTaskDone?.(task, index, results[index]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+function routeTaskToSkill(task, registry) {
+  const t = task.toLowerCase();
+  const has = (name) => registry.has(name);
+  const rules = [
+    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"],
+    [/\b(plan|design|architect|break down|roadmap)\b/, "plan"],
+    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
+    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
+    [/\b(test|spec|coverage|unit test|jest|vitest)\b/, "test-writer"],
+    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
+    [/\b(security|vulnerab|exploit|recon|pentest)\b/, "cyber-recon"],
+    [/\b(database|schema|migration|sql|index)\b/, "db-architect"],
+    [/\b(document|docs|readme|comment|explain)\b/, "doc-writer"],
+    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
+    [/\b(dependency|deps|package|upgrade|npm|version)\b/, "dep-doctor"],
+    [/\b(frontend|ui|css|component|design)\b/, "frontend-design"],
+    [/\b(api|endpoint|rest|graphql|openapi)\b/, "api-designer"],
+    [/\b(infra|terraform|kubernetes|docker|cloud)\b/, "infra-as-code"],
+    [/\b(git|commit|branch|merge|rebase)\b/, "git-master"],
+    [/\b(migrate|migration|port|convert)\b/, "migrate"]
+  ];
+  for (const [re, skill] of rules) {
+    if (re.test(t) && has(skill)) return skill;
+  }
+  for (const fallback of ["research", "plan"]) {
+    if (has(fallback)) return fallback;
+  }
+  return registry.list()[0]?.frontmatter.name;
+}
+var log19;
+var init_orchestrator = __esm({
+  "../skills/src/orchestrator.ts"() {
+    "use strict";
+    init_src();
+    init_runner();
+    log19 = createLogger("skills:orchestrator");
+  }
+});
+
+// ../skills/src/team-tool.ts
+function buildSpawnTeamTool(deps) {
+  return {
+    schema: {
+      name: "spawn_team",
+      description: "Run multiple sub-agent tasks IN PARALLEL and get a combined summary. Use when a goal splits into independent pieces (e.g. research + review + plan). Each task names a skill (or omit it to auto-route) and a prompt. Returns every sub-agent's result, labelled.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            description: "Independent tasks to run concurrently.",
+            items: {
+              type: "object",
+              properties: {
+                skill: { type: "string", description: "Skill to run. Omit to auto-route from the prompt." },
+                prompt: { type: "string", description: "Task description for the sub-agent." },
+                label: { type: "string", description: "Short label for this task." }
+              },
+              required: ["prompt"]
+            }
+          }
+        },
+        required: ["tasks"]
+      }
+    },
+    async execute(input, _ctx) {
+      const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
+      if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
+      const tasks = [];
+      for (const rt of rawTasks) {
+        const obj = rt;
+        const prompt = String(obj.prompt ?? "").trim();
+        if (!prompt) continue;
+        const skill = obj.skill ? String(obj.skill).trim() : routeTaskToSkill(prompt, deps.registry) ?? "";
+        if (!skill) return "Error: no skills installed to run the team.";
+        tasks.push({ skill, prompt, label: obj.label ? String(obj.label) : void 0 });
+      }
+      if (tasks.length === 0) return "Error: spawn_team received no valid tasks.";
+      const results = await orchestrate(tasks, {
+        registry: deps.registry,
+        provider: deps.provider,
+        toolPool: deps.toolPool,
+        concurrency: deps.concurrency ?? 3
+      });
+      const lines = [`# Team results (${results.length} agents)`];
+      results.forEach((r, i) => {
+        const label = r.task.label || r.task.skill;
+        lines.push(`
+## ${i + 1}. ${label} (${r.task.skill}) \u2014 ${r.ok ? "ok" : "failed"} \xB7 ${r.durationMs}ms`);
+        if (r.ok) lines.push(r.summary || "(no output)");
+        else lines.push(`Error: ${r.error ?? "unknown"}`);
+      });
+      return lines.join("\n");
+    }
+  };
+}
+var init_team_tool = __esm({
+  "../skills/src/team-tool.ts"() {
+    "use strict";
+    init_orchestrator();
+  }
+});
+
+// ../skills/src/index.ts
+var init_src5 = __esm({
+  "../skills/src/index.ts"() {
+    "use strict";
+    init_types3();
+    init_parser();
+    init_loader();
+    init_registry2();
+    init_runner();
+    init_spawn_tool();
+    init_orchestrator();
+    init_team_tool();
+  }
+});
+
+// src/utils/git-context.ts
+import { execSync as execSync2 } from "child_process";
+function git(args, cwd2) {
+  return execSync2(`git ${args}`, {
+    cwd: cwd2,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    windowsHide: true,
+    timeout: 4e3
+  }).trim();
+}
+function getGitContext(cwd2 = process.cwd()) {
+  const empty = {
+    isRepo: false,
+    staged: 0,
+    unstaged: 0,
+    untracked: 0,
+    lastCommits: []
+  };
+  try {
+    const inside = git("rev-parse --is-inside-work-tree", cwd2);
+    if (inside !== "true") return empty;
+  } catch {
+    return empty;
+  }
+  const ctx = { ...empty, isRepo: true };
+  try {
+    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd2);
+  } catch {
+  }
+  try {
+    const status = git("status --porcelain", cwd2);
+    if (status) {
+      for (const line of status.split("\n")) {
+        const x = line[0];
+        const y = line[1];
+        if (x === "?" && y === "?") ctx.untracked++;
+        else {
+          if (x && x !== " ") ctx.staged++;
+          if (y && y !== " ") ctx.unstaged++;
+        }
+      }
+    }
+  } catch {
+  }
+  try {
+    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd2);
+    const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
+    ctx.behind = behind;
+    ctx.ahead = ahead;
+  } catch {
+  }
+  try {
+    const log22 = git("log --oneline -5", cwd2);
+    ctx.lastCommits = log22 ? log22.split("\n") : [];
+  } catch {
+  }
+  try {
+    ctx.remoteUrl = git("remote get-url origin", cwd2) || void 0;
+  } catch {
+  }
+  return ctx;
+}
+function gitContextPrompt(ctx) {
+  if (!ctx.isRepo) return "";
+  const parts = ["[Git context]"];
+  parts.push(`branch: ${ctx.branch ?? "(detached)"}`);
+  const dirty = [];
+  if (ctx.staged) dirty.push(`${ctx.staged} staged`);
+  if (ctx.unstaged) dirty.push(`${ctx.unstaged} modified`);
+  if (ctx.untracked) dirty.push(`${ctx.untracked} untracked`);
+  parts.push(`working tree: ${dirty.length ? dirty.join(", ") : "clean"}`);
+  if (ctx.ahead || ctx.behind) parts.push(`vs upstream: ${ctx.ahead ?? 0} ahead, ${ctx.behind ?? 0} behind`);
+  if (ctx.lastCommits.length) parts.push(`recent: ${ctx.lastCommits.slice(0, 3).join(" / ")}`);
+  return parts.join("\n");
+}
+var init_git_context = __esm({
+  "src/utils/git-context.ts"() {
+    "use strict";
+  }
+});
+
+// src/utils/project-memory.ts
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync20, writeFileSync as writeFileSync14, statSync as statSync7 } from "fs";
+import { join as join16 } from "path";
+function cyberPath(cwd2, ...parts) {
+  return join16(cwd2, CYBER_DIR2, ...parts);
+}
+function cyberDirExists(cwd2 = process.cwd()) {
+  try {
+    return statSync7(join16(cwd2, CYBER_DIR2)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function readProjectMemory(cwd2 = process.cwd()) {
+  const file = cyberPath(cwd2, "project.json");
+  if (!existsSync16(file)) return null;
+  try {
+    const raw = readFileSync20(file, "utf8");
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_MEMORY, ...parsed };
+  } catch {
+    return null;
+  }
+}
+function readProjectMemoryNotes(cwd2 = process.cwd()) {
+  const file = cyberPath(cwd2, "memory.md");
+  if (!existsSync16(file)) return "";
+  try {
+    return readFileSync20(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+function ensureCyberDir(cwd2) {
+  const dir = join16(cwd2, CYBER_DIR2);
+  if (!existsSync16(dir)) mkdirSync13(dir, { recursive: true });
+}
+function initProjectMemory(cwd2 = process.cwd(), seed) {
+  ensureCyberDir(cwd2);
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const existing = readProjectMemory(cwd2);
+  const memory = {
+    ...DEFAULT_MEMORY,
+    ...existing,
+    ...seed,
+    version: 1,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now
+  };
+  writeFileSync14(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
+  if (!existsSync16(cyberPath(cwd2, "README.md"))) {
+    writeFileSync14(cyberPath(cwd2, "README.md"), README, "utf8");
+  }
+  if (!existsSync16(cyberPath(cwd2, "memory.md"))) {
+    writeFileSync14(cyberPath(cwd2, "memory.md"), `# Project Memory Log
+
+_CyberCoder records learnings and decisions here as it works._
+`, "utf8");
+  }
+  return memory;
+}
+function projectMemoryPrompt(cwd2 = process.cwd()) {
+  const mem = readProjectMemory(cwd2);
+  const notes = readProjectMemoryNotes(cwd2);
+  if (!mem && !notes) return "";
+  const parts = ["[Project memory \u2014 .cyber/ (read this to understand the project)]"];
+  if (mem?.name) parts.push(`name: ${mem.name}`);
+  if (mem?.summary) parts.push(`summary: ${mem.summary}`);
+  if (mem?.stack?.length) parts.push(`stack: ${mem.stack.join(", ")}`);
+  if (mem?.entryPoints?.length) parts.push(`entry points: ${mem.entryPoints.join(", ")}`);
+  if (mem?.commands && Object.keys(mem.commands).length) {
+    parts.push(`commands: ${Object.entries(mem.commands).map(([k, v]) => `${k}=\`${v}\``).join(", ")}`);
+  }
+  if (mem?.conventions?.length) parts.push(`conventions: ${mem.conventions.slice(0, 8).join("; ")}`);
+  if (mem?.importantPaths?.length) {
+    parts.push(`key paths: ${mem.importantPaths.slice(0, 8).map((p2) => `${p2.path} (${p2.note})`).join("; ")}`);
+  }
+  if (mem?.glossary?.length) {
+    parts.push(`glossary: ${mem.glossary.slice(0, 8).map((g) => `${g.term}=${g.meaning}`).join("; ")}`);
+  }
+  if (mem?.decisions?.length) parts.push(`decisions: ${mem.decisions.slice(0, 6).join("; ")}`);
+  let block = parts.join("\n");
+  if (notes) {
+    const trimmedNotes = notes.length > 2e3 ? notes.slice(notes.length - 2e3) : notes;
+    block += `
+
+[Recent learnings \u2014 .cyber/memory.md]
+${trimmedNotes.trim()}`;
+  }
+  return block.length > 6e3 ? block.slice(0, 6e3) + "\n\u2026[memory truncated]" : block;
+}
+var CYBER_DIR2, DEFAULT_MEMORY, README;
+var init_project_memory = __esm({
+  "src/utils/project-memory.ts"() {
+    "use strict";
+    CYBER_DIR2 = ".cyber";
+    DEFAULT_MEMORY = {
+      version: 1,
+      stack: [],
+      entryPoints: [],
+      commands: {},
+      conventions: [],
+      importantPaths: [],
+      glossary: [],
+      decisions: []
+    };
+    README = `# .cyber \u2014 Project Memory
+
+This folder is CyberCoder's self-learning memory for **this** project.
+
+**Contract:** To understand this project, an AI agent should read THIS folder
+first. \`project.json\` holds structured facts (stack, entry points, commands,
+conventions). \`memory.md\` is a running log of learnings and decisions.
+
+CyberCoder maintains these files automatically as it works. You can edit them
+by hand too \u2014 they're plain JSON/Markdown. Safe to commit to version control so
+the whole team (and future sessions) share the same understanding.
+`;
+  }
+});
+
+// src/runtime/hooks.ts
+import { execSync as execSync3 } from "child_process";
+import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
+import { join as join17 } from "path";
+import { homedir as homedir5 } from "os";
+function readHooksFile(path3) {
+  try {
+    if (existsSync17(path3)) return JSON.parse(readFileSync21(path3, "utf8"));
+  } catch {
+  }
+  return {};
+}
+function loadHooks(cwd2 = process.cwd()) {
+  if (cached) return cached;
+  const global = readHooksFile(join17(homedir5(), ".codeva", "hooks.json"));
+  const project = readHooksFile(join17(cwd2, ".codeva", "hooks.json"));
+  const merged = { ...global };
+  for (const key of Object.keys(project)) {
+    merged[key] = project[key];
+  }
+  cached = merged;
+  return merged;
+}
+function reloadHooks() {
+  cached = null;
+}
+function runHooks(event2, subject = "", cwd2 = process.cwd()) {
+  const rules = loadHooks(cwd2)[event2] ?? [];
+  if (rules.length === 0) return { ran: false, blocked: false, output: "" };
+  const outputs = [];
+  let blocked = false;
+  for (const rule of rules) {
+    if (rule.match) {
+      let re;
+      try {
+        re = new RegExp(rule.match);
+      } catch {
+        continue;
+      }
+      if (!re.test(subject)) continue;
+    }
+    if (rule.block) {
+      blocked = true;
+      outputs.push(`[hook] blocked by rule (match: ${rule.match ?? "*"})`);
+      continue;
+    }
+    const command = rule.command.replace(/\{file\}/g, subject);
+    try {
+      const out = execSync3(command, {
+        cwd: cwd2,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        timeout: rule.timeoutMs ?? 3e4
+      });
+      outputs.push(`[hook ${event2}] ${command}
+${out.trim().slice(0, 2e3)}`);
+    } catch (err) {
+      const e = err;
+      outputs.push(`[hook ${event2}] ${command} (failed)
+${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
+    }
+  }
+  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
+}
+var cached;
+var init_hooks = __esm({
+  "src/runtime/hooks.ts"() {
+    "use strict";
+    cached = null;
+  }
+});
+
+// src/runtime/chat.ts
+var chat_exports = {};
+__export(chat_exports, {
+  getCheckpoints: () => getCheckpoints,
+  getRouter: () => getRouter,
+  getSkillRegistry: () => getSkillRegistry,
+  runChat: () => runChat,
+  runGoalChat: () => runGoalChat,
+  runPlanChat: () => runPlanChat,
+  toProviderMessages: () => toProviderMessages
+});
+function getCheckpoints() {
+  if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
+  return singletonCheckpoints;
+}
+function getRouter() {
+  const config = loadConfig();
+  const configKeys = config.apiKeys ?? {};
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
+  if (!singletonRouter) {
+    singletonRouter = new ProviderRouter({
+      preferred: defaultProviderOrder(config, configKeys),
+      anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
+      cloud: {
+        apiKey: cloudApiKey,
+        baseURL: process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com"
+      },
+      openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
+      groq: { apiKey: process.env.GROQ_API_KEY ?? configKeys.groq },
+      google: { apiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? configKeys.google ?? configKeys.gemini },
+      openrouter: { apiKey: process.env.OPENROUTER_API_KEY ?? configKeys.openrouter },
+      ollama: {
+        defaultModel: config.lastModel || "auto"
+      }
+    });
+  }
+  return singletonRouter;
+}
+function getSkillRegistry() {
+  if (!singletonRegistry) singletonRegistry = new SkillRegistry();
+  return singletonRegistry;
+}
+function defaultProviderOrder(config, configKeys) {
+  const order = [];
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
+  if (cloudApiKey) {
+    order.push("cybercoder-cloud");
+  }
+  if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
+    order.push("anthropic");
+  }
+  if (process.env.OPENAI_API_KEY || configKeys.openai) {
+    order.push("openai");
+  }
+  if (process.env.GROQ_API_KEY || configKeys.groq) {
+    order.push("groq");
+  }
+  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || configKeys.google || configKeys.gemini) {
+    order.push("gemini");
+  }
+  if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
+    order.push("openrouter");
+  }
+  order.push("ollama");
+  return order;
+}
+function toProviderMessages(messages) {
+  return messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role, content: m.content }));
+}
+async function getMcpTools() {
+  if (mcpToolsCache) return mcpToolsCache;
+  try {
+    const { tools } = await loadMcpTools();
+    mcpToolsCache = tools;
+  } catch {
+    mcpToolsCache = [];
+  }
+  return mcpToolsCache;
+}
+async function buildAgentTools(approvalUI) {
+  const router = getRouter();
+  const registry = getSkillRegistry();
+  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
+  const builtins = builtinTools();
+  const wrappedBuiltins = builtins.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    verify: t.verify,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: summarizeCall(t.schema.name, input)
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      if (t.schema.name === "run_command") {
+        const cmd = typeof input.command === "string" ? input.command : "";
+        const pre = runHooks("preCommand", cmd);
+        if (pre.blocked) return `[blocked by preCommand hook]
+${pre.output}`;
+      }
+      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
+        const target = input.path;
+        if (typeof target === "string" && target) {
+          try {
+            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
+          } catch {
+          }
+        }
+      }
+      const result = await t.execute(input, { cwd: ctx.cwd });
+      try {
+        if (t.schema.name === "edit") {
+          const h = runHooks("postEdit", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "write_file") {
+          const h = runHooks("postWrite", String(input.path ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        } else if (t.schema.name === "run_command") {
+          const h = runHooks("postCommand", String(input.command ?? ""));
+          if (h.output) return `${result}
+${h.output}`;
+        }
+      } catch {
+      }
+      return result;
+    }
+  }));
+  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
+  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
+  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
+  const mcpRaw = await getMcpTools();
+  const mcpWrapped = mcpRaw.map((t) => ({
+    schema: t.schema,
+    destructive: t.destructive,
+    execute: async (input, ctx) => {
+      const ok = await gate.request({
+        toolName: t.schema.name,
+        input,
+        destructive: t.destructive,
+        summary: `MCP: ${t.schema.name}`
+      });
+      if (!ok) return `[user denied tool '${t.schema.name}']`;
+      return t.execute(input, ctx);
+    }
+  }));
+  const gitBlock = gitContextPrompt(getGitContext());
+  const memoryBlock = projectMemoryPrompt();
+  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock].filter(Boolean).join("\n\n");
+  return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
+}
+async function runChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runAgentLoop(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools
+  })) {
+    opts.onEvent(evt);
+  }
+}
+async function runGoalChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  for await (const evt of runGoal(providerMessages, {
+    provider: router,
+    systemPrompt,
+    model: opts.model ?? "auto",
+    signal: opts.signal,
+    tools,
+    maxRounds: opts.maxRounds ?? 8,
+    onEvent: opts.onEvent
+  })) {
+    opts.onEvent(evt);
+  }
+}
+async function runPlanChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools } = await buildAgentTools(opts.approvalUI);
+  return runPlan(providerMessages, {
+    provider: router,
+    model: opts.model ?? "auto",
+    tools,
+    signal: opts.signal,
+    onEvent: opts.onEvent
+  });
+}
+function summarizeCall(name, input) {
+  if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
+  if (name === "write_file") return `Create file: ${String(input.path ?? "")}`;
+  if (name === "edit") return `Edit file: ${String(input.path ?? "")}`;
+  if (name === "read_file") return `Read: ${String(input.path ?? "")}`;
+  if (name === "list_dir") return `List: ${String(input.path ?? "")}`;
+  if (name === "grep") return `Grep: /${String(input.pattern ?? "")}/`;
+  return `${name}(${Object.keys(input).join(", ")})`;
+}
+var singletonRouter, singletonRegistry, singletonCheckpoints, SESSION_ID, SYSTEM_PROMPT, mcpToolsCache;
+var init_chat = __esm({
+  "src/runtime/chat.ts"() {
+    "use strict";
+    init_src2();
+    init_src2();
+    init_src3();
+    init_src4();
+    init_src5();
+    init_config();
+    init_git_context();
+    init_project_memory();
+    init_hooks();
+    singletonRouter = null;
+    singletonRegistry = null;
+    singletonCheckpoints = null;
+    SESSION_ID = `sess-${Date.now().toString(36)}`;
+    SYSTEM_PROMPT = `You are CyberCoder, a fullstack agentic coding assistant running inside a terminal.
+You help with reading, editing, and running code across the user's project. Be concise,
+prefer code over prose, and never invent file paths. You have access to these tools:
+- read_file(path, offset?, limit?) \u2014 returns numbered lines of a file
+- read_many(paths[]) \u2014 read SEVERAL files in one call (use to grok a feature fast)
+- list_dir(path) \u2014 lists a directory
+- grep(pattern, path?, include?) \u2014 ripgrep-style search
+- repo_map(path?) \u2014 compact map of the project (dirs + key symbols per file);
+  call this FIRST on an unfamiliar repo to navigate efficiently
+- write_file(path, content) \u2014 create a NEW file (fails on overwrite)
+- edit(path, old_string, new_string, replace_all?) \u2014 surgical replacements
+- run_command(command, cwd?, timeout_ms?) \u2014 PowerShell on Windows, bash on Unix
+- web_search(query, max_results?) \u2014 live keyless web search (titles, urls, snippets)
+- web_fetch(url, max_chars?) \u2014 fetch a page and return clean readable text
+- project_memory(action, \u2026) \u2014 self-learning project memory in .cyber/: action='read'
+  to recall what's known, 'update' to save durable facts (stack, entry points,
+  commands, conventions, key paths, glossary, decisions), 'note' to log a learning.
+  Update it whenever you discover something durable so future sessions (or any AI)
+  understand this project from .cyber/ alone.
+- spawn_subagent(skill, prompt) \u2014 delegate to an installed skill (research, plan,
+  code-review, \u2026) which runs in an isolated context and returns a summary
+- spawn_team(tasks[]) \u2014 run MULTIPLE sub-agents IN PARALLEL for independent
+  pieces of work (e.g. research + review + plan at once), returns all results
+Destructive tools (write_file, edit, run_command) require user approval each turn
+unless the user has granted persistent trust via /trust. Prefer spawn_subagent for
+broad exploration ("research"), planning ("plan"), and reviewing diffs ("code-review")
+\u2014 it produces tighter summaries and keeps your main context clean. When a goal has
+several independent parts, prefer spawn_team to do them concurrently.`;
+    mcpToolsCache = null;
+  }
+});
+
 // src/rpc-server.ts
 var rpc_server_exports = {};
 __export(rpc_server_exports, {
   startRpcServer: () => startRpcServer
 });
 import { createInterface } from "readline";
-import { readFileSync as readFileSync23, writeFileSync as writeFileSync17, readdirSync as readdirSync9, existsSync as existsSync20, mkdirSync as mkdirSync15 } from "fs";
-import { join as join21, resolve as resolve11 } from "path";
+import { readFileSync as readFileSync24, writeFileSync as writeFileSync17, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync15 } from "fs";
+import { join as join22, resolve as resolve12 } from "path";
 import { execSync as execSync4 } from "child_process";
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
@@ -3035,23 +5159,23 @@ async function handleMethod(id, method, params = {}) {
         respond(id, { pong: true, version: "0.1.22", cwd });
         break;
       case "read_file": {
-        const path3 = resolve11(cwd, String(params.path || ""));
-        const text = readFileSync23(path3, "utf8");
+        const path3 = resolve12(cwd, String(params.path || ""));
+        const text = readFileSync24(path3, "utf8");
         const lines = text.split("\n").slice(0, Number(params.limit || 2e3));
         respond(id, { content: lines.map((l, i) => `${i + 1}	${l}`).join("\n") });
         break;
       }
       case "write_file": {
-        const path3 = resolve11(cwd, String(params.path || ""));
-        const dir = join21(path3, "..");
-        if (!existsSync20(dir)) mkdirSync15(dir, { recursive: true });
+        const path3 = resolve12(cwd, String(params.path || ""));
+        const dir = join22(path3, "..");
+        if (!existsSync21(dir)) mkdirSync15(dir, { recursive: true });
         writeFileSync17(path3, String(params.content || ""), "utf8");
         respond(id, { written: path3 });
         break;
       }
       case "list_dir": {
-        const path3 = resolve11(cwd, String(params.path || "."));
-        const entries = readdirSync9(path3, { withFileTypes: true });
+        const path3 = resolve12(cwd, String(params.path || "."));
+        const entries = readdirSync10(path3, { withFileTypes: true });
         respond(id, { entries: entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "dir" : "file" })) });
         break;
       }
@@ -3138,7 +5262,7 @@ async function handleMethod(id, method, params = {}) {
   }
 }
 function startRpcServer() {
-  event("ready", { version: "0.1.22", cwd, tools: builtinTools2().map((t) => t.schema.name) });
+  event("ready", { version: "0.1.22", cwd, tools: builtinTools().map((t) => t.schema.name) });
   const rl = createInterface({ input: process.stdin, terminal: false });
   rl.on("line", (line) => {
     const trimmed = line.trim();
@@ -3158,7 +5282,7 @@ var init_rpc_server = __esm({
   "src/rpc-server.ts"() {
     "use strict";
     init_chat();
-    init_src2();
+    init_src4();
     init_git_context();
     init_project_memory();
     cwd = process.cwd();
@@ -3166,9 +5290,9 @@ var init_rpc_server = __esm({
 });
 
 // src/index.tsx
+init_src();
 import { Command } from "commander";
 import { render } from "ink";
-import { CYBERMIND_VERSION as CYBERMIND_VERSION2, createLogger as createLogger2 } from "@cybercoder/shared";
 
 // src/app.tsx
 import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
@@ -5390,7 +7514,7 @@ function buildGoalCommand(ctx) {
 }
 
 // src/commands/trust.ts
-init_src2();
+init_src4();
 function buildTrustCommand(ctx) {
   return {
     name: "trust",
@@ -5399,7 +7523,7 @@ function buildTrustCommand(ctx) {
     usage: "/trust [add|remove] <tool>",
     run: (args) => {
       const [sub, tool] = args.split(/\s+/).filter(Boolean);
-      const gate = new ApprovalGate2(new HeadlessApprovalUI2());
+      const gate = new ApprovalGate(new HeadlessApprovalUI());
       const reply = (content) => ctx.appendMessage({
         id: `trust-${Date.now()}`,
         role: "system",
@@ -5434,7 +7558,7 @@ function buildTrustCommand(ctx) {
 }
 
 // src/commands/secret.ts
-init_src2();
+init_src4();
 function buildSecretCommand(ctx) {
   return {
     name: "secret",
@@ -5554,71 +7678,8 @@ Use /provider <id> to override.`
   };
 }
 
-// ../core/src/agent-loop.ts
-init_src();
-var log12 = createLogger("core:agent");
-
-// ../core/src/consensus.ts
-async function runConsensus(messages, opts) {
-  const timeout = opts.timeoutMs ?? 6e4;
-  const tasks = opts.providers.map(async (p2, i) => {
-    const req = {
-      model: opts.models?.[i] ?? "auto",
-      messages,
-      systemPrompt: opts.systemPrompt
-    };
-    const out = { text: "" };
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), timeout);
-    try {
-      for await (const chunk of p2.chat({ ...req, signal: ac.signal })) {
-        if (chunk.type === "text") out.text += chunk.text;
-        else if (chunk.type === "done" && chunk.reason === "error") out.error = chunk.error;
-      }
-    } catch (err) {
-      out.error = err instanceof Error ? err.message : String(err);
-    } finally {
-      clearTimeout(timer);
-    }
-    return { provider: p2.info.id, model: req.model, text: out.text, error: out.error };
-  });
-  const perProvider = await Promise.all(tasks);
-  const merged = mergeAnswers(perProvider.filter((r) => !r.error).map((r) => r.text));
-  return { perProvider, merged };
-}
-function mergeAnswers(answers) {
-  if (answers.length === 0) return "";
-  if (answers.length === 1) return answers[0] ?? "";
-  const sorted = [...answers].sort((a, b) => b.length - a.length);
-  const spine = sorted[0] ?? "";
-  const seen = new Set(spine.split("\n").map((l) => l.trim()));
-  const extras = [];
-  for (let i = 1; i < sorted.length; i++) {
-    const lines = (sorted[i] ?? "").split("\n");
-    for (const line of lines) {
-      const t = line.trim();
-      if (t.length > 0 && !seen.has(t)) {
-        seen.add(t);
-        extras.push(line);
-      }
-    }
-  }
-  return extras.length > 0 ? `${spine}
-
---- additional perspectives ---
-${extras.join("\n")}` : spine;
-}
-
-// ../core/src/plan-act.ts
-var GOAL_SENTINEL = "GOAL_COMPLETE";
-var GOAL_SYSTEM_SUFFIX = `
-
-You are working toward a GOAL until it is fully achieved.
-After each round, assess whether the goal is met. When \u2014 and only when \u2014 the goal
-is fully complete and verified, end your message with the exact token ${GOAL_SENTINEL}
-on its own line. If not complete, keep going: take the next concrete action.`;
-
 // src/commands/consensus.ts
+init_src2();
 init_chat();
 function buildConsensusCommand(ctx) {
   return {
@@ -5778,7 +7839,7 @@ function buildReleaseNotesCommand(ctx) {
 // src/commands/hooks.ts
 init_hooks();
 import { homedir as homedir6 } from "os";
-import { join as join17 } from "path";
+import { join as join18 } from "path";
 function buildHooksCommand(ctx) {
   return {
     name: "hooks",
@@ -5798,7 +7859,7 @@ function buildHooksCommand(ctx) {
         reply(
           `No hooks configured.
 
-Create ${join17(process.cwd(), ".codeva", "hooks.json")} (project) or ${join17(homedir6(), ".codeva", "hooks.json")} (global). Example:
+Create ${join18(process.cwd(), ".codeva", "hooks.json")} (project) or ${join18(homedir6(), ".codeva", "hooks.json")} (global). Example:
 
 {
   "postEdit":  [{ "match": "\\\\.ts$", "command": "npx prettier --write {file}" }],
@@ -5824,20 +7885,20 @@ Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, session
 }
 
 // src/commands/workflow.ts
-import { existsSync as existsSync17, readFileSync as readFileSync21, readdirSync as readdirSync8, statSync as statSync7 } from "fs";
-import { join as join18, resolve as resolve10 } from "path";
-import { parse as parseYaml } from "yaml";
-import { z as z8 } from "zod";
+import { existsSync as existsSync18, readFileSync as readFileSync22, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
+import { join as join19, resolve as resolve11 } from "path";
+import { parse as parseYaml2 } from "yaml";
+import { z as z10 } from "zod";
 var WORKFLOW_DIR = ".cybercoder/workflows";
-var StepSchema = z8.object({
-  prompt: z8.string().min(1),
+var StepSchema = z10.object({
+  prompt: z10.string().min(1),
   /** Optional human-readable label for the step (shown in transcript). */
-  name: z8.string().optional()
+  name: z10.string().optional()
 });
-var WorkflowSchema = z8.object({
-  name: z8.string().optional(),
-  description: z8.string().optional(),
-  steps: z8.array(StepSchema).min(1)
+var WorkflowSchema = z10.object({
+  name: z10.string().optional(),
+  description: z10.string().optional(),
+  steps: z10.array(StepSchema).min(1)
 });
 function buildWorkflowCommand(ctx) {
   return {
@@ -5848,13 +7909,13 @@ function buildWorkflowCommand(ctx) {
     run: async (args) => {
       const trimmed = args.trim();
       const reply = (content) => ctx.appendMessage({ id: `wf-${Date.now()}`, role: "system", content, createdAt: Date.now() });
-      const workflowsDir = resolve10(process.cwd(), WORKFLOW_DIR);
+      const workflowsDir = resolve11(process.cwd(), WORKFLOW_DIR);
       if (!trimmed || trimmed === "list") {
-        if (!existsSync17(workflowsDir)) {
+        if (!existsSync18(workflowsDir)) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
           return;
         }
-        const files = readdirSync8(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
+        const files = readdirSync9(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
         if (files.length === 0) {
           reply(`No workflows in ${workflowsDir}.`);
           return;
@@ -5872,8 +7933,8 @@ function buildWorkflowCommand(ctx) {
       }
       let path3 = "";
       for (const ext of [".yml", ".yaml"]) {
-        const candidate = join18(workflowsDir, name + ext);
-        if (existsSync17(candidate) && statSync7(candidate).isFile()) {
+        const candidate = join19(workflowsDir, name + ext);
+        if (existsSync18(candidate) && statSync8(candidate).isFile()) {
           path3 = candidate;
           break;
         }
@@ -5884,8 +7945,8 @@ function buildWorkflowCommand(ctx) {
       }
       let parsed;
       try {
-        const raw = readFileSync21(path3, "utf8");
-        const doc = parseYaml(raw);
+        const raw = readFileSync22(path3, "utf8");
+        const doc = parseYaml2(raw);
         parsed = WorkflowSchema.parse(doc);
       } catch (err) {
         reply(`Failed to parse workflow '${name}': ${err instanceof Error ? err.message : String(err)}`);
@@ -6096,7 +8157,7 @@ function formatDiff(id1, id2, diff) {
 }
 
 // src/commands/profile.ts
-import { ProfileManager } from "@cybercoder/shared";
+init_src();
 function buildProfileCommand(ctx) {
   return {
     name: "profile",
@@ -6458,7 +8519,7 @@ Note: Actual git worktree creation would run \`git worktree add ${worktreePath} 
 }
 
 // src/commands/rich-io.ts
-import { RichIOManager } from "@cybercoder/shared";
+init_src();
 function buildImageCommand(ctx) {
   return {
     name: "image",
@@ -6741,16 +8802,16 @@ File size: ${html.length} characters`);
 
 // src/commands/ecosystem.ts
 init_src();
-import { existsSync as existsSync18, readFileSync as readFileSync22, writeFileSync as writeFileSync15, mkdirSync as mkdirSync14 } from "fs";
+import { existsSync as existsSync19, readFileSync as readFileSync23, writeFileSync as writeFileSync15, mkdirSync as mkdirSync14 } from "fs";
 import { homedir as homedir7 } from "os";
-import { join as join19, dirname as dirname4 } from "path";
+import { join as join20, dirname as dirname5 } from "path";
 function mcpConfigPath() {
-  return join19(process.cwd(), ".codeva", "mcp.json");
+  return join20(process.cwd(), ".codeva", "mcp.json");
 }
 function readMcp() {
-  for (const p2 of [mcpConfigPath(), join19(homedir7(), ".codeva", "mcp.json")]) {
+  for (const p2 of [mcpConfigPath(), join20(homedir7(), ".codeva", "mcp.json")]) {
     try {
-      if (existsSync18(p2)) return JSON.parse(readFileSync22(p2, "utf8"));
+      if (existsSync19(p2)) return JSON.parse(readFileSync23(p2, "utf8"));
     } catch {
     }
   }
@@ -6758,7 +8819,7 @@ function readMcp() {
 }
 function writeMcp(cfg) {
   const p2 = mcpConfigPath();
-  mkdirSync14(dirname4(p2), { recursive: true });
+  mkdirSync14(dirname5(p2), { recursive: true });
   writeFileSync15(p2, JSON.stringify(cfg, null, 2), "utf8");
 }
 function buildMCPCommand(ctx) {
@@ -7497,7 +9558,7 @@ Creating:
 }
 
 // src/commands/custom-server.ts
-import { CustomServerManager } from "@cybercoder/shared";
+init_src();
 function buildCustomCommand(ctx) {
   return {
     name: "custom",
@@ -7763,7 +9824,7 @@ function buildCyberCoderCommand(ctx) {
 // src/commands/auth.ts
 init_src();
 init_config();
-var log13 = createLogger("auth");
+var log20 = createLogger("auth");
 function buildLoginCommand(ctx) {
   return {
     name: "login",
@@ -8366,14 +10427,14 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const approvalUI = useMemo(
     () => ({
       ask(prompt) {
-        return new Promise((resolve12) => {
+        return new Promise((resolve13) => {
           setPendingApproval({
             toolName: prompt.toolName,
             summary: prompt.summary,
             destructive: prompt.destructive,
             resolve: (decision) => {
               setPendingApproval(null);
-              resolve12(decision);
+              resolve13(decision);
             }
           });
         });
@@ -8648,10 +10709,10 @@ function stringifyArgs(input) {
 init_chat();
 init_config();
 import { jsx as jsx17 } from "react/jsx-runtime";
-var log14 = createLogger2("cli");
+var log21 = createLogger("cli");
 async function main() {
   const program = new Command();
-  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant by Codeva").version(CYBERMIND_VERSION2, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").option("--rpc", "start as a JSON-RPC server (used by the VS Code extension)").action(async (opts) => {
+  program.name("cm").description("CyberCoder CLI \u2014 fullstack agentic coding assistant by Codeva").version(CYBERMIND_VERSION, "-v, --version", "print the CyberCoder version").option("-d, --debug", "enable debug logging").option("--no-welcome", "skip the welcome screen on startup").option("-p, --print <prompt>", "print mode: run a single prompt non-interactively and exit").option("--model <name>", "override the default model for this session").option("--provider <name>", "override the default provider for this session").option("--rpc", "start as a JSON-RPC server (used by the VS Code extension)").action(async (opts) => {
     if (opts.rpc) {
       const { startRpcServer: startRpcServer2 } = await Promise.resolve().then(() => (init_rpc_server(), rpc_server_exports));
       startRpcServer2();
@@ -8661,7 +10722,7 @@ async function main() {
       process.env.CYBERMIND_LOG_LEVEL = "debug";
       process.env.CYBERMIND_LOG_STDERR = "true";
     }
-    log14.debug("starting CyberCoder CLI", { opts });
+    log21.debug("starting CyberCoder CLI", { opts });
     if (opts.print) {
       void runPrintMode(opts.print, opts.model);
       return;
@@ -8683,7 +10744,7 @@ async function main() {
     waitUntilExit().then(
       () => process.exit(0),
       (err) => {
-        log14.error("CLI exited with error", err instanceof Error ? err.message : err);
+        log21.error("CLI exited with error", err instanceof Error ? err.message : err);
         process.exit(1);
       }
     );
@@ -8692,7 +10753,7 @@ async function main() {
     const loggedIn = isOnboardingComplete();
     console.log("\u{1F510} CyberCoder Status");
     console.log(`   Authentication: ${loggedIn ? "\u2705 Logged in" : "\u274C Not logged in"}`);
-    console.log(`   Version: ${CYBERMIND_VERSION2}`);
+    console.log(`   Version: ${CYBERMIND_VERSION}`);
     if (!loggedIn) {
       console.log("   Run `cm` to start the login flow.");
     }
@@ -8726,7 +10787,7 @@ async function main() {
     process.exit(0);
   });
   program.parseAsync(process.argv).catch((err) => {
-    log14.error("failed to parse args", err instanceof Error ? err.message : err);
+    log21.error("failed to parse args", err instanceof Error ? err.message : err);
     process.exit(1);
   });
 }

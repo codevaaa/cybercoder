@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { render } from 'ink';
-import { CYBERMIND_VERSION, createLogger } from '@cybercoder/shared';
+import { CYBERMIND_VERSION, createLogger } from '@cybermind/shared';
 import { App } from './app.js';
 import { runChat } from './runtime/chat.js';
 import { clearLogin, isOnboardingComplete } from './utils/config.js';

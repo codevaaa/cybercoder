@@ -1,4 +1,4 @@
-import { RichIOManager } from '@cybercoder/shared';
+import { RichIOManager } from '@cybermind/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**

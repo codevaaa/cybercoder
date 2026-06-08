@@ -1,4 +1,4 @@
-import { CustomServerManager } from '@cybercoder/shared';
+import { CustomServerManager } from '@cybermind/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
