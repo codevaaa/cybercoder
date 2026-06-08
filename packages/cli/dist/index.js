@@ -253,8 +253,8 @@ var init_checkpoint = __esm({
           model,
           provider
         };
-        const path2 = join3(this.dir, `${id}.json`);
-        writeFileSync(path2, JSON.stringify(checkpoint, null, 2), "utf8");
+        const path3 = join3(this.dir, `${id}.json`);
+        writeFileSync(path3, JSON.stringify(checkpoint, null, 2), "utf8");
         const latest = join3(this.dir, "latest.json");
         try {
           writeFileSync(latest, JSON.stringify(checkpoint, null, 2), "utf8");
@@ -266,10 +266,10 @@ var init_checkpoint = __esm({
       }
       /** Load a checkpoint by id. Returns null if not found or corrupt. */
       load(id) {
-        const path2 = join3(this.dir, `${id}.json`);
-        if (!existsSync2(path2)) return null;
+        const path3 = join3(this.dir, `${id}.json`);
+        if (!existsSync2(path3)) return null;
         try {
-          const raw = readFileSync(path2, "utf8");
+          const raw = readFileSync(path3, "utf8");
           const parsed = JSON.parse(raw);
           const checkpoint = CheckpointSchema.parse(parsed);
           return checkpoint;
@@ -280,10 +280,10 @@ var init_checkpoint = __esm({
       }
       /** Load the most recent checkpoint (latest.json). */
       loadLatest() {
-        const path2 = join3(this.dir, "latest.json");
-        if (!existsSync2(path2)) return null;
+        const path3 = join3(this.dir, "latest.json");
+        if (!existsSync2(path3)) return null;
         try {
-          const raw = readFileSync(path2, "utf8");
+          const raw = readFileSync(path3, "utf8");
           const parsed = JSON.parse(raw);
           const checkpoint = CheckpointSchema.parse(parsed);
           return checkpoint;
@@ -310,10 +310,10 @@ var init_checkpoint = __esm({
       }
       /** Delete a checkpoint file. */
       delete(id) {
-        const path2 = join3(this.dir, `${id}.json`);
-        if (!existsSync2(path2)) return false;
+        const path3 = join3(this.dir, `${id}.json`);
+        if (!existsSync2(path3)) return false;
         try {
-          writeFileSync(path2, "");
+          writeFileSync(path3, "");
           log.info("deleted checkpoint", { id });
           return true;
         } catch (err) {
@@ -531,10 +531,10 @@ var init_collaboration = __esm({
       }
       /** Get a session by ID */
       getSession(sessionId) {
-        const path2 = join4(this.sessionsDir, `${sessionId}.json`);
-        if (!existsSync4(path2)) return null;
+        const path3 = join4(this.sessionsDir, `${sessionId}.json`);
+        if (!existsSync4(path3)) return null;
         try {
-          const raw = readFileSync3(path2, "utf8");
+          const raw = readFileSync3(path3, "utf8");
           const parsed = JSON.parse(raw);
           return CollaborationSessionSchema.parse(parsed);
         } catch (err) {
@@ -613,9 +613,9 @@ var init_collaboration = __esm({
         return true;
       }
       saveSession(session) {
-        const path2 = join4(this.sessionsDir, `${session.id}.json`);
+        const path3 = join4(this.sessionsDir, `${session.id}.json`);
         try {
-          writeFileSync3(path2, JSON.stringify(session, null, 2), "utf8");
+          writeFileSync3(path3, JSON.stringify(session, null, 2), "utf8");
         } catch (err) {
           log3.error("Failed to save session", { sessionId: session.id, error: String(err) });
         }
@@ -886,9 +886,9 @@ var init_web_mirror = __esm({
         for (const file of files) {
           if (!file.isFile() || !file.name.endsWith(".json")) continue;
           const mirrorId = file.name.slice(0, -5);
-          const path2 = join5(this.mirrorsDir, file.name);
+          const path3 = join5(this.mirrorsDir, file.name);
           try {
-            const raw = readFileSync4(path2, "utf8");
+            const raw = readFileSync4(path3, "utf8");
             const parsed = JSON.parse(raw);
             const mirror = MirrorSessionSchema.parse(parsed);
             this.sessions.set(mirrorId, mirror);
@@ -898,9 +898,9 @@ var init_web_mirror = __esm({
         }
       }
       saveMirror(mirror) {
-        const path2 = join5(this.mirrorsDir, `${mirror.id}.json`);
+        const path3 = join5(this.mirrorsDir, `${mirror.id}.json`);
         try {
-          writeFileSync4(path2, JSON.stringify(mirror, null, 2), "utf8");
+          writeFileSync4(path3, JSON.stringify(mirror, null, 2), "utf8");
         } catch (err) {
           log4.error("Failed to save mirror", { mirrorId: mirror.id, error: String(err) });
         }
@@ -1174,8 +1174,8 @@ var init_rich_io = __esm({
         return mimeTypes[ext || ""] || "image/png";
       }
       loadCostMetrics() {
-        const path2 = join6(this.dataDir, "cost-metrics.json");
-        if (!existsSync6(path2)) {
+        const path3 = join6(this.dataDir, "cost-metrics.json");
+        if (!existsSync6(path3)) {
           const metrics = {
             totalTokens: 0,
             totalCost: 0,
@@ -1183,11 +1183,11 @@ var init_rich_io = __esm({
             sessionStart: Date.now(),
             lastUpdate: Date.now()
           };
-          writeFileSync5(path2, JSON.stringify(metrics, null, 2), "utf8");
+          writeFileSync5(path3, JSON.stringify(metrics, null, 2), "utf8");
           return metrics;
         }
         try {
-          const raw = readFileSync5(path2, "utf8");
+          const raw = readFileSync5(path3, "utf8");
           const parsed = JSON.parse(raw);
           return CostMetricsSchema.parse(parsed);
         } catch (err) {
@@ -1202,9 +1202,9 @@ var init_rich_io = __esm({
         }
       }
       saveCostMetrics() {
-        const path2 = join6(this.dataDir, "cost-metrics.json");
+        const path3 = join6(this.dataDir, "cost-metrics.json");
         try {
-          writeFileSync5(path2, JSON.stringify(this.costMetrics, null, 2), "utf8");
+          writeFileSync5(path3, JSON.stringify(this.costMetrics, null, 2), "utf8");
         } catch (err) {
           log5.error("Failed to save cost metrics", { error: String(err) });
         }
@@ -1453,24 +1453,24 @@ var init_ecosystem = __esm({
         return [];
       }
       saveMCPServer(server) {
-        const path2 = join7(this.mcpDir, `${server.id}.json`);
+        const path3 = join7(this.mcpDir, `${server.id}.json`);
         try {
-          writeFileSync6(path2, JSON.stringify(server, null, 2), "utf8");
+          writeFileSync6(path3, JSON.stringify(server, null, 2), "utf8");
         } catch (err) {
           log6.error("Failed to save MCP server", { serverId: server.id, error: String(err) });
         }
       }
       saveSkill(skill) {
-        const path2 = join7(this.skillsDir, `${skill.id}.json`);
+        const path3 = join7(this.skillsDir, `${skill.id}.json`);
         try {
-          writeFileSync6(path2, JSON.stringify(skill, null, 2), "utf8");
+          writeFileSync6(path3, JSON.stringify(skill, null, 2), "utf8");
         } catch (err) {
           log6.error("Failed to save skill", { skillId: skill.id, error: String(err) });
         }
       }
       loadTelemetrySettings() {
-        const path2 = join7(this.dataDir, "telemetry-settings.json");
-        if (!existsSync7(path2)) {
+        const path3 = join7(this.dataDir, "telemetry-settings.json");
+        if (!existsSync7(path3)) {
           const settings = {
             enabled: false,
             // Default to off
@@ -1480,11 +1480,11 @@ var init_ecosystem = __esm({
             shareErrorReports: false,
             sharePerformanceMetrics: false
           };
-          writeFileSync6(path2, JSON.stringify(settings, null, 2), "utf8");
+          writeFileSync6(path3, JSON.stringify(settings, null, 2), "utf8");
           return settings;
         }
         try {
-          const raw = readFileSync6(path2, "utf8");
+          const raw = readFileSync6(path3, "utf8");
           const parsed = JSON.parse(raw);
           return TelemetrySettingsSchema.parse(parsed);
         } catch (err) {
@@ -1500,9 +1500,9 @@ var init_ecosystem = __esm({
         }
       }
       saveTelemetrySettings() {
-        const path2 = join7(this.dataDir, "telemetry-settings.json");
+        const path3 = join7(this.dataDir, "telemetry-settings.json");
         try {
-          writeFileSync6(path2, JSON.stringify(this.telemetrySettings, null, 2), "utf8");
+          writeFileSync6(path3, JSON.stringify(this.telemetrySettings, null, 2), "utf8");
         } catch (err) {
           log6.error("Failed to save telemetry settings", { error: String(err) });
         }
@@ -2648,10 +2648,10 @@ var init_src3 = __esm({
 import { existsSync as existsSync9, mkdirSync as mkdirSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync8 } from "fs";
 import { dirname } from "path";
 function loadTrustStore() {
-  const path2 = getTrustPath();
-  if (!existsSync9(path2)) return { tools: [] };
+  const path3 = getTrustPath();
+  if (!existsSync9(path3)) return { tools: [] };
   try {
-    const raw = readFileSync8(path2, "utf8");
+    const raw = readFileSync8(path3, "utf8");
     const parsed = JSON.parse(raw);
     return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
   } catch (err) {
@@ -2660,9 +2660,9 @@ function loadTrustStore() {
   }
 }
 function saveTrustStore(store) {
-  const path2 = getTrustPath();
-  if (!existsSync9(dirname(path2))) mkdirSync8(dirname(path2), { recursive: true });
-  writeFileSync8(path2, JSON.stringify(store, null, 2), "utf8");
+  const path3 = getTrustPath();
+  if (!existsSync9(dirname(path3))) mkdirSync8(dirname(path3), { recursive: true });
+  writeFileSync8(path3, JSON.stringify(store, null, 2), "utf8");
 }
 var log15, ApprovalGate, HeadlessApprovalUI;
 var init_approval = __esm({
@@ -2772,13 +2772,13 @@ var init_secrets = __esm({
       }
       load() {
         if (this.cache) return this.cache;
-        const path2 = getSecretsPath();
-        if (!existsSync10(path2)) {
+        const path3 = getSecretsPath();
+        if (!existsSync10(path3)) {
           this.cache = {};
           return this.cache;
         }
         try {
-          const buf = readFileSync9(path2);
+          const buf = readFileSync9(path3);
           const salt = buf.subarray(0, SALT_LEN);
           const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
           const tag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
@@ -2796,7 +2796,7 @@ var init_secrets = __esm({
         }
       }
       save(all) {
-        const path2 = getSecretsPath();
+        const path3 = getSecretsPath();
         if (!existsSync10(getHomeDir())) mkdirSync9(getHomeDir(), { recursive: true });
         const salt = randomBytes(SALT_LEN);
         const iv = randomBytes(IV_LEN);
@@ -2804,7 +2804,7 @@ var init_secrets = __esm({
         const cipher = createCipheriv(ALGO, key, iv);
         const ciphertext = Buffer.concat([cipher.update(JSON.stringify(all), "utf8"), cipher.final()]);
         const tag = cipher.getAuthTag();
-        writeFileSync9(path2, Buffer.concat([salt, iv, tag, ciphertext]));
+        writeFileSync9(path3, Buffer.concat([salt, iv, tag, ciphertext]));
         this.cache = { ...all };
       }
       /**
@@ -2933,9 +2933,9 @@ import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
 import { homedir as homedir4 } from "os";
 import { join as join10 } from "path";
 function readMcpConfig(cwd2) {
-  for (const path2 of [join10(cwd2, ".cyber", "mcp.json"), join10(homedir4(), ".cyber", "mcp.json")]) {
+  for (const path3 of [join10(cwd2, ".cyber", "mcp.json"), join10(homedir4(), ".cyber", "mcp.json")]) {
     try {
-      if (existsSync12(path2)) return JSON.parse(readFileSync11(path2, "utf8"));
+      if (existsSync12(path3)) return JSON.parse(readFileSync11(path3, "utf8"));
     } catch {
     }
   }
@@ -3107,9 +3107,9 @@ var init_read_file = __esm({
       },
       destructive: false,
       async execute(input, ctx) {
-        const path2 = String(input.path ?? "");
-        if (!path2) throw new Error("read_file requires a non-empty path");
-        const abs = resolve3(ctx.cwd, path2);
+        const path3 = String(input.path ?? "");
+        if (!path3) throw new Error("read_file requires a non-empty path");
+        const abs = resolve3(ctx.cwd, path3);
         const raw = readFileSync12(abs);
         if (raw.byteLength > MAX_BYTES) {
           const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
@@ -3205,16 +3205,16 @@ var init_write_file = __esm({
       },
       destructive: true,
       async execute(input, ctx) {
-        const path2 = String(input.path ?? "");
+        const path3 = String(input.path ?? "");
         const content = String(input.content ?? "");
-        if (!path2) throw new Error("write_file requires a path");
-        const abs = resolve5(ctx.cwd, path2);
+        if (!path3) throw new Error("write_file requires a path");
+        const abs = resolve5(ctx.cwd, path3);
         if (existsSync13(abs)) {
           throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
         }
         const secrets = SecretScanner.scan(content);
         if (secrets.length > 0) {
-          throw new Error(`[SECURITY ALERT] Refusing to write file ${path2}. Detected secrets: ${secrets.join(", ")}`);
+          throw new Error(`[SECURITY ALERT] Refusing to write file ${path3}. Detected secrets: ${secrets.join(", ")}`);
         }
         const dir = dirname3(abs);
         if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
@@ -3275,18 +3275,18 @@ var init_edit = __esm({
       },
       destructive: true,
       async execute(input, ctx) {
-        const path2 = String(input.path ?? "");
+        const path3 = String(input.path ?? "");
         const oldStr = String(input.old_string ?? "");
         const newStr = String(input.new_string ?? "");
         const replaceAll = Boolean(input.replace_all);
-        if (!path2) throw new Error("edit requires a path");
+        if (!path3) throw new Error("edit requires a path");
         if (!oldStr) throw new Error("edit requires a non-empty old_string");
         if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
-        const abs = resolve6(ctx.cwd, path2);
+        const abs = resolve6(ctx.cwd, path3);
         const original = readFileSync15(abs, "utf8");
         const secrets = SecretScanner.scan(newStr);
         if (secrets.length > 0) {
-          throw new Error(`[SECURITY ALERT] Refusing to edit file ${path2}. Detected secrets: ${secrets.join(", ")}`);
+          throw new Error(`[SECURITY ALERT] Refusing to edit file ${path3}. Detected secrets: ${secrets.join(", ")}`);
         }
         if (replaceAll) {
           const count = occurrenceCount(original, oldStr);
@@ -3346,8 +3346,8 @@ var init_list_dir = __esm({
       },
       destructive: false,
       async execute(input, ctx) {
-        const path2 = String(input.path ?? ".");
-        const abs = resolve7(ctx.cwd, path2);
+        const path3 = String(input.path ?? ".");
+        const abs = resolve7(ctx.cwd, path3);
         const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
         const lines = [];
         for (const e of entries) {
@@ -4746,9 +4746,9 @@ import { execSync as execSync3 } from "child_process";
 import { existsSync as existsSync17, readFileSync as readFileSync21 } from "fs";
 import { join as join17 } from "path";
 import { homedir as homedir5 } from "os";
-function readHooksFile(path2) {
+function readHooksFile(path3) {
   try {
-    if (existsSync17(path2)) return JSON.parse(readFileSync21(path2, "utf8"));
+    if (existsSync17(path3)) return JSON.parse(readFileSync21(path3, "utf8"));
   } catch {
   }
   return {};
@@ -5074,23 +5074,23 @@ async function handleMethod(id, method, params = {}) {
         respond(id, { pong: true, version: "0.1.22", cwd });
         break;
       case "read_file": {
-        const path2 = resolve12(cwd, String(params.path || ""));
-        const text = readFileSync24(path2, "utf8");
+        const path3 = resolve12(cwd, String(params.path || ""));
+        const text = readFileSync24(path3, "utf8");
         const lines = text.split("\n").slice(0, Number(params.limit || 2e3));
         respond(id, { content: lines.map((l, i) => `${i + 1}	${l}`).join("\n") });
         break;
       }
       case "write_file": {
-        const path2 = resolve12(cwd, String(params.path || ""));
-        const dir = join22(path2, "..");
+        const path3 = resolve12(cwd, String(params.path || ""));
+        const dir = join22(path3, "..");
         if (!existsSync21(dir)) mkdirSync15(dir, { recursive: true });
-        writeFileSync17(path2, String(params.content || ""), "utf8");
-        respond(id, { written: path2 });
+        writeFileSync17(path3, String(params.content || ""), "utf8");
+        respond(id, { written: path3 });
         break;
       }
       case "list_dir": {
-        const path2 = resolve12(cwd, String(params.path || "."));
-        const entries = readdirSync10(path2, { withFileTypes: true });
+        const path3 = resolve12(cwd, String(params.path || "."));
+        const entries = readdirSync10(path3, { withFileTypes: true });
         respond(id, { entries: entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "dir" : "file" })) });
         break;
       }
@@ -5215,6 +5215,7 @@ import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useSt
 
 // src/components/Welcome.tsx
 init_src();
+import React from "react";
 import { Box as Box2, Text as Text2, useStdout } from "ink";
 
 // src/components/Mascot.tsx
@@ -5412,6 +5413,59 @@ function useTheme() {
   );
 }
 
+// src/utils/updater.ts
+init_src();
+import fs from "fs";
+import path from "path";
+import os from "os";
+var CACHE_FILE = path.join(os.homedir(), ".cyber", "update-cache.json");
+var CHECK_INTERVAL = 12 * 60 * 60 * 1e3;
+function compareVersions(v1, v2) {
+  const parts1 = v1.replace(/^v/, "").split(".").map(Number);
+  const parts2 = v2.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+async function checkForUpdates() {
+  try {
+    let cache = { lastCheck: 0, latestVersion: null };
+    if (fs.existsSync(CACHE_FILE)) {
+      try {
+        cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
+      } catch (e) {
+      }
+    }
+    if (Date.now() - cache.lastCheck < CHECK_INTERVAL && cache.latestVersion) {
+      const isNewer = compareVersions(cache.latestVersion, CYBERCODER_VERSION) > 0;
+      return { updateAvailable: isNewer, latestVersion: cache.latestVersion };
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2e3);
+    const res = await fetch("https://registry.npmjs.org/cybercoder-cli/latest", {
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      const latestVersion = data.version;
+      fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+      fs.writeFileSync(CACHE_FILE, JSON.stringify({
+        lastCheck: Date.now(),
+        latestVersion
+      }));
+      const isNewer = compareVersions(latestVersion, CYBERCODER_VERSION) > 0;
+      return { updateAvailable: isNewer, latestVersion };
+    }
+  } catch (err) {
+  }
+  return { updateAvailable: false, latestVersion: null };
+}
+
 // src/components/Welcome.tsx
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var Welcome = ({ model = "auto", provider = "auto" }) => {
@@ -5420,6 +5474,14 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
   const profile = getUserProfile();
   const userName = profile.name || process.env.USER || process.env.USERNAME || "Coder";
   const userPlan = profile.plan || "Free";
+  const [updateInfo, setUpdateInfo] = React.useState(null);
+  React.useEffect(() => {
+    checkForUpdates().then((info) => {
+      if (info.updateAvailable) {
+        setUpdateInfo(info);
+      }
+    });
+  }, []);
   const { stdout } = useStdout();
   const termWidth = stdout.columns ?? 80;
   const contentWidth = termWidth - 4;
@@ -5494,6 +5556,19 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
       "\u2500".repeat(contentWidth),
       "\u256F"
     ] }),
+    updateInfo && /* @__PURE__ */ jsx2(Box2, { marginTop: 1, flexDirection: "column", children: /* @__PURE__ */ jsxs2(Box2, { borderStyle: "round", borderColor: "yellow", paddingX: 1, flexDirection: "column", children: [
+      /* @__PURE__ */ jsxs2(Text2, { bold: true, color: "yellow", children: [
+        "\u{1F680} Update available: ",
+        CYBERCODER_VERSION,
+        " \u2192 ",
+        updateInfo.latestVersion
+      ] }),
+      /* @__PURE__ */ jsxs2(Text2, { color: "gray", children: [
+        "Run ",
+        /* @__PURE__ */ jsx2(Text2, { color: "cyan", children: "npm install -g cybercoder-cli@latest" }),
+        " to update!"
+      ] })
+    ] }) }),
     /* @__PURE__ */ jsxs2(Box2, { paddingX: 1, marginTop: 1, children: [
       /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, bold: true, children: model }),
       /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: " is ready \xB7 " }),
@@ -7699,21 +7774,21 @@ function buildWorkflowCommand(ctx) {
         reply("Usage: /workflow run <name>  (or /workflow to list)");
         return;
       }
-      let path2 = "";
+      let path3 = "";
       for (const ext of [".yml", ".yaml"]) {
         const candidate = join19(workflowsDir, name + ext);
         if (existsSync18(candidate) && statSync8(candidate).isFile()) {
-          path2 = candidate;
+          path3 = candidate;
           break;
         }
       }
-      if (!path2) {
+      if (!path3) {
         reply(`Workflow '${name}' not found in ${workflowsDir}.`);
         return;
       }
       let parsed;
       try {
-        const raw = readFileSync22(path2, "utf8");
+        const raw = readFileSync22(path3, "utf8");
         const doc = parseYaml2(raw);
         parsed = WorkflowSchema.parse(doc);
       } catch (err) {
@@ -8172,7 +8247,7 @@ Share this URL with other participants to enable live collaboration.`);
             ...statusSession.participants.map((p2) => `  - ${p2}`),
             "",
             "Worktrees:",
-            ...Object.entries(statusSession.worktrees).map(([agent, path2]) => `  - ${agent}: ${path2}`),
+            ...Object.entries(statusSession.worktrees).map(([agent, path3]) => `  - ${agent}: ${path3}`),
             "",
             "Shared Context:",
             ...Object.entries(statusSession.sharedContext).map(([key, value]) => `  - ${key}: ${JSON.stringify(value)}`)
@@ -8270,8 +8345,8 @@ Note: Actual git worktree creation would run \`git worktree add ${worktreePath} 
             return;
           }
           const worktreeLines = [`Worktrees for session "${sessionId}":`];
-          for (const [agentId, path2] of Object.entries(session.worktrees)) {
-            worktreeLines.push(`  ${agentId}: ${path2}`);
+          for (const [agentId, path3] of Object.entries(session.worktrees)) {
+            worktreeLines.push(`  ${agentId}: ${path3}`);
           }
           reply(worktreeLines.join("\n"));
           break;
@@ -9764,8 +9839,8 @@ function buildKnowledgeCommand(ctx) {
 
 // src/commands/init.ts
 init_project_memory();
-import * as fs from "fs";
-import * as path from "path";
+import * as fs2 from "fs";
+import * as path2 from "path";
 function buildInitCommand(ctx) {
   return {
     name: "init",
@@ -9774,7 +9849,7 @@ function buildInitCommand(ctx) {
     usage: "/init",
     run: () => {
       const cwd2 = process.cwd();
-      const targetPath = path.join(cwd2, "CYBER.md");
+      const targetPath = path2.join(cwd2, "CYBER.md");
       const reply = (content) => {
         ctx.appendMessage({
           id: `init-${Date.now()}`,
@@ -9783,7 +9858,7 @@ function buildInitCommand(ctx) {
           createdAt: Date.now()
         });
       };
-      if (fs.existsSync(targetPath)) {
+      if (fs2.existsSync(targetPath)) {
         reply("\u26A0\uFE0F CYBER.md already exists in the current directory.");
         return;
       }
@@ -9791,22 +9866,22 @@ function buildInitCommand(ctx) {
       let buildCommand = "make";
       let testCommand = "make test";
       let guidelines = "Write clean, modern, and self-documenting code.";
-      if (fs.existsSync(path.join(cwd2, "package.json"))) {
+      if (fs2.existsSync(path2.join(cwd2, "package.json"))) {
         projectType = "Node.js / TypeScript";
         buildCommand = "npm run build";
         testCommand = "npm test";
         guidelines = "- Prefer TypeScript over plain JavaScript.\n- Use ES modules (import/export).\n- Keep dependencies minimal and use clean async/await patterns.";
-      } else if (fs.existsSync(path.join(cwd2, "Cargo.toml"))) {
+      } else if (fs2.existsSync(path2.join(cwd2, "Cargo.toml"))) {
         projectType = "Rust";
         buildCommand = "cargo build";
         testCommand = "cargo test";
         guidelines = "- Follow standard rustfmt conventions.\n- Minimize use of `unsafe` blocks.\n- Handle errors explicitly using Result and Option.";
-      } else if (fs.existsSync(path.join(cwd2, "go.mod"))) {
+      } else if (fs2.existsSync(path2.join(cwd2, "go.mod"))) {
         projectType = "Go";
         buildCommand = "go build ./...";
         testCommand = "go test ./...";
         guidelines = "- Handle errors immediately where they occur.\n- Use standard naming style (camelCase).\n- Write table-driven unit tests.";
-      } else if (fs.existsSync(path.join(cwd2, "requirements.txt")) || fs.existsSync(path.join(cwd2, "pyproject.toml")) || fs.existsSync(path.join(cwd2, "setup.py"))) {
+      } else if (fs2.existsSync(path2.join(cwd2, "requirements.txt")) || fs2.existsSync(path2.join(cwd2, "pyproject.toml")) || fs2.existsSync(path2.join(cwd2, "setup.py"))) {
         projectType = "Python";
         buildCommand = "python -m pip install -r requirements.txt";
         testCommand = "pytest";
@@ -9835,7 +9910,7 @@ ${guidelines}
 - Commands: Propose standard commands using \`run_command\`.
 `;
       try {
-        fs.writeFileSync(targetPath, template, "utf8");
+        fs2.writeFileSync(targetPath, template, "utf8");
         let memoryNote = "";
         try {
           const stackMap = {
@@ -9847,7 +9922,7 @@ ${guidelines}
           };
           const alreadyHad = cyberDirExists(cwd2);
           initProjectMemory(cwd2, {
-            name: path.basename(cwd2),
+            name: path2.basename(cwd2),
             summary: `${projectType} project.`,
             stack: stackMap[projectType] ?? [],
             commands: { build: buildCommand, test: testCommand },

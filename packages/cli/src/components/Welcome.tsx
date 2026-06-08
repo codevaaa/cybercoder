@@ -4,6 +4,7 @@ import { CYBERCODER_VERSION, CYBERCODER_NAME } from '@cybermind/shared';
 import { Mascot } from './Mascot.js';
 import { getUserProfile } from '../utils/config.js';
 import { useTheme } from '../theme/useTheme.js';
+import { checkForUpdates } from '../utils/updater.js';
 
 interface WelcomeProps {
   provider?: string;
@@ -25,6 +26,16 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
   const profile = getUserProfile();
   const userName = profile.name || process.env.USER || process.env.USERNAME || 'Coder';
   const userPlan = profile.plan || 'Free';
+
+  const [updateInfo, setUpdateInfo] = React.useState<{ updateAvailable: boolean; latestVersion: string | null } | null>(null);
+
+  React.useEffect(() => {
+    checkForUpdates().then(info => {
+      if (info.updateAvailable) {
+        setUpdateInfo(info);
+      }
+    });
+  }, []);
 
   const { stdout } = useStdout();
   const termWidth = stdout.columns ?? 80;
@@ -88,6 +99,15 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
 
       {/* Custom Bottom Border */}
       <Text color={t.accent}>╰{'─'.repeat(contentWidth)}╯</Text>
+
+      {updateInfo && (
+        <Box marginTop={1} flexDirection="column">
+          <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
+            <Text bold color="yellow">🚀 Update available: {CYBERCODER_VERSION} → {updateInfo.latestVersion}</Text>
+            <Text color="gray">Run <Text color="cyan">npm install -g cybercoder-cli@latest</Text> to update!</Text>
+          </Box>
+        </Box>
+      )}
 
       <Box paddingX={1} marginTop={1}>
         <Text color={t.accentAlt} bold>{model}</Text>
