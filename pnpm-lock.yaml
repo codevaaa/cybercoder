@@ -72,6 +72,9 @@ importers:
       ink:
         specifier: ^5.0.1
         version: 5.2.1(@types/react@18.3.29)(react@18.3.1)
+      ink-select-input:
+        specifier: ^6.2.0
+        version: 6.2.0(ink@5.2.1)(react@18.3.1)
       ink-spinner:
         specifier: ^5.0.0
         version: 5.0.0(ink@5.2.1)(react@18.3.1)
@@ -3477,6 +3480,19 @@ packages:
     dev: true
     optional: true
 
+  /ink-select-input@6.2.0(ink@5.2.1)(react@18.3.1):
+    resolution: {integrity: sha512-304fZXxkpYxJ9si5lxRCaX01GNlmPBgOZumXXRnPYbHW/iI31cgQynqk2tRypGLOF1cMIwPUzL2LSm6q4I5rQQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ink: '>=5.0.0'
+      react: '>=18.0.0'
+    dependencies:
+      figures: 6.1.0
+      ink: 5.2.1(@types/react@18.3.29)(react@18.3.1)
+      react: 18.3.1
+      to-rotated: 1.0.0
+    dev: false
+
   /ink-spinner@5.0.0(ink@5.2.1)(react@18.3.1):
     resolution: {integrity: sha512-EYEasbEjkqLGyPOUc8hBJZNuC5GvXGMLu0w5gdTNskPc7Izc5vO3tdQEYnzvshucyGCBXc86ig0ujXPMWaQCdA==}
     engines: {node: '>=14.16'}
@@ -5084,6 +5100,11 @@ packages:
     dependencies:
       is-number: 7.0.0
     dev: true
+
+  /to-rotated@1.0.0:
+    resolution: {integrity: sha512-KsEID8AfgUy+pxVRLsWp0VzCa69wxzUDZnzGbyIST/bcgcrMvTYoFBX/QORH4YApoD89EDuUovx4BTdpOn319Q==}
+    engines: {node: '>=18'}
+    dev: false
 
   /tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
