@@ -1,18 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
-import { apiClient } from '../utils/api-client.js';
+import React, { useState } from 'react';
+import { Box, Text, useInput, useStdout } from 'ink';
+import { useTheme } from '../theme/useTheme.js';
 
 interface ModelInfo {
   id: string;
   name: string;
-  context: string;
+  tier: string;
   desc: string;
-}
-
-interface ProviderGroup {
-  id: string;
-  label: string;
-  models: ModelInfo[];
 }
 
 interface ModelPickerProps {
@@ -21,154 +15,90 @@ interface ModelPickerProps {
   onClose: () => void;
 }
 
-const DEFAULT_PROVIDERS: ProviderGroup[] = [
-  {
-    id: 'codeva',
-    label: 'CyberCoder Mythological Swarm',
-    models: [
-      { id: 'auto', name: 'Auto (recommended)', context: 'Varies', desc: 'Routes to the best persona' }
-    ],
-  }
+/**
+ * The 4 Codeva Mythological Swarm Models + Auto.
+ * These are the ONLY models shown to users — they map to backend routing.
+ * No raw API model names (groq/xxx, cerebras/xxx) are exposed.
+ */
+const SUPREME_MODELS: ModelInfo[] = [
+  { id: 'auto',      name: 'Auto (recommended)',                    tier: 'all',      desc: 'Routes to the best available persona for the task' },
+  { id: 'madhav',    name: 'Madhav (Pro — Strategic Mastermind)',    tier: 'pro',      desc: 'Deep codebase understanding, complex architecture planning' },
+  { id: 'kali',      name: 'Kali (Standard — Destroyer of Bugs)',   tier: 'standard', desc: 'Relentless debugging, finding edge-case vulnerabilities' },
+  { id: 'abhimanyu', name: 'Abhimanyu (Basic — Deep Context)',      tier: 'basic',    desc: 'Deep-dive local reasoning for breaking complex logic traps' },
+  { id: 'trinity',   name: 'Trinity (Free — The Powerhouse)',       tier: 'free',     desc: 'Fast, logic-perfect execution for free tier users' },
 ];
 
 export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect, onClose }) => {
-  const [providers, setProviders] = useState<ProviderGroup[]>(DEFAULT_PROVIDERS);
-  const [loading, setLoading] = useState(true);
-  const [providerIdx, setProviderIdx] = useState(0);
-  const [modelIdx, setModelIdx] = useState(0);
-  const [stage, setStage] = useState<'provider' | 'model'>('provider');
+  const t = useTheme();
+  const { stdout } = useStdout();
+  const termWidth = stdout?.columns ?? 80;
+  const contentWidth = Math.max(termWidth - 6, 50);
 
-  useEffect(() => {
-    async function loadModels() {
-      try {
-        const data = await apiClient.getModels();
-        if (data && data.models) {
-          const dynamicModels = data.models.map((m: any) => ({
-            id: m.id,
-            name: m.name || m.id,
-            context: m.tier === 'max' ? '200K' : (m.tier === 'pro' ? '128K' : '64K'),
-            desc: `Codeva ${m.tier || 'free'} tier model`,
-          }));
-          
-          setProviders([
-            {
-              id: 'codeva',
-              label: `CyberCoder Models (${data.plan || 'free'} plan)`,
-              models: [
-                { id: 'auto', name: 'Auto (recommended)', context: 'Varies', desc: 'Routes to the best persona' },
-                ...dynamicModels
-              ],
-            }
-          ]);
-        }
-      } catch (err) {
-        // Fallback to default if offline or API fails
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadModels();
-  }, []);
+  // Pre-select the current model
+  const initialIdx = SUPREME_MODELS.findIndex((m) => m.id === currentModel);
+  const [selectedIdx, setSelectedIdx] = useState(initialIdx >= 0 ? initialIdx : 0);
 
   useInput((_, key) => {
-    if (loading) return;
-
     if (key.escape) {
-      if (stage === 'model') {
-        setStage('provider');
-        setModelIdx(0);
-      } else {
-        onClose();
-      }
+      onClose();
       return;
     }
-
-    if (stage === 'provider') {
-      if (key.upArrow) {
-        setProviderIdx((i) => Math.max(0, i - 1));
-      } else if (key.downArrow) {
-        setProviderIdx((i) => Math.min(providers.length - 1, i + 1));
-      } else if (key.return) {
-        const prov = providers[providerIdx];
-        if (prov) {
-          // Check if current model is in this provider, pre-select it
-          const currentInProv = prov.models.findIndex((m) => m.id === currentModel);
-          setModelIdx(currentInProv >= 0 ? currentInProv : 0);
-          setStage('model');
-        }
-      }
-    } else {
-      const prov = providers[providerIdx];
-      if (!prov) return;
-      if (key.upArrow) {
-        setModelIdx((i) => Math.max(0, i - 1));
-      } else if (key.downArrow) {
-        setModelIdx((i) => Math.min(prov.models.length - 1, i + 1));
-      } else if (key.return) {
-        const model = prov.models[modelIdx];
-        if (model) onSelect(model.id);
-      }
+    if (key.upArrow) {
+      setSelectedIdx((i) => Math.max(0, i - 1));
+    } else if (key.downArrow) {
+      setSelectedIdx((i) => Math.min(SUPREME_MODELS.length - 1, i + 1));
+    } else if (key.return) {
+      const model = SUPREME_MODELS[selectedIdx];
+      if (model) onSelect(model.id);
     }
   });
 
-  const currentProv = providers[providerIdx];
+  const dashLength = Math.max(2, contentWidth - ' Model Selection '.length - 2);
 
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text color="#D97736">{'╭─ Model Selection ─────────────────────────────────────────────╮'}</Text>
+      {/* Top border */}
+      <Text color={t.accent}>{'╭─ Model Selection '}{' ─'.repeat(1)}{'─'.repeat(dashLength)}{'╮'}</Text>
 
-      <Box flexDirection="column" paddingLeft={2} paddingRight={2} marginTop={1}>
-        {stage === 'provider' && (
-          <>
-            <Text bold color="white">Select a provider:</Text>
-            <Box marginTop={1} />
-            {providers.map((prov, i) => (
-              <Box key={prov.id} flexDirection="row" marginBottom={1}>
-                <Text>
-                  {i === providerIdx ? (
-                    <Text color="#D97736">{'› '}</Text>
-                  ) : (
-                    <Text color="gray">{'  '}</Text>
-                  )}
-                  <Text color={i === providerIdx ? 'white' : 'gray'} bold={i === providerIdx}>
-                    {prov.label}
-                  </Text>
-                  <Text color="gray"> ({prov.models.length} models)</Text>
-                </Text>
-              </Box>
-            ))}
-            <Box marginTop={1} />
-            <Text color="gray">Arrow keys to navigate, Enter to select, ESC to close</Text>
-          </>
-        )}
+      <Box flexDirection="column" paddingLeft={2} paddingRight={2} marginTop={1} marginBottom={1}>
+        <Text bold color={t.text}>CyberCoder Mythological Swarm — Select model:</Text>
+        <Box marginTop={1} />
 
-        {stage === 'model' && currentProv && (
-          <>
-            <Text bold color="white">{currentProv.label} — Select model:</Text>
-            <Box marginTop={1} />
-            {currentProv.models.map((m, i) => (
-              <Box key={m.id} flexDirection="column" marginBottom={1}>
+        {SUPREME_MODELS.map((m, i) => {
+          const isSelected = i === selectedIdx;
+          const isCurrent = m.id === currentModel;
+          
+          // Tier badge colors
+          const tierColor = m.tier === 'pro' ? '#FF6B6B' : m.tier === 'standard' ? '#FFD93D' : m.tier === 'basic' ? '#6BCB77' : m.tier === 'free' ? '#4D96FF' : t.accent;
+
+          return (
+            <Box key={m.id} flexDirection="column" marginBottom={1}>
+              <Box flexDirection="row">
                 <Text>
-                  {i === modelIdx ? (
-                    <Text color="#D97736">{'› '}</Text>
+                  {isSelected ? (
+                    <Text color={t.accent}>{'› '}</Text>
                   ) : (
-                    <Text color="gray">{'  '}</Text>
+                    <Text color={t.dim}>{'  '}</Text>
                   )}
-                  <Text color={i === modelIdx ? 'white' : 'gray'} bold={i === modelIdx}>
+                  <Text color={isSelected ? t.text : t.muted} bold={isSelected}>
                     {m.name}
                   </Text>
-                  {m.id === currentModel && <Text color="green">{' (current)'}</Text>}
+                  {isCurrent && <Text color={t.success}>{' (current)'}</Text>}
+                  {' '}
+                  <Text color={tierColor}>[{m.tier}]</Text>
                 </Text>
-                <Text color="gray">     Context: {m.context} · {m.desc}</Text>
               </Box>
-            ))}
-            <Box marginTop={1} />
-            <Text color="gray">Arrow keys to navigate, Enter to select, ESC to go back</Text>
-          </>
-        )}
+              <Text color={t.dim}>{'     '}{m.desc}</Text>
+            </Box>
+          );
+        })}
+
+        <Box marginTop={1} />
+        <Text color={t.dim}>↑↓ navigate · Enter select · ESC close</Text>
       </Box>
 
-      <Text color="#D97736">{'╰──────────────────────────────────────────────────────────────────╯'}</Text>
+      {/* Bottom border */}
+      <Text color={t.accent}>{'╰'}{'─'.repeat(contentWidth)}{'╯'}</Text>
     </Box>
   );
 };

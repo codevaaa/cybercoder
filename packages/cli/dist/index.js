@@ -5296,7 +5296,7 @@ import { render } from "ink";
 
 // src/app.tsx
 import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
-import { useCallback, useEffect as useEffect5, useMemo, useRef as useRef2, useState as useState9 } from "react";
+import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState9 } from "react";
 
 // src/components/Welcome.tsx
 init_src();
@@ -5557,7 +5557,7 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
   const t = useTheme();
   const cwd2 = process.cwd();
   const profile = getUserProfile();
-  const userPlan = profile.plan || "Free Plan";
+  const userPlan = profile.plan || "free";
   const [updateInfo, setUpdateInfo] = React.useState(null);
   React.useEffect(() => {
     checkForUpdates().then((info) => {
@@ -5570,60 +5570,51 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
   const termWidth = stdout?.columns ?? 80;
   const contentWidth = Math.max(termWidth - 4, 60);
   const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
-  const dashLength = Math.max(2, contentWidth - title.length);
-  const leftWidth = Math.floor(contentWidth * 0.45);
-  const rightWidth = contentWidth - leftWidth - 1;
-  const modelText = `${model} with ${provider} \xB7 ${userPlan}`;
-  const truncatedModelText = modelText.length > leftWidth - 2 ? modelText.slice(0, leftWidth - 5) + "..." : modelText;
-  const truncatedCwd = cwd2.length > leftWidth - 2 ? "..." + cwd2.slice(-(leftWidth - 5)) : cwd2;
-  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingX: 1, marginBottom: 1, children: [
+  const dashAfterTitle = Math.max(2, contentWidth - title.length - 2);
+  const modelLine = `${model}`;
+  const planLine = `${provider} \xB7 ${userPlan}`;
+  const maxCwdLen = 30;
+  const cwdShort = cwd2.length > maxCwdLen ? cwd2.slice(0, maxCwdLen - 3) + "..." : cwd2;
+  return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingX: 1, marginBottom: 0, children: [
     /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
       "\u256D\u2500",
-      /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: title }),
-      "\u2500".repeat(dashLength),
+      title,
+      "\u2500".repeat(dashAfterTitle),
       "\u256E"
     ] }),
-    /* @__PURE__ */ jsxs2(Box2, { flexDirection: "row", width: contentWidth + 2, children: [
+    /* @__PURE__ */ jsxs2(Box2, { flexDirection: "row", children: [
       /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-      /* @__PURE__ */ jsxs2(Box2, { width: leftWidth, flexDirection: "column", alignItems: "center", paddingTop: 1, paddingBottom: 1, paddingX: 1, children: [
+      /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", alignItems: "center", paddingX: 2, paddingY: 1, width: Math.floor(contentWidth * 0.35), children: [
         /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.text, children: "Welcome back!" }),
         /* @__PURE__ */ jsx2(Box2, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: truncatedModelText }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: truncatedCwd })
-      ] }),
-      /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", children: [
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" })
-      ] }),
-      /* @__PURE__ */ jsxs2(Box2, { width: rightWidth, flexDirection: "column", paddingLeft: 2, paddingTop: 1, children: [
-        /* @__PURE__ */ jsxs2(Box2, { marginBottom: 1, children: [
-          /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accentAlt || t.accent, children: "Tips for getting started" }),
-          /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-            "Run /init to create a CYBER.md file with instructions for ",
-            CYBERCODER_NAME
-          ] })
+        /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+          /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.text, children: modelLine }),
+          " with ",
+          /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt || t.accent, children: planLine })
         ] }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: cwdShort })
+      ] }),
+      /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+      /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingLeft: 1, paddingY: 1, width: Math.floor(contentWidth * 0.65), children: [
+        /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accentAlt || t.accent, children: "Tips for getting started" }),
+        /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+          "Run /init to create a CYBER.md file with instructions for ",
+          CYBERCODER_NAME
+        ] }),
+        /* @__PURE__ */ jsx2(Box2, { marginTop: 1 }),
         /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accentAlt || t.accent, children: "What's new" }),
         /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Bug fixes and reliability improvements" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Bug fixes and reliability improvements" }),
-        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Added robust slash commands and improved UI layout." }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Added 4 Supreme Models: Madhav, Kali, Abhimanyu, Trinity" }),
         /* @__PURE__ */ jsx2(Text2, { color: t.dim, italic: true, children: "/release-notes for more" })
       ] }),
       /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" })
     ] }),
     /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
       "\u2570",
-      "\u2500".repeat(leftWidth),
-      "\u2534",
-      "\u2500".repeat(rightWidth),
+      "\u2500".repeat(contentWidth),
       "\u256F"
     ] }),
-    updateInfo && /* @__PURE__ */ jsxs2(Box2, { marginTop: 1, paddingLeft: 2, children: [
+    updateInfo && /* @__PURE__ */ jsxs2(Box2, { marginTop: 0, paddingLeft: 2, children: [
       /* @__PURE__ */ jsxs2(Text2, { bold: true, color: "yellow", children: [
         "\u{1F680} Update available: ",
         CYBERCODER_VERSION,
@@ -6591,140 +6582,85 @@ var Settings = ({ onClose }) => {
 };
 
 // src/components/ModelPicker.tsx
-import { useState as useState5, useEffect as useEffect3 } from "react";
-import { Box as Box7, Text as Text7, useInput as useInput4 } from "ink";
-import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
-var DEFAULT_PROVIDERS = [
-  {
-    id: "codeva",
-    label: "CyberCoder Mythological Swarm",
-    models: [
-      { id: "auto", name: "Auto (recommended)", context: "Varies", desc: "Routes to the best persona" }
-    ]
-  }
+import { useState as useState5 } from "react";
+import { Box as Box7, Text as Text7, useInput as useInput4, useStdout as useStdout3 } from "ink";
+import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+var SUPREME_MODELS = [
+  { id: "auto", name: "Auto (recommended)", tier: "all", desc: "Routes to the best available persona for the task" },
+  { id: "madhav", name: "Madhav (Pro \u2014 Strategic Mastermind)", tier: "pro", desc: "Deep codebase understanding, complex architecture planning" },
+  { id: "kali", name: "Kali (Standard \u2014 Destroyer of Bugs)", tier: "standard", desc: "Relentless debugging, finding edge-case vulnerabilities" },
+  { id: "abhimanyu", name: "Abhimanyu (Basic \u2014 Deep Context)", tier: "basic", desc: "Deep-dive local reasoning for breaking complex logic traps" },
+  { id: "trinity", name: "Trinity (Free \u2014 The Powerhouse)", tier: "free", desc: "Fast, logic-perfect execution for free tier users" }
 ];
 var ModelPicker = ({ currentModel, onSelect, onClose }) => {
-  const [providers, setProviders] = useState5(DEFAULT_PROVIDERS);
-  const [loading, setLoading] = useState5(true);
-  const [providerIdx, setProviderIdx] = useState5(0);
-  const [modelIdx, setModelIdx] = useState5(0);
-  const [stage, setStage] = useState5("provider");
-  useEffect3(() => {
-    async function loadModels() {
-      try {
-        const data = await apiClient.getModels();
-        if (data && data.models) {
-          const dynamicModels = data.models.map((m) => ({
-            id: m.id,
-            name: m.name || m.id,
-            context: m.tier === "max" ? "200K" : m.tier === "pro" ? "128K" : "64K",
-            desc: `Codeva ${m.tier || "free"} tier model`
-          }));
-          setProviders([
-            {
-              id: "codeva",
-              label: `CyberCoder Models (${data.plan || "free"} plan)`,
-              models: [
-                { id: "auto", name: "Auto (recommended)", context: "Varies", desc: "Routes to the best persona" },
-                ...dynamicModels
-              ]
-            }
-          ]);
-        }
-      } catch (err) {
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadModels();
-  }, []);
+  const t = useTheme();
+  const { stdout } = useStdout3();
+  const termWidth = stdout?.columns ?? 80;
+  const contentWidth = Math.max(termWidth - 6, 50);
+  const initialIdx = SUPREME_MODELS.findIndex((m) => m.id === currentModel);
+  const [selectedIdx, setSelectedIdx] = useState5(initialIdx >= 0 ? initialIdx : 0);
   useInput4((_, key) => {
-    if (loading) return;
     if (key.escape) {
-      if (stage === "model") {
-        setStage("provider");
-        setModelIdx(0);
-      } else {
-        onClose();
-      }
+      onClose();
       return;
     }
-    if (stage === "provider") {
-      if (key.upArrow) {
-        setProviderIdx((i) => Math.max(0, i - 1));
-      } else if (key.downArrow) {
-        setProviderIdx((i) => Math.min(providers.length - 1, i + 1));
-      } else if (key.return) {
-        const prov = providers[providerIdx];
-        if (prov) {
-          const currentInProv = prov.models.findIndex((m) => m.id === currentModel);
-          setModelIdx(currentInProv >= 0 ? currentInProv : 0);
-          setStage("model");
-        }
-      }
-    } else {
-      const prov = providers[providerIdx];
-      if (!prov) return;
-      if (key.upArrow) {
-        setModelIdx((i) => Math.max(0, i - 1));
-      } else if (key.downArrow) {
-        setModelIdx((i) => Math.min(prov.models.length - 1, i + 1));
-      } else if (key.return) {
-        const model = prov.models[modelIdx];
-        if (model) onSelect(model.id);
-      }
+    if (key.upArrow) {
+      setSelectedIdx((i) => Math.max(0, i - 1));
+    } else if (key.downArrow) {
+      setSelectedIdx((i) => Math.min(SUPREME_MODELS.length - 1, i + 1));
+    } else if (key.return) {
+      const model = SUPREME_MODELS[selectedIdx];
+      if (model) onSelect(model.id);
     }
   });
-  const currentProv = providers[providerIdx];
+  const dashLength = Math.max(2, contentWidth - " Model Selection ".length - 2);
   return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u256D\u2500 Model Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
-    /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
-      stage === "provider" && /* @__PURE__ */ jsxs7(Fragment2, { children: [
-        /* @__PURE__ */ jsx7(Text7, { bold: true, color: "white", children: "Select a provider:" }),
-        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-        providers.map((prov, i) => /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
-          i === providerIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
-          /* @__PURE__ */ jsx7(Text7, { color: i === providerIdx ? "white" : "gray", bold: i === providerIdx, children: prov.label }),
-          /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
-            " (",
-            prov.models.length,
-            " models)"
-          ] })
-        ] }) }, prov.id)),
-        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-        /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to close" })
-      ] }),
-      stage === "model" && currentProv && /* @__PURE__ */ jsxs7(Fragment2, { children: [
-        /* @__PURE__ */ jsxs7(Text7, { bold: true, color: "white", children: [
-          currentProv.label,
-          " \u2014 Select model:"
-        ] }),
-        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-        currentProv.models.map((m, i) => /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
-          /* @__PURE__ */ jsxs7(Text7, { children: [
-            i === modelIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
-            /* @__PURE__ */ jsx7(Text7, { color: i === modelIdx ? "white" : "gray", bold: i === modelIdx, children: m.name }),
-            m.id === currentModel && /* @__PURE__ */ jsx7(Text7, { color: "green", children: " (current)" })
-          ] }),
-          /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [
-            "     Context: ",
-            m.context,
-            " \xB7 ",
+    /* @__PURE__ */ jsxs7(Text7, { color: t.accent, children: [
+      "\u256D\u2500 Model Selection ",
+      " \u2500".repeat(1),
+      "\u2500".repeat(dashLength),
+      "\u256E"
+    ] }),
+    /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, marginBottom: 1, children: [
+      /* @__PURE__ */ jsx7(Text7, { bold: true, color: t.text, children: "CyberCoder Mythological Swarm \u2014 Select model:" }),
+      /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
+      SUPREME_MODELS.map((m, i) => {
+        const isSelected = i === selectedIdx;
+        const isCurrent = m.id === currentModel;
+        const tierColor = m.tier === "pro" ? "#FF6B6B" : m.tier === "standard" ? "#FFD93D" : m.tier === "basic" ? "#6BCB77" : m.tier === "free" ? "#4D96FF" : t.accent;
+        return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
+          /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", children: /* @__PURE__ */ jsxs7(Text7, { children: [
+            isSelected ? /* @__PURE__ */ jsx7(Text7, { color: t.accent, children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: t.dim, children: "  " }),
+            /* @__PURE__ */ jsx7(Text7, { color: isSelected ? t.text : t.muted, bold: isSelected, children: m.name }),
+            isCurrent && /* @__PURE__ */ jsx7(Text7, { color: t.success, children: " (current)" }),
+            " ",
+            /* @__PURE__ */ jsxs7(Text7, { color: tierColor, children: [
+              "[",
+              m.tier,
+              "]"
+            ] })
+          ] }) }),
+          /* @__PURE__ */ jsxs7(Text7, { color: t.dim, children: [
+            "     ",
             m.desc
           ] })
-        ] }, m.id)),
-        /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-        /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "Arrow keys to navigate, Enter to select, ESC to go back" })
-      ] })
+        ] }, m.id);
+      }),
+      /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
+      /* @__PURE__ */ jsx7(Text7, { color: t.dim, children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC close" })
     ] }),
-    /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256F" })
+    /* @__PURE__ */ jsxs7(Text7, { color: t.accent, children: [
+      "\u2570",
+      "\u2500".repeat(contentWidth),
+      "\u256F"
+    ] })
   ] });
 };
 
 // src/components/ReleaseNotes.tsx
 import { useState as useState6 } from "react";
 import { Box as Box8, Text as Text8, useInput as useInput5 } from "ink";
-import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 var RELEASES = [
   {
     version: "0.1.18",
@@ -6797,7 +6733,7 @@ var ReleaseNotes = ({ onClose }) => {
         i < RELEASES.length - 1 && /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "\u2502" })
       ] }, r.version)) }),
       /* @__PURE__ */ jsx8(Text8, { color: "gray", children: "\u2500".repeat(50) }),
-      rel && /* @__PURE__ */ jsxs8(Fragment3, { children: [
+      rel && /* @__PURE__ */ jsxs8(Fragment2, { children: [
         /* @__PURE__ */ jsxs8(Text8, { bold: true, color: "white", children: [
           rel.version,
           " \u2014 ",
@@ -6862,28 +6798,18 @@ var Prompt = ({ onSubmit, disabled }) => {
       setValue("");
     }
   };
-  return /* @__PURE__ */ jsxs9(
-    Box9,
-    {
-      flexDirection: "row",
-      marginTop: 1,
-      borderStyle: "round",
-      borderColor: disabled ? t.dim : t.accent,
-      paddingX: 1,
-      children: [
-        /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "> " }),
-        disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
-          TextInput2,
-          {
-            value,
-            onChange: setValue,
-            onSubmit: handleSubmit,
-            placeholder: 'Try "refactor <filepath>" \xB7 / for commands \xB7 \\ for multi-line'
-          }
-        )
-      ]
-    }
-  );
+  return /* @__PURE__ */ jsxs9(Box9, { flexDirection: "row", paddingX: 0, marginTop: 0, children: [
+    /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "\u276F " }),
+    disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
+      TextInput2,
+      {
+        value,
+        onChange: setValue,
+        onSubmit: handleSubmit,
+        placeholder: 'Try "fix typecheck errors"'
+      }
+    )
+  ] });
 };
 
 // src/components/MessageList.tsx
@@ -7031,7 +6957,7 @@ var MessageList = ({ messages }) => {
 };
 
 // src/components/StatusBar.tsx
-import { Box as Box11, Text as Text11 } from "ink";
+import { Box as Box11, Text as Text11, useStdout as useStdout4 } from "ink";
 import { jsx as jsx11, jsxs as jsxs11 } from "react/jsx-runtime";
 var STATUS_LABEL = {
   idle: "ready",
@@ -7041,6 +6967,8 @@ var STATUS_LABEL = {
 };
 var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
   const t = useTheme();
+  const { stdout } = useStdout4();
+  const termWidth = stdout?.columns ?? 80;
   const statusColor = {
     idle: t.success,
     thinking: t.warning,
@@ -7053,13 +6981,11 @@ var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
     }
     return num.toString();
   };
-  return /* @__PURE__ */ jsxs11(Box11, { marginTop: 1, paddingLeft: 1, children: [
+  const leftPart = `[${STATUS_LABEL[status]}]  ${model} \xB7 ${provider} | tokens: ${formatTokens2(tokens)} | cost: $${cost.toFixed(2)} | ? shortcuts`;
+  return /* @__PURE__ */ jsxs11(Box11, { paddingLeft: 1, marginTop: 0, children: [
     /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "[" }),
     /* @__PURE__ */ jsx11(Text11, { color: statusColor[status], bold: true, children: STATUS_LABEL[status] }),
-    /* @__PURE__ */ jsxs11(Text11, { color: t.dim, children: [
-      "] ",
-      " "
-    ] }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "]  " }),
     /* @__PURE__ */ jsx11(Text11, { color: t.text, bold: true, children: model }),
     /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
     /* @__PURE__ */ jsx11(Text11, { color: t.text, children: provider }),
@@ -7078,7 +7004,7 @@ var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
 };
 
 // src/components/ThinkingIndicator.tsx
-import { useEffect as useEffect4, useState as useState8 } from "react";
+import { useEffect as useEffect3, useState as useState8 } from "react";
 import { Box as Box12, Text as Text12 } from "ink";
 import { jsx as jsx12, jsxs as jsxs12 } from "react/jsx-runtime";
 var WORDS = [
@@ -7107,7 +7033,7 @@ var ThinkingIndicator = ({ tokens = 0, label }) => {
   const [frame, setFrame] = useState8(0);
   const [wordIdx, setWordIdx] = useState8(() => Math.floor(Math.random() * WORDS.length));
   const [elapsed, setElapsed] = useState8(0);
-  useEffect4(() => {
+  useEffect3(() => {
     const f = setInterval(() => setFrame((x) => (x + 1) % FRAMES.length), 80);
     const w = setInterval(() => setWordIdx((x) => (x + 1) % WORDS.length), 3200);
     const e = setInterval(() => setElapsed((x) => x + 1), 1e3);
@@ -7195,10 +7121,10 @@ var ApprovalDialog = ({ pending }) => {
 };
 
 // src/components/HintBar.tsx
-import { Box as Box15, Text as Text15, useStdout as useStdout3 } from "ink";
+import { Box as Box15, Text as Text15, useStdout as useStdout5 } from "ink";
 import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
-  const { stdout } = useStdout3();
+  const { stdout } = useStdout5();
   const t = useTheme();
   const termWidth = stdout.columns ?? 80;
   const contentWidth = Math.min(termWidth - 4, 76);
@@ -7227,17 +7153,12 @@ var HintBar = ({ status = "idle" }) => {
         return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
           /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
           " for shortcuts \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "/" }),
-          " for commands \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.error, children: "Ctrl+C" }),
-          " to exit"
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "\u2190" }),
+          " for agents"
         ] });
     }
   };
-  return /* @__PURE__ */ jsxs14(Box15, { flexDirection: "column", marginTop: 1, children: [
-    /* @__PURE__ */ jsx15(Text15, { color: t.dim, dimColor: true, children: "\u2500".repeat(contentWidth + 2) }),
-    /* @__PURE__ */ jsx15(Box15, { paddingLeft: 1, marginTop: 0, children: getHints() })
-  ] });
+  return /* @__PURE__ */ jsx15(Box15, { flexDirection: "row", paddingLeft: 1, marginTop: 0, children: getHints() });
 };
 
 // src/commands/help.ts
@@ -10402,7 +10323,7 @@ async function getUpdateMessage() {
 }
 
 // src/app.tsx
-import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
@@ -10429,7 +10350,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [exitConfirm, setExitConfirm] = useState9(false);
   const [pendingApproval, setPendingApproval] = useState9(null);
   const [updateNotice, setUpdateNotice] = useState9("");
-  useEffect5(() => {
+  useEffect4(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
         if (msg) setUpdateNotice(msg);
@@ -10680,7 +10601,7 @@ ${trimmed}
       case "release-notes":
         return /* @__PURE__ */ jsx16(ReleaseNotes, { onClose: handleReleaseNotesClose });
       case "welcome":
-        return /* @__PURE__ */ jsxs15(Fragment4, { children: [
+        return /* @__PURE__ */ jsxs15(Fragment3, { children: [
           updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
           welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
           /* @__PURE__ */ jsx16(MessageList, { messages }),
@@ -10693,7 +10614,7 @@ ${trimmed}
         ] });
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs15(Fragment4, { children: [
+        return /* @__PURE__ */ jsxs15(Fragment3, { children: [
           updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
           welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
           /* @__PURE__ */ jsx16(MessageList, { messages }),

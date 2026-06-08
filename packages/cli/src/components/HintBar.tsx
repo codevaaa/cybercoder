@@ -30,19 +30,15 @@ export const HintBar: React.FC<HintBarProps> = ({ status = 'idle' }) => {
       default:
         return (
           <Text color={t.muted}>
-            <Text bold color={t.accent}>?</Text> for shortcuts · <Text bold color={t.accent}>/</Text> for commands · <Text bold color={t.error}>Ctrl+C</Text> to exit
+            <Text bold color={t.accent}>?</Text> for shortcuts · <Text bold color={t.accent}>←</Text> for agents
           </Text>
         );
     }
   };
 
   return (
-    <Box flexDirection="column" marginTop={1}>
-      {/* Thin dim separator line */}
-      <Text color={t.dim} dimColor>{'─'.repeat(contentWidth + 2)}</Text>
-      <Box paddingLeft={1} marginTop={0}>
-        {getHints()}
-      </Box>
+    <Box flexDirection="row" paddingLeft={1} marginTop={0}>
+      {getHints()}
     </Box>
   );
 };

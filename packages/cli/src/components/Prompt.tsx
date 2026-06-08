@@ -59,16 +59,10 @@ export const Prompt: React.FC<PromptProps> = ({ onSubmit, disabled }) => {
     }
   };
 
-  // Claude Code-style rounded input box with the accent caret inside.
+  // Claude Code-style prompt: just ❯ with no box border, clean and minimal
   return (
-    <Box
-      flexDirection="row"
-      marginTop={1}
-      borderStyle="round"
-      borderColor={disabled ? t.dim : t.accent}
-      paddingX={1}
-    >
-      <Text color={disabled ? t.dim : t.accent} bold>{'> '}</Text>
+    <Box flexDirection="row" paddingX={0} marginTop={0}>
+      <Text color={disabled ? t.dim : t.accent} bold>{'❯ '}</Text>
       {disabled ? (
         <Text color={t.dim}>…</Text>
       ) : (
@@ -76,7 +70,7 @@ export const Prompt: React.FC<PromptProps> = ({ onSubmit, disabled }) => {
           value={value}
           onChange={setValue}
           onSubmit={handleSubmit}
-          placeholder='Try "refactor <filepath>" · / for commands · \ for multi-line'
+          placeholder='Try "fix typecheck errors"'
         />
       )}
     </Box>
