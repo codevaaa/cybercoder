@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -8,6 +16,15 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // ../shared/src/types.ts
 import { z } from "zod";
@@ -1297,7 +1314,14 @@ var init_ecosystem = __esm({
       getAvailableSkills() {
         const seedSkills = this.getSeedSkills();
         const installedSkills = this.getInstalledSkills();
-        return [...seedSkills, ...installedSkills];
+        const skillMap = /* @__PURE__ */ new Map();
+        for (const skill of seedSkills) {
+          skillMap.set(skill.id, skill);
+        }
+        for (const skill of installedSkills) {
+          skillMap.set(skill.id, skill);
+        }
+        return Array.from(skillMap.values());
       }
       async installSkill(skillId) {
         const skills = this.getAvailableSkills();
@@ -1450,7 +1474,24 @@ var init_ecosystem = __esm({
         return [];
       }
       getInstalledSkills() {
-        return [];
+        try {
+          if (!existsSync7(this.skillsDir)) return [];
+          const { readdirSync: readdirSync11 } = __require("fs");
+          const files = readdirSync11(this.skillsDir).filter((f) => f.endsWith(".json"));
+          const skills = [];
+          for (const file of files) {
+            try {
+              const content = readFileSync6(join7(this.skillsDir, file), "utf8");
+              skills.push(JSON.parse(content));
+            } catch (err) {
+              log6.warn("Failed to parse skill file", { file, error: String(err) });
+            }
+          }
+          return skills;
+        } catch (err) {
+          log6.error("Failed to read skills directory", { error: String(err) });
+          return [];
+        }
       }
       saveMCPServer(server) {
         const path3 = join7(this.mcpDir, `${server.id}.json`);
@@ -1847,11 +1888,11 @@ function getSessionId() {
 }
 function isAuthenticated() {
   const config = loadConfig();
-  if (config.loginMethod === "cybercli") {
+  if (config.loginMethod === "codeva" || config.loginMethod === "cybercli") {
     return !!config.authToken;
   }
   if (config.loginMethod === "apikey") {
-    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.anthropic));
+    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.codeva || config.apiKeys.anthropic));
   }
   if (config.loginMethod === "thirdparty") {
     return true;
@@ -2212,6 +2253,23 @@ var init_consensus = __esm({
 });
 
 // ../core/src/plan-act.ts
+async function runPlan(messages, opts) {
+  const readonly = opts.tools.filter((t) => !t.destructive);
+  let text = "";
+  for await (const evt of runAgentLoop(messages, {
+    provider: opts.provider,
+    systemPrompt: PLAN_SYSTEM,
+    model: opts.model ?? "auto",
+    tools: readonly,
+    maxIterations: 6,
+    signal: opts.signal
+  })) {
+    opts.onEvent?.(evt);
+    if (evt.type === "text") text += evt.text;
+  }
+  const steps = text.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("STEP:")).map((l) => l.replace(/^STEP:\s*/, ""));
+  return { plan: text.trim(), steps };
+}
 async function* runGoal(initialMessages, opts) {
   const maxRounds = opts.maxRounds ?? 8;
   const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
@@ -2249,11 +2307,16 @@ async function* runGoal(initialMessages, opts) {
   }
   yield { type: "done", reason: "max_iterations" };
 }
-var GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
+var PLAN_SYSTEM, GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
 var init_plan_act = __esm({
   "../core/src/plan-act.ts"() {
     "use strict";
     init_agent_loop();
+    PLAN_SYSTEM = `You are in PLANNING mode. Produce a concise, ordered implementation
+plan for the user's goal. Use read-only tools (read_file, read_many, list_dir,
+grep, web_search) to ground the plan in the actual codebase. DO NOT modify any
+files or run mutating commands. End with a numbered task list, one task per line,
+prefixed "STEP:".`;
     GOAL_SENTINEL = "GOAL_COMPLETE";
     GOAL_SYSTEM_SUFFIX = `
 
@@ -4815,6 +4878,16 @@ var init_hooks = __esm({
 });
 
 // src/runtime/chat.ts
+var chat_exports = {};
+__export(chat_exports, {
+  getCheckpoints: () => getCheckpoints,
+  getRouter: () => getRouter,
+  getSkillRegistry: () => getSkillRegistry,
+  runChat: () => runChat,
+  runGoalChat: () => runGoalChat,
+  runPlanChat: () => runPlanChat,
+  toProviderMessages: () => toProviderMessages
+});
 function getCheckpoints() {
   if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
   return singletonCheckpoints;
@@ -4987,6 +5060,18 @@ async function runGoalChat(history, opts) {
   })) {
     opts.onEvent(evt);
   }
+}
+async function runPlanChat(history, opts) {
+  const router = getRouter();
+  const providerMessages = toProviderMessages(history);
+  const { tools } = await buildAgentTools(opts.approvalUI);
+  return runPlan(providerMessages, {
+    provider: router,
+    model: opts.model ?? "auto",
+    tools,
+    signal: opts.signal,
+    onEvent: opts.onEvent
+  });
 }
 function summarizeCall(name, input) {
   if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
@@ -5211,7 +5296,7 @@ import { render } from "ink";
 
 // src/app.tsx
 import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
-import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState9 } from "react";
+import { useCallback, useEffect as useEffect5, useMemo, useRef as useRef2, useState as useState9 } from "react";
 
 // src/components/Welcome.tsx
 init_src();
@@ -5636,7 +5721,8 @@ init_config();
 // src/utils/api-client.ts
 init_config();
 import { hostname } from "os";
-var BACKEND_URL = process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com/api/v1";
+var BASE_URL = process.env.CYBERMIND_CLOUD_URL || "https://cybercli-api.onrender.com";
+var BACKEND_URL = BASE_URL.endsWith("/api/v1") ? BASE_URL : `${BASE_URL.replace(/\/+$/, "")}/api/v1`;
 var ApiClient = class {
   getHeaders() {
     const token = getAuthToken();
@@ -5885,8 +5971,95 @@ var Onboarding = ({ onComplete }) => {
         if (urlObj.pathname === "/auth") {
           const token = urlObj.searchParams.get("token");
           if (token) {
+            const htmlResponse = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication Successful - Codeva</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #0d0d12;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      background: #D97757;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .icon svg {
+      width: 32px;
+      height: 32px;
+      color: white;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    p {
+      margin: 0;
+      color: #a1a1aa;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .footer {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      color: #71717a;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      </svg>
+    </div>
+    <h1>Authentication Successful!</h1>
+    <p>You have successfully logged into the Codeva CLI. You can now close this tab and return to your terminal.</p>
+    <div class="footer">
+      Powered by Codeva Cloud
+    </div>
+  </div>
+  <script>
+    setTimeout(() => {
+      window.close();
+    }, 5000);
+  </script>
+</body>
+</html>
+`;
             res.writeHead(200, { "Content-Type": "text/html" });
-            res.end("<h1>Authentication Successful!</h1><p>You can close this tab and return to the terminal.</p>");
+            res.end(htmlResponse);
             setAuthToken(token);
             apiClient.authenticate(token).then((authInfo) => {
               setSessionId(authInfo.session_id);
@@ -6447,27 +6620,55 @@ var Settings = ({ onClose }) => {
 };
 
 // src/components/ModelPicker.tsx
-import { useState as useState5 } from "react";
+import { useState as useState5, useEffect as useEffect3 } from "react";
 import { Box as Box7, Text as Text7, useInput as useInput4 } from "ink";
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
-var PROVIDERS = [
+var DEFAULT_PROVIDERS = [
   {
     id: "codeva",
     label: "CyberCoder Mythological Swarm",
     models: [
-      { id: "auto", name: "Auto (recommended)", context: "Varies", desc: "Routes to the best persona" },
-      { id: "codeva-madhav-v1", name: "Madhav (Strategic Mastermind)", context: "200K", desc: "Deep architecture and reasoning" },
-      { id: "codeva-kali-v1", name: "Kali (Destroyer of Bugs)", context: "200K", desc: "Relentless debugging and security" },
-      { id: "codeva-arjun-v1", name: "Arjun (Precision Archer)", context: "64K", desc: "Lightning fast UI and inline edits" },
-      { id: "codeva-abhimanyu-v1", name: "Abhimanyu (Fearless Breaker)", context: "128K", desc: "Deep-dive local reasoning traps" }
+      { id: "auto", name: "Auto (recommended)", context: "Varies", desc: "Routes to the best persona" }
     ]
   }
 ];
 var ModelPicker = ({ currentModel, onSelect, onClose }) => {
+  const [providers, setProviders] = useState5(DEFAULT_PROVIDERS);
+  const [loading, setLoading] = useState5(true);
   const [providerIdx, setProviderIdx] = useState5(0);
   const [modelIdx, setModelIdx] = useState5(0);
   const [stage, setStage] = useState5("provider");
+  useEffect3(() => {
+    async function loadModels() {
+      try {
+        const data = await apiClient.getModels();
+        if (data && data.models) {
+          const dynamicModels = data.models.map((m) => ({
+            id: m.id,
+            name: m.name || m.id,
+            context: m.tier === "max" ? "200K" : m.tier === "pro" ? "128K" : "64K",
+            desc: `Codeva ${m.tier || "free"} tier model`
+          }));
+          setProviders([
+            {
+              id: "codeva",
+              label: `CyberCoder Models (${data.plan || "free"} plan)`,
+              models: [
+                { id: "auto", name: "Auto (recommended)", context: "Varies", desc: "Routes to the best persona" },
+                ...dynamicModels
+              ]
+            }
+          ]);
+        }
+      } catch (err) {
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadModels();
+  }, []);
   useInput4((_, key) => {
+    if (loading) return;
     if (key.escape) {
       if (stage === "model") {
         setStage("provider");
@@ -6481,9 +6682,9 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
       if (key.upArrow) {
         setProviderIdx((i) => Math.max(0, i - 1));
       } else if (key.downArrow) {
-        setProviderIdx((i) => Math.min(PROVIDERS.length - 1, i + 1));
+        setProviderIdx((i) => Math.min(providers.length - 1, i + 1));
       } else if (key.return) {
-        const prov = PROVIDERS[providerIdx];
+        const prov = providers[providerIdx];
         if (prov) {
           const currentInProv = prov.models.findIndex((m) => m.id === currentModel);
           setModelIdx(currentInProv >= 0 ? currentInProv : 0);
@@ -6491,7 +6692,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
         }
       }
     } else {
-      const prov = PROVIDERS[providerIdx];
+      const prov = providers[providerIdx];
       if (!prov) return;
       if (key.upArrow) {
         setModelIdx((i) => Math.max(0, i - 1));
@@ -6503,7 +6704,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
       }
     }
   });
-  const currentProv = PROVIDERS[providerIdx];
+  const currentProv = providers[providerIdx];
   return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
     /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u256D\u2500 Model Selection \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256E" }),
     /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, children: [
@@ -6906,7 +7107,7 @@ var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
 };
 
 // src/components/ThinkingIndicator.tsx
-import { useEffect as useEffect3, useState as useState8 } from "react";
+import { useEffect as useEffect4, useState as useState8 } from "react";
 import { Box as Box12, Text as Text12 } from "ink";
 import { jsx as jsx12, jsxs as jsxs12 } from "react/jsx-runtime";
 var WORDS = [
@@ -6935,7 +7136,7 @@ var ThinkingIndicator = ({ tokens = 0, label }) => {
   const [frame, setFrame] = useState8(0);
   const [wordIdx, setWordIdx] = useState8(() => Math.floor(Math.random() * WORDS.length));
   const [elapsed, setElapsed] = useState8(0);
-  useEffect3(() => {
+  useEffect4(() => {
     const f = setInterval(() => setFrame((x) => (x + 1) % FRAMES.length), 80);
     const w = setInterval(() => setWordIdx((x) => (x + 1) % WORDS.length), 3200);
     const e = setInterval(() => setElapsed((x) => x + 1), 1e3);
@@ -8753,25 +8954,22 @@ function buildSkillsMarketplaceCommand(ctx) {
       const command = parts[0];
       const ecosystem = new EcosystemManager();
       switch (command) {
-        case "list":
-          const skills = ecosystem.getAvailableSkills();
-          const categories = new Set(skills.map((s) => s.category));
-          const categoryLines = ["\u{1F3AF} Available Skills by Category:", ""];
-          for (const category of Array.from(categories).sort()) {
-            const categorySkills2 = skills.filter((s) => s.category === category);
-            categoryLines.push(`\u{1F4C2} ${category.charAt(0).toUpperCase() + category.slice(1)} (${categorySkills2.length})`);
-            for (const skill2 of categorySkills2.slice(0, 5)) {
-              const status = skill2.installed ? "\u2705" : "\u2B1C";
-              categoryLines.push(`  ${status} ${skill2.name} (${skill2.id})`);
-              categoryLines.push(`     \u2B50 ${skill2.rating} \u2022 ${skill2.downloadCount} downloads`);
+        case "list": {
+          const { getSkillRegistry: getSkillRegistry3 } = (init_chat(), __toCommonJS(chat_exports));
+          const registry = getSkillRegistry3();
+          const skills = registry.list();
+          const categoryLines = ["\u{1F3AF} Available Skills:", ""];
+          if (skills.length === 0) {
+            categoryLines.push("No skills found. Check your ~/.codeva/skills directory or bundled skills.");
+          } else {
+            for (const skill2 of skills) {
+              categoryLines.push(`  \u2705 ${skill2.frontmatter.name} (${skill2.source})`);
+              categoryLines.push(`     ${skill2.frontmatter.description}`);
             }
-            if (categorySkills2.length > 5) {
-              categoryLines.push(`  ... and ${categorySkills2.length - 5} more`);
-            }
-            categoryLines.push("");
           }
           reply(categoryLines.join("\n"));
           break;
+        }
         case "search":
           if (parts.length < 2) {
             reply("Usage: /skills search <query>");
@@ -10261,7 +10459,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [exitConfirm, setExitConfirm] = useState9(false);
   const [pendingApproval, setPendingApproval] = useState9(null);
   const [updateNotice, setUpdateNotice] = useState9("");
-  useEffect4(() => {
+  useEffect5(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
         if (msg) setUpdateNotice(msg);
@@ -10418,7 +10616,6 @@ ${trimmed}
     (raw) => {
       const text = raw.trim();
       if (!text) return;
-      if (welcomeVisible) setWelcomeVisible(false);
       if (text.startsWith("/")) {
         const trimmed = text.slice(1).trim();
         if (!trimmed) {
@@ -10528,6 +10725,7 @@ ${trimmed}
       default:
         return /* @__PURE__ */ jsxs15(Fragment4, { children: [
           updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
+          welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
           /* @__PURE__ */ jsx16(MessageList, { messages }),
           pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
           status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),

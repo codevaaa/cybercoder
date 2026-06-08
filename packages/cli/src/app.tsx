@@ -238,8 +238,8 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       const text = raw.trim();
       if (!text) return;
 
-      // Hide the welcome card on first real interaction
-      if (welcomeVisible) setWelcomeVisible(false);
+      // Remove welcomeVisible = false so the header stays in DOM and scrolls up naturally
+      // like Claude Code does.
 
       // Slash command dispatch
       if (text.startsWith('/')) {
@@ -378,6 +378,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
                 <Text color="yellow">{updateNotice}</Text>
               </Box>
             )}
+            {welcomeVisible && <Welcome provider={provider} model={model} />}
             <MessageList messages={messages} />
             {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
             {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} label={statusMessage} />}

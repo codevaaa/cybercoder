@@ -134,7 +134,7 @@ export function isAuthenticated(): boolean {
     return !!config.authToken;
   }
   if (config.loginMethod === 'apikey') {
-    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.anthropic));
+    return !!(config.apiKeys && (config.apiKeys.cybermind || config.apiKeys.cybermind_cloud || config.apiKeys.codeva || config.apiKeys.anthropic));
   }
   if (config.loginMethod === 'thirdparty') {
     return true; // Ollama local doesn't require cloud auth
