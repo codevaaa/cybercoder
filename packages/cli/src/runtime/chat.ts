@@ -1,7 +1,7 @@
-import { runAgentLoop, type AgentEvent } from '@cybermind/core';
-import { runGoal, runPlan } from '@cybermind/core';
-import { ProviderRouter, type ProviderId } from '@cybermind/providers';
-import type { ProviderMessage } from '@cybermind/providers';
+import { runAgentLoop, type AgentEvent } from '@cybercoder/core';
+import { runGoal, runPlan } from '@cybercoder/core';
+import { ProviderRouter, type ProviderId } from '@cybercoder/providers';
+import type { ProviderMessage } from '@cybercoder/providers';
 import {
   ApprovalGate,
   HeadlessApprovalUI,
@@ -9,8 +9,8 @@ import {
   WorkspaceCheckpoints,
   loadMcpTools,
   type ApprovalUI,
-} from '@cybermind/tools';
-import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from '@cybermind/skills';
+} from '@cybercoder/tools';
+import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from '@cybercoder/skills';
 import type { SessionMessage } from '../state/session.js';
 import { loadConfig } from '../utils/config.js';
 import { getGitContext, gitContextPrompt } from '../utils/git-context.js';
@@ -33,7 +33,7 @@ export function getRouter(): ProviderRouter {
   const config = loadConfig();
   const configKeys = config.apiKeys ?? {};
   
-  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
 
   if (!singletonRouter) {
     singletonRouter = new ProviderRouter({
@@ -62,10 +62,10 @@ export function getSkillRegistry(): SkillRegistry {
 
 function defaultProviderOrder(config: any, configKeys: Record<string, string>): ProviderId[] {
   const order: ProviderId[] = [];
-  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybermind ?? configKeys.cybermind_cloud;
+  const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
   
   if (cloudApiKey) {
-    order.push('cybermind-cloud');
+    order.push('cybercoder-cloud');
   }
   if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
     order.push('anthropic');
@@ -86,7 +86,7 @@ function defaultProviderOrder(config: any, configKeys: Record<string, string>): 
   return order;
 }
 
-const SYSTEM_PROMPT = `You are CyberMind, a fullstack agentic coding assistant running inside a terminal.
+const SYSTEM_PROMPT = `You are CyberCoder, a fullstack agentic coding assistant running inside a terminal.
 You help with reading, editing, and running code across the user's project. Be concise,
 prefer code over prose, and never invent file paths. You have access to these tools:
 - read_file(path, offset?, limit?) — returns numbered lines of a file

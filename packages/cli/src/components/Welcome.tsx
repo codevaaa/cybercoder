@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useStdout } from 'ink';
 import { CYBERCODER_VERSION, CYBERCODER_NAME } from '@cybermind/shared';
 import { Mascot } from './Mascot.js';
 import { getUserProfile } from '../utils/config.js';
@@ -12,11 +12,11 @@ interface WelcomeProps {
 }
 
 /**
- * Claude Code-style minimal welcome card:
- * 
- *  [mascot]  CyberCoder v0.1.33
- *            auto · Free Plan
- *            C:\Users\PC\project
+ * Claude Code-style welcome card:
+ * ╭─ CyberCoder v0.1.34 ─────────────────────────────────────────╮
+ * │   [mascot]   minimax-m2.5-free with xhigh effort             │
+ * │              C:\Users\PC\project                             │
+ * ╰──────────────────────────────────────────────────────────────╯
  */
 export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'auto' }) => {
   const t = useTheme();
@@ -34,23 +34,42 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
     });
   }, []);
 
+  const { stdout } = useStdout();
+  const termWidth = stdout?.columns ?? 80;
+  // Use full terminal width minus a small margin to be fully responsive
+  const contentWidth = Math.max(termWidth - 4, 40);
+
+  // Calculate the custom top border with embedded title
+  const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
+  const dashLength = Math.max(2, contentWidth - title.length);
+
   return (
     <Box flexDirection="column" paddingX={1} marginBottom={1}>
-      <Box flexDirection="row">
-        {/* Left column: mascot */}
-        <Box marginRight={2}>
+      {/* Custom Top Border */}
+      <Text color={t.accent}>╭─<Text color={t.accent}>{title}</Text>{'─'.repeat(dashLength)}╮</Text>
+      
+      <Box
+        flexDirection="row"
+        paddingX={1}
+        width={contentWidth + 2}
+        borderLeftColor={t.accent}
+        borderRightColor={t.accent}
+        borderLeft={true}
+        borderRight={true}
+      >
+        <Box marginRight={2} marginLeft={2}>
           <Mascot />
         </Box>
-
-        {/* Right column: app info */}
-        <Box flexDirection="column">
-          <Text bold color={t.text}>{CYBERCODER_NAME} v{CYBERCODER_VERSION}</Text>
+        <Box flexDirection="column" justifyContent="center">
           <Text color={t.muted}>
-            {model} · {userPlan}
+            <Text bold color={t.text}>{model}</Text> with <Text color={t.accentAlt}>{provider}</Text> · {userPlan}
           </Text>
           <Text color={t.dim} wrap="truncate-middle">{cwd}</Text>
         </Box>
       </Box>
+
+      {/* Custom Bottom Border */}
+      <Text color={t.accent}>╰{'─'.repeat(contentWidth)}╯</Text>
 
       {updateInfo && (
         <Box marginTop={1} paddingLeft={2}>

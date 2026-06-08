@@ -62,7 +62,7 @@ export function buildHelpCommand(
       for (const c of all) (grouped[c.category] ??= []).push(c);
 
       const lines: string[] = [];
-      lines.push('CyberMind slash commands:');
+      lines.push('CyberCoder slash commands:');
       for (const cat of CATEGORY_ORDER) {
         const cmds = grouped[cat];
         if (!cmds?.length) continue;

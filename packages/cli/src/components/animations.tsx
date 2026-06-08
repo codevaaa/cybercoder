@@ -116,7 +116,7 @@ export function WaveAnimation({ text }: { text: string }) {
   );
 }
 
-export function CyberMindLoading() {
+export function CyberCoderLoading() {
   const [phase, setPhase] = useState(0);
   const phases = [
     '🧠 Initializing neural networks...',
@@ -137,7 +137,7 @@ export function CyberMindLoading() {
     <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text color="magenta">
-          ▟███████▙  CyberMind AI
+          ▟███████▙  CyberCoder AI
           █  ◉  ◉  █
           █   ╳   █
           ▜███████▛

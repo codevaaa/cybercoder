@@ -34,7 +34,7 @@ export function buildLoginCommand(ctx: CommandContext): SlashCommandHandler {
           `🔐 CyberCoder Authentication Required\n\n` +
           `Usage: /login <api_key>\n\n` +
           `You can get an API key from the Web dashboard:\n` +
-          `https://cybermindcli.info/settings/api-keys\n\n` +
+          `https://cybercodercli.info/settings/api-keys\n\n` +
           `Or use local models offline: /provider ollama`
         );
         return;

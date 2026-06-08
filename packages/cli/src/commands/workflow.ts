@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
-const WORKFLOW_DIR = '.cybermind/workflows';
+const WORKFLOW_DIR = '.cybercoder/workflows';
 
 const StepSchema = z.object({
   prompt: z.string().min(1),
@@ -18,7 +18,7 @@ const WorkflowSchema = z.object({
 });
 
 /**
- * `/workflow` — run a multi-step YAML workflow from `.cybermind/workflows/`.
+ * `/workflow` — run a multi-step YAML workflow from `.cybercoder/workflows/`.
  *
  *   /workflow                 — list available workflows in this project
  *   /workflow run <name>      — execute every step sequentially via the agent
@@ -41,7 +41,7 @@ const WorkflowSchema = z.object({
 export function buildWorkflowCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'workflow',
-    description: 'Run a YAML workflow from .cybermind/workflows/.',
+    description: 'Run a YAML workflow from .cybercoder/workflows/.',
     category: 'utility',
     usage: '/workflow [run <name>]',
     run: async (args: string) => {

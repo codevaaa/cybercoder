@@ -2,7 +2,7 @@ import { ApprovalGate, HeadlessApprovalUI } from '@cybermind/tools';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
- * `/trust` — manage persistent tool trust at ~/.cybermind/trust.json.
+ * `/trust` — manage persistent tool trust at ~/.cybercoder/trust.json.
  *
  *   /trust              — list trusted tools
  *   /trust add <tool>   — trust a tool persistently
@@ -14,7 +14,7 @@ import type { CommandContext, SlashCommandHandler } from './index.js';
 export function buildTrustCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'trust',
-    description: 'Persistently allow a tool without prompting (read/write ~/.cybermind/trust.json).',
+    description: 'Persistently allow a tool without prompting (read/write ~/.cybercoder/trust.json).',
     category: 'safety',
     usage: '/trust [add|remove] <tool>',
     run: (args: string) => {

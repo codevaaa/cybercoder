@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { render } from 'ink';
-import { CYBERMIND_VERSION, createLogger } from '@cybermind/shared';
+import { CYBERMIND_VERSION, createLogger } from '@cybercoder/shared';
 import { App } from './app.js';
 import { runChat } from './runtime/chat.js';
 import { clearLogin, isOnboardingComplete } from './utils/config.js';
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
         process.env.CYBERMIND_LOG_STDERR = 'true';
       }
 
-      log.debug('starting CyberMind CLI', { opts });
+      log.debug('starting CyberCoder CLI', { opts });
 
       if (opts.print) {
         void runPrintMode(opts.print as string, opts.model as string | undefined);
@@ -95,15 +95,15 @@ async function main(): Promise<void> {
         // eslint-disable-next-line no-console
         console.log('🔐 CyberCoder Login');
         // eslint-disable-next-line no-console
-        console.log('   Opening browser to https://cybermindcli.info/login ...');
+        console.log('   Opening browser to https://cybercodercli.info/login ...');
         import('open').then((mod) => {
-          mod.default('https://cybermindcli.info/login?redirect=cli');
+          mod.default('https://cybercodercli.info/login?redirect=cli');
           // eslint-disable-next-line no-console
           console.log('   Browser opened. Complete login there, then run `cm`.');
           process.exit(0);
         }).catch(() => {
           // eslint-disable-next-line no-console
-          console.log('   Visit: https://cybermindcli.info/login?redirect=cli');
+          console.log('   Visit: https://cybercodercli.info/login?redirect=cli');
           process.exit(0);
         });
         return;
@@ -167,6 +167,6 @@ async function runPrintMode(prompt: string, model?: string): Promise<void> {
 
 main().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('[cybermind] fatal:', err);
+  console.error('[cybercoder] fatal:', err);
   process.exit(1);
 });

@@ -2,7 +2,7 @@ import { SecretsVault } from '@cybermind/tools';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
- * `/secret` — manage the encrypted secrets vault at ~/.cybermind/secrets.enc.
+ * `/secret` — manage the encrypted secrets vault at ~/.cybercoder/secrets.enc.
  *
  *   /secret list
  *   /secret set NAME=value           (value may contain spaces)
@@ -15,7 +15,7 @@ import type { CommandContext, SlashCommandHandler } from './index.js';
 export function buildSecretCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'secret',
-    description: 'Manage the encrypted secrets vault (~/.cybermind/secrets.enc).',
+    description: 'Manage the encrypted secrets vault (~/.cybercoder/secrets.enc).',
     category: 'safety',
     usage: '/secret list | /secret set NAME=value | /secret get NAME | /secret remove NAME',
     run: (args: string) => {

@@ -137,8 +137,7 @@ export function buildSkillsMarketplaceCommand(ctx: CommandContext): SlashCommand
         });
 
       if (parts.length === 0) {
-        reply('Usage: /skills <list|search|category|install|uninstall|info> [args...]');
-        return;
+        parts.push('list');
       }
 
       const command = parts[0];

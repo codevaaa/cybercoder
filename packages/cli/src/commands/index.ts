@@ -29,7 +29,7 @@ import { buildCollabCommand, buildWorktreeCommand } from './collaboration.js';
 import { buildImageCommand, buildMermaidCommand, buildCostCommand, buildHotkeysCommand, buildScreenshotCommand, buildMobileCommand } from './rich-io.js';
 import { buildMCPCommand, buildSkillsMarketplaceCommand, buildTelemetryCommand } from './ecosystem.js';
 import { buildSuperCommand, buildAICommand, buildWorkspaceCommand, buildGenCommand } from './advanced.js';
-import { buildCustomCommand, buildCyberMindCommand } from './custom-server.js';
+import { buildCustomCommand, buildCyberCoderCommand } from './custom-server.js';
 import { buildLoginCommand, buildLogoutCommand, buildProfileCommand as buildAuthProfileCommand, buildKnowledgeCommand } from './auth.js';
 import { buildInitCommand } from './init.js';
 import { buildCompactCommand } from './compact.js';
@@ -139,7 +139,7 @@ export function buildCommandRegistry(ctx: CommandContext): CommandRegistry {
     buildWorkspaceCommand(ctx),
     buildGenCommand(ctx),
     buildCustomCommand(ctx),
-    buildCyberMindCommand(ctx),
+    buildCyberCoderCommand(ctx),
     buildLoginCommand(ctx),
     buildLogoutCommand(ctx),
     buildAuthProfileCommand(ctx),

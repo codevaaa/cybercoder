@@ -1,4 +1,4 @@
-import { RichIOManager } from '@cybermind/shared';
+import { RichIOManager } from '@cybercoder/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
@@ -350,7 +350,7 @@ export function buildMobileCommand(ctx: CommandContext): SlashCommandHandler {
       const richIO = new RichIOManager();
       
       // Mock content - in real implementation would get from session
-      const content = 'CyberMind CLI Session Content';
+      const content = 'CyberCoder CLI Session Content';
       const html = richIO.generateMobileHTML(content);
 
       if (parts.length === 0) {

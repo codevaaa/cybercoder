@@ -1,4 +1,4 @@
-import { CustomServerManager } from '@cybermind/shared';
+import { CustomServerManager } from '@cybercoder/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
@@ -195,13 +195,13 @@ export function buildCustomCommand(ctx: CommandContext): SlashCommandHandler {
  *   /codeva code <prompt>       — use Codeva Code model
  *   /codeva creative <prompt>   — use Codeva Creative model
  */
-export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler {
+export function buildCyberCoderCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'codeva',
     description: 'Access Codeva\'s exclusive features and models.',
     category: 'utility',
     usage: '/codeva <models|ultra|pro|speed|code|creative> [prompt]',
-    aliases: ['cybermind'],
+    aliases: ['cybercoder'],
     run: async (args: string) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       const reply = (content: string) =>
@@ -222,7 +222,7 @@ export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler 
 
       switch (command) {
         case 'models':
-          const cybermindModels = [
+          const cybercoderModels = [
             { id: 'codeva-ultra', name: 'Codeva Ultra', desc: 'Most powerful for complex tasks', cost: '$5/$15 per 1M' },
             { id: 'codeva-pro', name: 'Codeva Pro', desc: 'Balanced for most tasks', cost: '$2/$6 per 1M' },
             { id: 'codeva-speed', name: 'Codeva Speed', desc: 'Fast for quick responses', cost: '$0.50/$1.50 per 1M' },
@@ -231,7 +231,7 @@ export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler 
           ];
 
           let modelInfo = ['🧠 Codeva Exclusive Models:', ''];
-          cybermindModels.forEach((model, index) => {
+          cybercoderModels.forEach((model, index) => {
             modelInfo.push(`${index + 1}. 🤖 ${model.name}`);
             modelInfo.push(`   ${model.desc}`);
             modelInfo.push(`   💰 Cost: ${model.cost}`);
@@ -252,20 +252,20 @@ export function buildCyberMindCommand(ctx: CommandContext): SlashCommandHandler 
             return;
           }
 
-          const cybermindModelId = `codeva-${command}`;
-          const cybermindModel = customServer.getModel(cybermindModelId);
-          const cybermindPrompt = parts.slice(1).join(' ');
+          const cybercoderModelId = `codeva-${command}`;
+          const cybercoderModel = customServer.getModel(cybercoderModelId);
+          const cybercoderPrompt = parts.slice(1).join(' ');
 
-          if (!cybermindPrompt) {
+          if (!cybercoderPrompt) {
             reply('Prompt is required');
             return;
           }
 
           // Route the prompt through the real agent loop using the selected
           // Codeva model tier instead of returning a canned response.
-          if (ctx.setModel) ctx.setModel(cybermindModelId);
+          if (ctx.setModel) ctx.setModel(cybercoderModelId);
           if (ctx.submitUserPrompt) {
-            ctx.submitUserPrompt(cybermindPrompt);
+            ctx.submitUserPrompt(cybercoderPrompt);
           } else {
             reply(`Codeva ${command} is not available in this context.`);
           }

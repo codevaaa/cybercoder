@@ -101,7 +101,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-    setWelcomeVisible(false);
+    setWelcomeVisible(true);
   }, []);
 
   const commandRegistry = useMemo(

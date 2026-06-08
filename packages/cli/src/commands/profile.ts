@@ -1,8 +1,8 @@
-import { ProfileManager } from '@cybermind/shared';
+import { ProfileManager } from '@cybercoder/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
- * `/profile` — manage CyberMind profiles.
+ * `/profile` — manage CyberCoder profiles.
  *
  *   /profile                     — list profiles and show active
  *   /profile <name>              — switch to profile
@@ -14,7 +14,7 @@ import type { CommandContext, SlashCommandHandler } from './index.js';
 export function buildProfileCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'profile',
-    description: 'Manage CyberMind profiles (model, provider, approval mode, etc.).',
+    description: 'Manage CyberCoder profiles (model, provider, approval mode, etc.).',
     category: 'config',
     usage: '/profile [<name> [<key>=<val>]] | /profile reset <name>',
     run: (args: string) => {
