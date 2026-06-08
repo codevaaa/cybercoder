@@ -59,9 +59,20 @@ export const Prompt: React.FC<PromptProps> = ({ onSubmit, disabled }) => {
     }
   };
 
-  // Claude Code-style prompt: just ❯ with no box border, clean and minimal
+  // Claude Code-style prompt: full width with top and bottom lines
   return (
-    <Box flexDirection="row" paddingX={0} marginTop={0}>
+    <Box
+      flexDirection="row"
+      width="100%"
+      borderStyle="single"
+      borderTop={true}
+      borderBottom={true}
+      borderLeft={false}
+      borderRight={false}
+      borderColor={t.border}
+      paddingY={0}
+      paddingX={0}
+    >
       <Text color={disabled ? t.dim : t.accent} bold>{'❯ '}</Text>
       {disabled ? (
         <Text color={t.dim}>…</Text>

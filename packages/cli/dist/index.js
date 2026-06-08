@@ -4944,7 +4944,7 @@ function defaultProviderOrder(config, configKeys) {
   const order = [];
   const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
   if (cloudApiKey) {
-    order.push("cybercoder-cloud");
+    order.push("cybermind-cloud");
   }
   if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
     order.push("anthropic");
@@ -6819,18 +6819,33 @@ var Prompt = ({ onSubmit, disabled }) => {
       setValue("");
     }
   };
-  return /* @__PURE__ */ jsxs9(Box9, { flexDirection: "row", paddingX: 0, marginTop: 0, children: [
-    /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "\u276F " }),
-    disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
-      TextInput2,
-      {
-        value,
-        onChange: setValue,
-        onSubmit: handleSubmit,
-        placeholder: 'Try "fix typecheck errors"'
-      }
-    )
-  ] });
+  return /* @__PURE__ */ jsxs9(
+    Box9,
+    {
+      flexDirection: "row",
+      width: "100%",
+      borderStyle: "single",
+      borderTop: true,
+      borderBottom: true,
+      borderLeft: false,
+      borderRight: false,
+      borderColor: t.border,
+      paddingY: 0,
+      paddingX: 0,
+      children: [
+        /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "\u276F " }),
+        disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
+          TextInput2,
+          {
+            value,
+            onChange: setValue,
+            onSubmit: handleSubmit,
+            placeholder: 'Try "fix typecheck errors"'
+          }
+        )
+      ]
+    }
+  );
 };
 
 // src/components/MessageList.tsx
@@ -10645,20 +10660,24 @@ ${trimmed}
         ] });
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs15(Fragment3, { children: [
+        return /* @__PURE__ */ jsxs15(Box16, { flexDirection: "column", flexGrow: 1, children: [
           updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
           welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
           /* @__PURE__ */ jsx16(MessageList, { messages }),
           pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
           status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),
-          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx16(Box16, { flexGrow: 1 }),
           /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
+          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
           /* @__PURE__ */ jsx16(HintBar, { status }),
           exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
         ] });
     }
   };
-  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", children: renderScreen() });
+  return /* @__PURE__ */ jsxs15(Box16, { flexDirection: "column", minHeight: process.stdout.rows || 24, children: [
+    /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", flexShrink: 0, children: renderScreen() }),
+    /* @__PURE__ */ jsx16(Box16, { flexGrow: 1 })
+  ] });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;

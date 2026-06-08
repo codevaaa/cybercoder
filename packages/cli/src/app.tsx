@@ -372,7 +372,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       case 'chat':
       default:
         return (
-          <>
+          <Box flexDirection="column" flexGrow={1}>
             {updateNotice && (
               <Box marginBottom={1}>
                 <Text color="yellow">{updateNotice}</Text>
@@ -382,18 +382,24 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
             <MessageList messages={messages} />
             {pendingApproval && <ApprovalDialog pending={pendingApproval} />}
             {status === 'thinking' && <ThinkingIndicator tokens={totalTokens} label={statusMessage} />}
-            <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
+            
+            <Box flexGrow={1} />
+            
             <StatusBar status={status} model={model} provider={provider} tokens={totalTokens} cost={totalCost} />
+            <Prompt onSubmit={handleSubmit} disabled={status !== 'idle'} />
             <HintBar status={status} />
             {exitConfirm && <ExitConfirm />}
-          </>
+          </Box>
         );
     }
   };
 
   return (
-    <Box flexDirection="column">
-      {renderScreen()}
+    <Box flexDirection="column" minHeight={process.stdout.rows || 24}>
+      <Box flexDirection="column" flexShrink={0}>
+        {renderScreen()}
+      </Box>
+      <Box flexGrow={1} />
     </Box>
   );
 };

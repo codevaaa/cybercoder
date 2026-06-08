@@ -69,7 +69,7 @@ function defaultProviderOrder(config: any, configKeys: Record<string, string>): 
   const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
   
   if (cloudApiKey) {
-    order.push('cybercoder-cloud');
+    order.push('cybermind-cloud');
   }
   if (process.env.ANTHROPIC_API_KEY || configKeys.anthropic) {
     order.push('anthropic');
