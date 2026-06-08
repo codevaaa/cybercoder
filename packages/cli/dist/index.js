@@ -2390,7 +2390,8 @@ var init_cybermind_cloud = __esm({
             }
           }
           const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || "";
-          const baseURL = this.opts.baseURL || "https://cybercli-api.onrender.com/api/v1";
+          const rawBaseURL = this.opts.baseURL || "https://cybercli-api.onrender.com";
+          const baseURL = rawBaseURL.endsWith("/api/v1") ? rawBaseURL : `${rawBaseURL.replace(/\/+$/, "")}/api/v1`;
           const headers = { "Content-Type": "application/json" };
           if (this.opts.apiKey) headers["Authorization"] = `Bearer ${this.opts.apiKey}`;
           if (this.opts.sessionId) headers["x-cli-session"] = this.opts.sessionId;
@@ -6819,33 +6820,18 @@ var Prompt = ({ onSubmit, disabled }) => {
       setValue("");
     }
   };
-  return /* @__PURE__ */ jsxs9(
-    Box9,
-    {
-      flexDirection: "row",
-      width: "100%",
-      borderStyle: "single",
-      borderTop: true,
-      borderBottom: true,
-      borderLeft: false,
-      borderRight: false,
-      borderColor: t.border,
-      paddingY: 0,
-      paddingX: 0,
-      children: [
-        /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "\u276F " }),
-        disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
-          TextInput2,
-          {
-            value,
-            onChange: setValue,
-            onSubmit: handleSubmit,
-            placeholder: 'Try "fix typecheck errors"'
-          }
-        )
-      ]
-    }
-  );
+  return /* @__PURE__ */ jsxs9(Box9, { flexDirection: "row", width: "100%", paddingX: 0, marginTop: 0, children: [
+    /* @__PURE__ */ jsx9(Text9, { color: disabled ? t.dim : t.accent, bold: true, children: "\u276F " }),
+    disabled ? /* @__PURE__ */ jsx9(Text9, { color: t.dim, children: "\u2026" }) : /* @__PURE__ */ jsx9(
+      TextInput2,
+      {
+        value,
+        onChange: setValue,
+        onSubmit: handleSubmit,
+        placeholder: 'Try "fix typecheck errors"'
+      }
+    )
+  ] });
 };
 
 // src/components/MessageList.tsx
@@ -7018,24 +7004,14 @@ var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
     return num.toString();
   };
   const leftPart = `[${STATUS_LABEL[status]}]  ${model} \xB7 ${provider} | tokens: ${formatTokens2(tokens)} | cost: $${cost.toFixed(2)} | ? shortcuts`;
-  return /* @__PURE__ */ jsxs11(Box11, { paddingLeft: 1, marginTop: 0, children: [
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "[" }),
-    /* @__PURE__ */ jsx11(Text11, { color: statusColor[status], bold: true, children: STATUS_LABEL[status] }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "]  " }),
+  return /* @__PURE__ */ jsxs11(Box11, { width: "100%", justifyContent: "flex-end", paddingRight: 1, marginTop: 0, children: [
+    /* @__PURE__ */ jsx11(Text11, { color: statusColor[status], children: "\u2699 " }),
     /* @__PURE__ */ jsx11(Text11, { color: t.text, bold: true, children: model }),
     /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.text, children: provider }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "tokens: " }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.info, bold: true, children: formatTokens2(tokens) }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "cost: " }),
-    /* @__PURE__ */ jsxs11(Text11, { color: t.success, bold: true, children: [
+    /* @__PURE__ */ jsxs11(Text11, { color: t.success, children: [
       "$",
-      cost.toFixed(2)
-    ] }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \u2502 " }),
-    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: "? shortcuts" })
+      cost.toFixed(4)
+    ] })
   ] });
 };
 
@@ -7194,7 +7170,24 @@ var HintBar = ({ status = "idle" }) => {
         ] });
     }
   };
-  return /* @__PURE__ */ jsx15(Box15, { flexDirection: "row", paddingLeft: 1, marginTop: 0, children: getHints() });
+  return /* @__PURE__ */ jsx15(
+    Box15,
+    {
+      flexDirection: "row",
+      width: "100%",
+      borderStyle: "single",
+      borderTop: true,
+      borderBottom: false,
+      borderLeft: false,
+      borderRight: false,
+      borderColor: t.border,
+      paddingLeft: 1,
+      paddingTop: 0,
+      paddingBottom: 0,
+      marginTop: 0,
+      children: getHints()
+    }
+  );
 };
 
 // src/commands/help.ts
@@ -10396,6 +10389,14 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [exitConfirm, setExitConfirm] = useState9(false);
   const [pendingApproval, setPendingApproval] = useState9(null);
   const [updateNotice, setUpdateNotice] = useState9("");
+  const [terminalHeight, setTerminalHeight] = useState9(process.stdout.rows || 24);
+  useEffect4(() => {
+    const handleResize = () => setTerminalHeight(process.stdout.rows || 24);
+    process.stdout.on("resize", handleResize);
+    return () => {
+      process.stdout.off("resize", handleResize);
+    };
+  }, []);
   useEffect4(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
@@ -10674,10 +10675,7 @@ ${trimmed}
         ] });
     }
   };
-  return /* @__PURE__ */ jsxs15(Box16, { flexDirection: "column", minHeight: process.stdout.rows || 24, children: [
-    /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", flexShrink: 0, children: renderScreen() }),
-    /* @__PURE__ */ jsx16(Box16, { flexGrow: 1 })
-  ] });
+  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", height: terminalHeight, children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;

@@ -37,7 +37,20 @@ export const HintBar: React.FC<HintBarProps> = ({ status = 'idle' }) => {
   };
 
   return (
-    <Box flexDirection="row" paddingLeft={1} marginTop={0}>
+    <Box
+      flexDirection="row"
+      width="100%"
+      borderStyle="single"
+      borderTop={true}
+      borderBottom={false}
+      borderLeft={false}
+      borderRight={false}
+      borderColor={t.border}
+      paddingLeft={1}
+      paddingTop={0}
+      paddingBottom={0}
+      marginTop={0}
+    >
       {getHints()}
     </Box>
   );

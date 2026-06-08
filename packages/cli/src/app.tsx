@@ -60,6 +60,15 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   const [exitConfirm, setExitConfirm] = useState<boolean>(false);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
   const [updateNotice, setUpdateNotice] = useState<string>('');
+  const [terminalHeight, setTerminalHeight] = useState<number>(process.stdout.rows || 24);
+
+  useEffect(() => {
+    const handleResize = () => setTerminalHeight(process.stdout.rows || 24);
+    process.stdout.on('resize', handleResize);
+    return () => {
+      process.stdout.off('resize', handleResize);
+    };
+  }, []);
 
   // Check for updates on startup (chat/welcome screens only)
   useEffect(() => {
@@ -395,11 +404,8 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   };
 
   return (
-    <Box flexDirection="column" minHeight={process.stdout.rows || 24}>
-      <Box flexDirection="column" flexShrink={0}>
-        {renderScreen()}
-      </Box>
-      <Box flexGrow={1} />
+    <Box flexDirection="column" height={terminalHeight}>
+      {renderScreen()}
     </Box>
   );
 };

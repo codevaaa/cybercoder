@@ -55,7 +55,9 @@ export class CybermindCloudProvider implements LLMProvider {
 
       const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || '';
       
-      const baseURL = this.opts.baseURL || 'https://cybercli-api.onrender.com/api/v1';
+      const rawBaseURL = this.opts.baseURL || 'https://cybercli-api.onrender.com';
+      const baseURL = rawBaseURL.endsWith('/api/v1') ? rawBaseURL : `${rawBaseURL.replace(/\/+$/, '')}/api/v1`;
+      
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (this.opts.apiKey) headers['Authorization'] = `Bearer ${this.opts.apiKey}`;
       if (this.opts.sessionId) headers['x-cli-session'] = this.opts.sessionId;

@@ -43,21 +43,11 @@ export const StatusBar: React.FC<Props> = ({ status, model, provider, tokens = 0
   const leftPart = `[${STATUS_LABEL[status]}]  ${model} · ${provider} | tokens: ${formatTokens(tokens)} | cost: $${cost.toFixed(2)} | ? shortcuts`;
 
   return (
-    <Box paddingLeft={1} marginTop={0}>
-      <Text color={t.dim}>{'['}</Text>
-      <Text color={statusColor[status]} bold>{STATUS_LABEL[status]}</Text>
-      <Text color={t.dim}>{']  '}</Text>
+    <Box width="100%" justifyContent="flex-end" paddingRight={1} marginTop={0}>
+      <Text color={statusColor[status]}>⚙ </Text>
       <Text color={t.text} bold>{model}</Text>
       <Text color={t.dim}> · </Text>
-      <Text color={t.text}>{provider}</Text>
-      <Text color={t.dim}> │ </Text>
-      <Text color={t.dim}>tokens: </Text>
-      <Text color={t.info} bold>{formatTokens(tokens)}</Text>
-      <Text color={t.dim}> │ </Text>
-      <Text color={t.dim}>cost: </Text>
-      <Text color={t.success} bold>${cost.toFixed(2)}</Text>
-      <Text color={t.dim}> │ </Text>
-      <Text color={t.dim}>? shortcuts</Text>
+      <Text color={t.success}>${cost.toFixed(4)}</Text>
     </Box>
   );
 };
