@@ -91,27 +91,29 @@ function parseContent(content: string) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
 
-    // Check code blocks
     if (line.startsWith('```')) {
       if (inCodeBlock) {
         inCodeBlock = false;
-        const langHeader = codeBlockLang ? ` ${codeBlockLang.toUpperCase()} ` : ' CODE ';
         elements.push(
-          <Box key={`code-${i}`} flexDirection="column" marginY={1} borderStyle="round" borderColor="gray">
-            <Box paddingX={1} backgroundColor="gray">
-              <Text color="black" bold>{langHeader}</Text>
-            </Box>
-            <Box paddingX={1} flexDirection="column">
-              {codeBlockLines.map((l, idx) => {
-                let color = "white";
-                if (codeBlockLang.toLowerCase() === 'diff') {
-                  if (l.startsWith('+') && !l.startsWith('+++')) color = "green";
-                  else if (l.startsWith('-') && !l.startsWith('---')) color = "red";
-                  else if (l.startsWith('@@')) color = "cyan";
+          <Box key={`code-${i}`} flexDirection="column" paddingLeft={2} marginY={1}>
+            {codeBlockLines.map((l, idx) => {
+              let bg: string | undefined = undefined;
+              let fg: string = 'white';
+              if (codeBlockLang.toLowerCase() === 'diff') {
+                if (l.startsWith('+') && !l.startsWith('+++')) {
+                  bg = 'green'; fg = 'black';
+                } else if (l.startsWith('-') && !l.startsWith('---')) {
+                  bg = 'red'; fg = 'white';
+                } else if (l.startsWith('@@')) {
+                  fg = 'cyan';
                 }
-                return <Text key={idx} color={color}>{l}</Text>;
-              })}
-            </Box>
+              }
+              return (
+                <Box key={idx} width="100%">
+                  <Text color={fg} backgroundColor={bg}>{l}</Text>
+                </Box>
+              );
+            })}
           </Box>
         );
         codeBlockLines = [];
@@ -128,31 +130,40 @@ function parseContent(content: string) {
       continue;
     }
 
-    // Check tool call logs
     if (line.startsWith('[→ ') && line.includes(']')) {
       const match = line.match(/^\[→ ([^\]]+)\](.*)$/);
       if (match) {
         const toolName = match[1]?.trim() || '';
         const toolArgs = match[2]?.trim() || '';
         elements.push(
-          <Box key={`tool-${i}`} flexDirection="column" paddingX={1} marginY={1} borderStyle="single" borderColor="yellow">
-            <Text color="yellow" bold>⚡ Tool Call: {toolName}</Text>
-            <Text color="gray">{toolArgs}</Text>
+          <Box key={`tool-${i}`} flexDirection="row" paddingLeft={2}>
+            <Text color="gray">{'└ '}{toolName}({toolArgs})</Text>
           </Box>
         );
         continue;
       }
     }
 
-    // Diff line rendering
-    if (line.startsWith('+') && !line.startsWith('+++')) {
-      elements.push(<Text key={i} color="green">{line}</Text>);
+    // Context updates (like auto-compaction notices)
+    if (line.startsWith('[· ') && line.endsWith(' ·]')) {
+      elements.push(
+        <Box key={`ctx-${i}`} flexDirection="row" paddingLeft={2}>
+          <Text color="gray">{line}</Text>
+        </Box>
+      );
       continue;
-    } else if (line.startsWith('-') && !line.startsWith('---')) {
-      elements.push(<Text key={i} color="red">{line}</Text>);
-      continue;
-    } else if (line.startsWith('@@')) {
-      elements.push(<Text key={i} color="cyan">{line}</Text>);
+    }
+
+    // Map markdown bullets to ●
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const indent = line.length - trimmed.length;
+      elements.push(
+        <Box key={i} flexDirection="row" paddingLeft={indent}>
+          <Text>{'● '}</Text>
+          {renderFormattedText(trimmed.slice(2), `bullet-${i}`)}
+        </Box>
+      );
       continue;
     }
 
@@ -164,24 +175,37 @@ function parseContent(content: string) {
 
 export const MessageList: React.FC<Props> = ({ messages }) => {
   if (messages.length === 0) return null;
-  const roleColor: Record<SessionMessage['role'], string> = {
-    user: activeTheme.user,
-    assistant: activeTheme.assistant,
-    system: activeTheme.muted,
-    tool: activeTheme.accentAlt,
-  };
+  const t = activeTheme;
+
   return (
     <Box flexDirection="column" marginBottom={1}>
       {messages.map((m) => {
-        // Skip rendering system messages that are empty or internal
         if (m.role === 'system' && !m.content.trim()) return null;
 
+        if (m.role === 'user') {
+          return (
+            <Box key={m.id} flexDirection="row" marginBottom={1}>
+              <Text bold color={t.user}>{'> '}</Text>
+              <Text color="white">{m.content}</Text>
+            </Box>
+          );
+        }
+
+        if (m.role === 'system' || m.role === 'tool') {
+          // Render system/tool messages slightly dimmed and indented if they are errors or info
+          return (
+            <Box key={m.id} flexDirection="row" paddingLeft={2} marginBottom={1}>
+              <Text color={m.role === 'system' ? t.muted : t.accentAlt}>
+                {m.content.trim().split('\n').join('\n  ')}
+              </Text>
+            </Box>
+          );
+        }
+
+        // Assistant messages
         return (
           <Box key={m.id} flexDirection="column" marginBottom={1}>
-            <Text color={roleColor[m.role]} bold>
-              {ROLE_LABEL[m.role]}
-            </Text>
-            <Box flexDirection="column" paddingLeft={1}>
+            <Box flexDirection="column">
               {parseContent(m.content)}
             </Box>
           </Box>

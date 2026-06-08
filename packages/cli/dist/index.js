@@ -6836,12 +6836,6 @@ var Prompt = ({ onSubmit, disabled }) => {
 // src/components/MessageList.tsx
 import { Box as Box10, Text as Text10 } from "ink";
 import { jsx as jsx10, jsxs as jsxs10 } from "react/jsx-runtime";
-var ROLE_LABEL = {
-  user: "you",
-  assistant: "cybercoder",
-  system: "info",
-  tool: "tool"
-};
 function renderFormattedText(text, key) {
   const parts = [];
   let currentText = "";
@@ -6902,20 +6896,23 @@ function parseContent(content) {
     if (line.startsWith("```")) {
       if (inCodeBlock) {
         inCodeBlock = false;
-        const langHeader = codeBlockLang ? ` ${codeBlockLang.toUpperCase()} ` : " CODE ";
         elements.push(
-          /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginY: 1, borderStyle: "round", borderColor: "gray", children: [
-            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, backgroundColor: "gray", children: /* @__PURE__ */ jsx10(Text10, { color: "black", bold: true, children: langHeader }) }),
-            /* @__PURE__ */ jsx10(Box10, { paddingX: 1, flexDirection: "column", children: codeBlockLines.map((l, idx) => {
-              let color = "white";
-              if (codeBlockLang.toLowerCase() === "diff") {
-                if (l.startsWith("+") && !l.startsWith("+++")) color = "green";
-                else if (l.startsWith("-") && !l.startsWith("---")) color = "red";
-                else if (l.startsWith("@@")) color = "cyan";
+          /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", paddingLeft: 2, marginY: 1, children: codeBlockLines.map((l, idx) => {
+            let bg = void 0;
+            let fg = "white";
+            if (codeBlockLang.toLowerCase() === "diff") {
+              if (l.startsWith("+") && !l.startsWith("+++")) {
+                bg = "green";
+                fg = "black";
+              } else if (l.startsWith("-") && !l.startsWith("---")) {
+                bg = "red";
+                fg = "white";
+              } else if (l.startsWith("@@")) {
+                fg = "cyan";
               }
-              return /* @__PURE__ */ jsx10(Text10, { color, children: l }, idx);
-            }) })
-          ] }, `code-${i}`)
+            }
+            return /* @__PURE__ */ jsx10(Box10, { width: "100%", children: /* @__PURE__ */ jsx10(Text10, { color: fg, backgroundColor: bg, children: l }) }, idx);
+          }) }, `code-${i}`)
         );
         codeBlockLines = [];
         codeBlockLang = "";
@@ -6935,25 +6932,32 @@ function parseContent(content) {
         const toolName = match[1]?.trim() || "";
         const toolArgs = match[2]?.trim() || "";
         elements.push(
-          /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", paddingX: 1, marginY: 1, borderStyle: "single", borderColor: "yellow", children: [
-            /* @__PURE__ */ jsxs10(Text10, { color: "yellow", bold: true, children: [
-              "\u26A1 Tool Call: ",
-              toolName
-            ] }),
-            /* @__PURE__ */ jsx10(Text10, { color: "gray", children: toolArgs })
-          ] }, `tool-${i}`)
+          /* @__PURE__ */ jsx10(Box10, { flexDirection: "row", paddingLeft: 2, children: /* @__PURE__ */ jsxs10(Text10, { color: "gray", children: [
+            "\u2514 ",
+            toolName,
+            "(",
+            toolArgs,
+            ")"
+          ] }) }, `tool-${i}`)
         );
         continue;
       }
     }
-    if (line.startsWith("+") && !line.startsWith("+++")) {
-      elements.push(/* @__PURE__ */ jsx10(Text10, { color: "green", children: line }, i));
+    if (line.startsWith("[\xB7 ") && line.endsWith(" \xB7]")) {
+      elements.push(
+        /* @__PURE__ */ jsx10(Box10, { flexDirection: "row", paddingLeft: 2, children: /* @__PURE__ */ jsx10(Text10, { color: "gray", children: line }) }, `ctx-${i}`)
+      );
       continue;
-    } else if (line.startsWith("-") && !line.startsWith("---")) {
-      elements.push(/* @__PURE__ */ jsx10(Text10, { color: "red", children: line }, i));
-      continue;
-    } else if (line.startsWith("@@")) {
-      elements.push(/* @__PURE__ */ jsx10(Text10, { color: "cyan", children: line }, i));
+    }
+    const trimmed = line.trim();
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      const indent = line.length - trimmed.length;
+      elements.push(
+        /* @__PURE__ */ jsxs10(Box10, { flexDirection: "row", paddingLeft: indent, children: [
+          /* @__PURE__ */ jsx10(Text10, { children: "\u25CF " }),
+          renderFormattedText(trimmed.slice(2), `bullet-${i}`)
+        ] }, i)
+      );
       continue;
     }
     elements.push(renderFormattedText(line, i));
@@ -6962,18 +6966,19 @@ function parseContent(content) {
 }
 var MessageList = ({ messages }) => {
   if (messages.length === 0) return null;
-  const roleColor = {
-    user: activeTheme.user,
-    assistant: activeTheme.assistant,
-    system: activeTheme.muted,
-    tool: activeTheme.accentAlt
-  };
+  const t = activeTheme;
   return /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", marginBottom: 1, children: messages.map((m) => {
     if (m.role === "system" && !m.content.trim()) return null;
-    return /* @__PURE__ */ jsxs10(Box10, { flexDirection: "column", marginBottom: 1, children: [
-      /* @__PURE__ */ jsx10(Text10, { color: roleColor[m.role], bold: true, children: ROLE_LABEL[m.role] }),
-      /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", paddingLeft: 1, children: parseContent(m.content) })
-    ] }, m.id);
+    if (m.role === "user") {
+      return /* @__PURE__ */ jsxs10(Box10, { flexDirection: "row", marginBottom: 1, children: [
+        /* @__PURE__ */ jsx10(Text10, { bold: true, color: t.user, children: "> " }),
+        /* @__PURE__ */ jsx10(Text10, { color: "white", children: m.content })
+      ] }, m.id);
+    }
+    if (m.role === "system" || m.role === "tool") {
+      return /* @__PURE__ */ jsx10(Box10, { flexDirection: "row", paddingLeft: 2, marginBottom: 1, children: /* @__PURE__ */ jsx10(Text10, { color: m.role === "system" ? t.muted : t.accentAlt, children: m.content.trim().split("\n").join("\n  ") }) }, m.id);
+    }
+    return /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsx10(Box10, { flexDirection: "column", children: parseContent(m.content) }) }, m.id);
   }) });
 };
 
