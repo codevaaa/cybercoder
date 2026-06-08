@@ -2650,24 +2650,19 @@ var init_router = __esm({
           primaryYieldedSomething = true;
           yield chunk;
         }
-        if (primaryError !== void 0 && primary !== this.fallback) {
-          log13.warn("primary provider failed; falling back", {
+        if (primaryError !== void 0) {
+          log13.warn("primary provider failed", {
             primary: primary.info.id,
-            fallback: this.fallback.info.id,
             error: primaryError
           });
-          yield {
-            type: "text",
-            text: `
-[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.
-`
-          };
-          yield* this.fallback.chat(req);
-        } else if (primaryError !== void 0) {
-          if (primary.info.id === "ollama" && primaryError.includes("not found")) {
+          if (primary.info.id === "cybermind-cloud" && primaryError.includes("401")) {
             primaryError = `${primaryError}
 
-\u{1F4A1} Hint: You are currently offline or not logged in. To use Codeva Cloud models, please run /login. To use local models, ensure Ollama is running and the model is pulled.`;
+\u{1F4A1} Hint: You are currently offline or your session expired. Please run /login to authenticate with Codeva Cloud.`;
+          } else if (primary.info.id === "ollama" && primaryError.includes("not found")) {
+            primaryError = `${primaryError}
+
+\u{1F4A1} Hint: To use local models, ensure Ollama is running and the model is pulled.`;
           }
           yield { type: "done", reason: "error", error: primaryError };
         }
@@ -4924,6 +4919,7 @@ function getRouter() {
       anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
       cloud: {
         apiKey: cloudApiKey,
+        sessionId: config.sessionId,
         baseURL: process.env.CYBERMIND_CLOUD_URL ?? "https://cybercli-api.onrender.com"
       },
       openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
@@ -4962,7 +4958,6 @@ function defaultProviderOrder(config, configKeys) {
   if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
     order.push("openrouter");
   }
-  order.push("ollama");
   return order;
 }
 function toProviderMessages(messages) {

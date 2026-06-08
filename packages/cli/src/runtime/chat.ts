@@ -45,6 +45,7 @@ export function getRouter(): ProviderRouter {
       anthropic: { apiKey: process.env.ANTHROPIC_API_KEY ?? configKeys.anthropic },
       cloud: { 
         apiKey: cloudApiKey,
+        sessionId: config.sessionId,
         baseURL: process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com'
       },
       openai: { apiKey: process.env.OPENAI_API_KEY ?? configKeys.openai },
@@ -86,7 +87,6 @@ function defaultProviderOrder(config: any, configKeys: Record<string, string>): 
   if (process.env.OPENROUTER_API_KEY || configKeys.openrouter) {
     order.push('openrouter');
   }
-  order.push('ollama');
   return order;
 }
 

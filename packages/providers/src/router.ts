@@ -97,20 +97,16 @@ export class ProviderRouter implements LLMProvider {
       yield chunk;
     }
 
-    if (primaryError !== undefined && primary !== this.fallback) {
-      log.warn('primary provider failed; falling back', {
+    if (primaryError !== undefined) {
+      log.warn('primary provider failed', {
         primary: primary.info.id,
-        fallback: this.fallback.info.id,
         error: primaryError,
       });
-      yield {
-        type: 'text',
-        text: `\n[router] ${primary.info.displayName} failed (${primaryError}); falling back to ${this.fallback.info.displayName}.\n`,
-      };
-      yield* this.fallback.chat(req);
-    } else if (primaryError !== undefined) {
-      if (primary.info.id === 'ollama' && primaryError.includes('not found')) {
-        primaryError = `${primaryError}\n\n💡 Hint: You are currently offline or not logged in. To use Codeva Cloud models, please run /login. To use local models, ensure Ollama is running and the model is pulled.`;
+      
+      if (primary.info.id === 'cybermind-cloud' && primaryError.includes('401')) {
+        primaryError = `${primaryError}\n\n💡 Hint: You are currently offline or your session expired. Please run /login to authenticate with Codeva Cloud.`;
+      } else if (primary.info.id === 'ollama' && primaryError.includes('not found')) {
+        primaryError = `${primaryError}\n\n💡 Hint: To use local models, ensure Ollama is running and the model is pulled.`;
       }
       yield { type: 'done', reason: 'error', error: primaryError };
     }
