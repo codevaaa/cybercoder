@@ -107,7 +107,7 @@ export class CybermindCloudProvider implements LLMProvider {
             if (parsed.type === 'status') {
               // Status events are not supported in ChatChunk yet, ignoring
             } else if (parsed.type === 'usage') {
-              yield { type: 'usage', inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0 };
+              yield { type: 'usage', inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0, cost: parsed.cost || 0 };
             } else if (parsed.type === 'tool_calls') {
               for (const tc of parsed.toolCalls || []) {
                 try {

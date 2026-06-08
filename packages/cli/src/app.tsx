@@ -217,7 +217,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
               appendDelta(`\n${trimmed}\n`);
             } else if (evt.type === 'usage') {
               setTotalTokens((prev) => prev + evt.inputTokens + evt.outputTokens);
-              const costAmt = evt.inputTokens * 0.000003 + evt.outputTokens * 0.000015;
+              const costAmt = evt.cost !== undefined ? evt.cost : (evt.inputTokens * 0.000003 + evt.outputTokens * 0.000015);
               setTotalCost((prev) => prev + costAmt);
             } else if (evt.type === 'context') {
               // Surface auto-compaction / retry notices inline, dimmed.

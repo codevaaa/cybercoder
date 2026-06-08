@@ -242,21 +242,20 @@ async function buildAgentTools(approvalUI?: ApprovalUI): Promise<{ tools: any[];
   const memoryBlock = projectMemoryPrompt();
   
   // 🚀 VIBED CODER FEATURE: Dynamic Skill Injection
-  // We automatically inject any loaded skill's body into the main context if the
-  // skill name matches a tech stack item in .cyber/project.json or the recent user prompt.
   let dynamicSkillsBlock = '';
   try {
-    const mem = getCheckpoints(); // using this just to be safe with session, but we actually want project memory
-    // Actually we can just inject ALL skills that are flagged as `inject: true` in their frontmatter,
-    // or we can do a simple match against project memory.
-    // For now, let's inject a placeholder or logic that checks the registry.
-    const allSkills = registry.listSkills();
+    const allSkills = registry.list();
+    
+    // Automatically expose all installed skills to the main agent so it can use them dynamically
+    const skillList = allSkills.length > 0 
+      ? 'AVAILABLE SKILLS (You can delegate tasks to these skills using spawn_subagent or spawn_team):\n' + allSkills.map(s => `- ${s.frontmatter.name}: ${s.frontmatter.description || 'No description'}`).join('\n')
+      : '';
+
     const injected = allSkills
-      .filter(s => s.frontmatter.inject_always)
-      .map(s => `\n--- SKILL INJECTED: ${s.frontmatter.name} ---\n${s.body}`);
-    if (injected.length > 0) {
-      dynamicSkillsBlock = 'DYNAMICALLY INJECTED SKILLS:\n' + injected.join('\n');
-    }
+      .filter(s => s.frontmatter?.inject_always)
+      .map(s => `\n--- SKILL INJECTED: ${s.frontmatter?.name} ---\n${s.body}`);
+      
+    dynamicSkillsBlock = [skillList, ...injected].filter(Boolean).join('\n\n');
   } catch(e) {}
 
   const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join('\n\n');
