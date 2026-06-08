@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
+import { apiClient } from '../utils/api-client.js';
 
 interface ModelInfo {
   id: string;
@@ -8,32 +9,70 @@ interface ModelInfo {
   desc: string;
 }
 
+interface ProviderGroup {
+  id: string;
+  label: string;
+  models: ModelInfo[];
+}
+
 interface ModelPickerProps {
   currentModel: string;
   onSelect: (modelId: string) => void;
   onClose: () => void;
 }
 
-const PROVIDERS = [
+const DEFAULT_PROVIDERS: ProviderGroup[] = [
   {
     id: 'codeva',
     label: 'CyberCoder Mythological Swarm',
     models: [
-      { id: 'auto', name: 'Auto (recommended)', context: 'Varies', desc: 'Routes to the best persona' },
-      { id: 'codeva-madhav-v1', name: 'Madhav (Strategic Mastermind)', context: '200K', desc: 'Deep architecture and reasoning' },
-      { id: 'codeva-kali-v1', name: 'Kali (Destroyer of Bugs)', context: '200K', desc: 'Relentless debugging and security' },
-      { id: 'codeva-arjun-v1', name: 'Arjun (Precision Archer)', context: '64K', desc: 'Lightning fast UI and inline edits' },
-      { id: 'codeva-abhimanyu-v1', name: 'Abhimanyu (Fearless Breaker)', context: '128K', desc: 'Deep-dive local reasoning traps' },
-    ] as ModelInfo[],
+      { id: 'auto', name: 'Auto (recommended)', context: 'Varies', desc: 'Routes to the best persona' }
+    ],
   }
 ];
 
 export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect, onClose }) => {
+  const [providers, setProviders] = useState<ProviderGroup[]>(DEFAULT_PROVIDERS);
+  const [loading, setLoading] = useState(true);
   const [providerIdx, setProviderIdx] = useState(0);
   const [modelIdx, setModelIdx] = useState(0);
   const [stage, setStage] = useState<'provider' | 'model'>('provider');
 
+  useEffect(() => {
+    async function loadModels() {
+      try {
+        const data = await apiClient.getModels();
+        if (data && data.models) {
+          const dynamicModels = data.models.map((m: any) => ({
+            id: m.id,
+            name: m.name || m.id,
+            context: m.tier === 'max' ? '200K' : (m.tier === 'pro' ? '128K' : '64K'),
+            desc: `Codeva ${m.tier || 'free'} tier model`,
+          }));
+          
+          setProviders([
+            {
+              id: 'codeva',
+              label: `CyberCoder Models (${data.plan || 'free'} plan)`,
+              models: [
+                { id: 'auto', name: 'Auto (recommended)', context: 'Varies', desc: 'Routes to the best persona' },
+                ...dynamicModels
+              ],
+            }
+          ]);
+        }
+      } catch (err) {
+        // Fallback to default if offline or API fails
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadModels();
+  }, []);
+
   useInput((_, key) => {
+    if (loading) return;
+
     if (key.escape) {
       if (stage === 'model') {
         setStage('provider');
@@ -48,9 +87,9 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect
       if (key.upArrow) {
         setProviderIdx((i) => Math.max(0, i - 1));
       } else if (key.downArrow) {
-        setProviderIdx((i) => Math.min(PROVIDERS.length - 1, i + 1));
+        setProviderIdx((i) => Math.min(providers.length - 1, i + 1));
       } else if (key.return) {
-        const prov = PROVIDERS[providerIdx];
+        const prov = providers[providerIdx];
         if (prov) {
           // Check if current model is in this provider, pre-select it
           const currentInProv = prov.models.findIndex((m) => m.id === currentModel);
@@ -59,7 +98,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect
         }
       }
     } else {
-      const prov = PROVIDERS[providerIdx];
+      const prov = providers[providerIdx];
       if (!prov) return;
       if (key.upArrow) {
         setModelIdx((i) => Math.max(0, i - 1));
@@ -72,7 +111,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect
     }
   });
 
-  const currentProv = PROVIDERS[providerIdx];
+  const currentProv = providers[providerIdx];
 
   return (
     <Box flexDirection="column" marginBottom={1}>

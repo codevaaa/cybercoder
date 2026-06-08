@@ -116,8 +116,95 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         if (urlObj.pathname === '/auth') {
           const token = urlObj.searchParams.get('token');
           if (token) {
+            const htmlResponse = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication Successful - Codeva</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #0d0d12;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      background: #D97757;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .icon svg {
+      width: 32px;
+      height: 32px;
+      color: white;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    p {
+      margin: 0;
+      color: #a1a1aa;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .footer {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      color: #71717a;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      </svg>
+    </div>
+    <h1>Authentication Successful!</h1>
+    <p>You have successfully logged into the Codeva CLI. You can now close this tab and return to your terminal.</p>
+    <div class="footer">
+      Powered by Codeva Cloud
+    </div>
+  </div>
+  <script>
+    setTimeout(() => {
+      window.close();
+    }, 5000);
+  </script>
+</body>
+</html>
+`;
             res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end('<h1>Authentication Successful!</h1><p>You can close this tab and return to the terminal.</p>');
+            res.end(htmlResponse);
 
             setAuthToken(token);
             apiClient.authenticate(token)

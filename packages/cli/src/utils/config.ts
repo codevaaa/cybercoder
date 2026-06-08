@@ -130,7 +130,7 @@ export function getSessionId(): string | undefined {
 
 export function isAuthenticated(): boolean {
   const config = loadConfig();
-  if (config.loginMethod === 'cybercli') {
+  if (config.loginMethod === 'codeva' || config.loginMethod === 'cybercli') {
     return !!config.authToken;
   }
   if (config.loginMethod === 'apikey') {

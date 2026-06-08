@@ -1,7 +1,8 @@
 import { getAuthToken, getSessionId } from './config.js';
 import { hostname } from 'node:os';
 
-const BACKEND_URL = process.env.CYBERMIND_CLOUD_URL ?? 'https://cybercli-api.onrender.com/api/v1';
+const BASE_URL = process.env.CYBERMIND_CLOUD_URL || 'https://cybercli-api.onrender.com';
+const BACKEND_URL = BASE_URL.endsWith('/api/v1') ? BASE_URL : `${BASE_URL.replace(/\/+$/, '')}/api/v1`;
 
 interface AuthResponse {
   success: boolean;

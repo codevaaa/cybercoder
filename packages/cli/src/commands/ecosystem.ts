@@ -145,26 +145,23 @@ export function buildSkillsMarketplaceCommand(ctx: CommandContext): SlashCommand
       const ecosystem = new EcosystemManager();
 
       switch (command) {
-        case 'list':
-          const skills = ecosystem.getAvailableSkills();
-          const categories = new Set(skills.map(s => s.category));
-          const categoryLines = ['🎯 Available Skills by Category:', ''];
+        case 'list': {
+          const { getSkillRegistry } = require('../runtime/chat.js');
+          const registry = getSkillRegistry();
+          const skills = registry.list();
+          const categoryLines = ['🎯 Available Skills:', ''];
           
-          for (const category of Array.from(categories).sort()) {
-            const categorySkills = skills.filter(s => s.category === category);
-            categoryLines.push(`📂 ${category.charAt(0).toUpperCase() + category.slice(1)} (${categorySkills.length})`);
-            for (const skill of categorySkills.slice(0, 5)) { // Show first 5 per category
-              const status = skill.installed ? '✅' : '⬜';
-              categoryLines.push(`  ${status} ${skill.name} (${skill.id})`);
-              categoryLines.push(`     ⭐ ${skill.rating} • ${skill.downloadCount} downloads`);
+          if (skills.length === 0) {
+            categoryLines.push('No skills found. Check your ~/.codeva/skills directory or bundled skills.');
+          } else {
+            for (const skill of skills) {
+              categoryLines.push(`  ✅ ${skill.frontmatter.name} (${skill.source})`);
+              categoryLines.push(`     ${skill.frontmatter.description}`);
             }
-            if (categorySkills.length > 5) {
-              categoryLines.push(`  ... and ${categorySkills.length - 5} more`);
-            }
-            categoryLines.push('');
           }
           reply(categoryLines.join('\n'));
           break;
+        }
 
         case 'search':
           if (parts.length < 2) {

@@ -150,11 +150,19 @@ export class EcosystemManager {
   }
 
   getAvailableSkills(): SkillPackage[] {
-    // Return seed skills + installed ones
+    // Return seed skills + installed ones, merging by ID
     const seedSkills = this.getSeedSkills();
     const installedSkills = this.getInstalledSkills();
     
-    return [...seedSkills, ...installedSkills];
+    const skillMap = new Map<string, SkillPackage>();
+    for (const skill of seedSkills) {
+      skillMap.set(skill.id, skill);
+    }
+    for (const skill of installedSkills) {
+      skillMap.set(skill.id, skill); // overrides seed with installed version
+    }
+    
+    return Array.from(skillMap.values());
   }
 
   async installSkill(skillId: string): Promise<boolean> {
@@ -337,8 +345,24 @@ export class EcosystemManager {
   }
 
   private getInstalledSkills(): SkillPackage[] {
-    // Load from filesystem
-    return [];
+    try {
+      if (!existsSync(this.skillsDir)) return [];
+      const { readdirSync } = require('node:fs');
+      const files = readdirSync(this.skillsDir).filter((f: string) => f.endsWith('.json'));
+      const skills: SkillPackage[] = [];
+      for (const file of files) {
+        try {
+          const content = readFileSync(join(this.skillsDir, file), 'utf8');
+          skills.push(JSON.parse(content));
+        } catch (err) {
+          log.warn('Failed to parse skill file', { file, error: String(err) });
+        }
+      }
+      return skills;
+    } catch (err) {
+      log.error('Failed to read skills directory', { error: String(err) });
+      return [];
+    }
   }
 
   private saveMCPServer(server: MCPServer): void {
