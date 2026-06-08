@@ -11,18 +11,19 @@ import { MessageList } from './components/MessageList.js';
 import { StatusBar } from './components/StatusBar.js';
 import { ThinkingIndicator } from './components/ThinkingIndicator.js';
 import { ExitConfirm } from './components/ExitConfirm.js';
+import { TrustWorkspace } from './components/TrustWorkspace.js';
 import { ApprovalDialog, type PendingApproval } from './components/ApprovalDialog.js';
 import { HintBar } from './components/HintBar.js';
 import { buildCommandRegistry } from './commands/index.js';
 import { runChat, runGoalChat } from './runtime/chat.js';
 import { runHooks } from './runtime/hooks.js';
-import { isOnboardingComplete, getTheme, setTheme, clearLogin, isAuthenticated } from './utils/config.js';
+import { isOnboardingComplete, getTheme, setTheme, clearLogin, isAuthenticated, getUserProfile, isWorkspaceTrusted, trustWorkspace } from './utils/config.js';
 import { getUpdateMessage } from './utils/update.js';
 import { setActiveTheme, type ThemeMode } from './theme/theme.js';
 import type { ApprovalDecision, ApprovalPrompt, ApprovalUI } from '@cybermind/tools';
 import type { SessionMessage, SessionStatus } from './state/session.js';
 
-type Screen = 'onboarding' | 'theme' | 'settings' | 'model' | 'release-notes' | 'welcome' | 'chat';
+type Screen = 'onboarding' | 'theme' | 'settings' | 'model' | 'release-notes' | 'welcome' | 'chat' | 'trust-workspace';
 
 interface AppProps {
   showWelcome: boolean;
@@ -41,7 +42,16 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
     setActiveTheme((configTheme.mode as ThemeMode) ?? 'dark');
   }
   const hasCompletedOnboarding = isOnboardingComplete() && isAuthenticated();
-  const [screen, setScreen] = useState<Screen>(hasCompletedOnboarding ? 'welcome' : 'onboarding');
+  
+  const cwd = process.cwd();
+  const isTrusted = isWorkspaceTrusted(cwd);
+  const initialScreen = !hasCompletedOnboarding 
+    ? 'onboarding' 
+    : !isTrusted 
+      ? 'trust-workspace' 
+      : 'welcome';
+
+  const [screen, setScreen] = useState<Screen>(initialScreen);
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>({
     mode: configTheme.mode as ThemeConfig['mode'],
     syntaxTheme: configTheme.syntaxTheme,
@@ -335,9 +345,23 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   }, []);
 
   const handleModelSelect = useCallback((modelId: string) => {
+    if (['madhav', 'abhimanyu'].includes(modelId)) {
+      const profile = getUserProfile();
+      const plan = (profile?.plan || 'free').toLowerCase();
+      if (plan === 'free') {
+        appendMessage({
+          id: cryptoRandomId(),
+          role: 'system',
+          content: `❌ Access Denied: The '${modelId}' model is only available on PRO tiers.\nPlease upgrade your plan at https://opencode.ai/zen to use this model.\nYou can use 'trinity' or 'kali' on the free tier.`,
+          createdAt: Date.now(),
+        });
+        setScreen('chat');
+        return;
+      }
+    }
     setModel(modelId);
     setScreen('chat');
-  }, []);
+  }, [appendMessage]);
 
   const handleModelClose = useCallback(() => {
     setScreen('chat');
@@ -360,6 +384,17 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
         return <ModelPicker currentModel={model} onSelect={handleModelSelect} onClose={handleModelClose} />;
       case 'release-notes':
         return <ReleaseNotes onClose={handleReleaseNotesClose} />;
+      case 'trust-workspace':
+        return (
+          <TrustWorkspace 
+            workspacePath={process.cwd()} 
+            onTrust={() => {
+              trustWorkspace(process.cwd());
+              setScreen('welcome');
+            }} 
+            onExit={() => exit()} 
+          />
+        );
       case 'welcome':
       case 'chat':
       default:

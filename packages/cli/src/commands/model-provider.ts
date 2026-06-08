@@ -1,4 +1,5 @@
 import { getRouter } from '../runtime/chat.js';
+import { getUserProfile } from '../utils/config.js';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
@@ -34,6 +35,14 @@ export function buildModelCommand(ctx: CommandContext): SlashCommandHandler {
       if (!ctx.setModel) {
         reply('Model switching is not available in this context.');
         return;
+      }
+      if (['madhav', 'abhimanyu'].includes(name.toLowerCase())) {
+        const profile = getUserProfile();
+        const plan = (profile?.plan || 'free').toLowerCase();
+        if (plan === 'free') {
+          reply(`❌ Access Denied: The '${name}' model is only available on PRO tiers.\nPlease upgrade your plan at https://opencode.ai/zen to use this model.\nYou can use 'trinity' or 'kali' on the free tier.`);
+          return;
+        }
       }
       ctx.setModel(name);
       reply(`Model set to '${name}'. Takes effect on the next message.`);

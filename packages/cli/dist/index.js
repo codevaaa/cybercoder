@@ -1911,6 +1911,16 @@ function setTheme(mode, syntaxTheme) {
 function getTheme() {
   return loadConfig().theme ?? DEFAULT_CONFIG.theme;
 }
+function isWorkspaceTrusted(dir) {
+  const config = loadConfig();
+  return (config.trustedWorkspaces ?? []).includes(dir);
+}
+function trustWorkspace(dir) {
+  const config = loadConfig();
+  const trusted = new Set(config.trustedWorkspaces ?? []);
+  trusted.add(dir);
+  updateConfig({ trustedWorkspaces: Array.from(trusted) });
+}
 var CONFIG_DIR, CONFIG_FILE, DEFAULT_CONFIG;
 var init_config = __esm({
   "src/utils/config.ts"() {
@@ -1933,7 +1943,8 @@ var init_config = __esm({
       autoUpdateCheck: true,
       showWelcome: true,
       telemetry: true,
-      version: "0.1.16"
+      version: "0.1.16",
+      trustedWorkspaces: []
     };
   }
 });
@@ -2405,7 +2416,8 @@ var init_cybermind_cloud = __esm({
               prompt: lastMessage,
               temperature: req.temperature,
               max_tokens: req.maxTokens,
-              stream: true
+              stream: true,
+              tools: req.tools
             })
           });
           if (!response.ok) {
@@ -2432,9 +2444,25 @@ var init_cybermind_cloud = __esm({
               try {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.type === "status") {
-                  yield { type: "status", text: parsed.content };
                 } else if (parsed.type === "usage") {
                   yield { type: "usage", inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0 };
+                } else if (parsed.type === "tool_calls") {
+                  for (const tc of parsed.toolCalls || []) {
+                    try {
+                      yield {
+                        type: "tool_call",
+                        toolCall: {
+                          id: tc.id,
+                          name: tc.function.name,
+                          input: typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments
+                        }
+                      };
+                    } catch (e) {
+                      log11.error("Failed to parse tool call arguments", e);
+                    }
+                  }
+                } else if (parsed.type === "token") {
+                  yield { type: "text", text: parsed.content };
                 } else if (parsed.content !== void 0) {
                   yield { type: "text", text: parsed.content };
                 }
@@ -5317,8 +5345,8 @@ import { Command } from "commander";
 import { render } from "ink";
 
 // src/app.tsx
-import { Box as Box16, Text as Text16, useApp as useApp2, useInput as useInput8 } from "ink";
-import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState9 } from "react";
+import { Box as Box17, Text as Text17, useApp as useApp2, useInput as useInput8 } from "ink";
+import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState10 } from "react";
 
 // src/components/Welcome.tsx
 init_src();
@@ -7092,9 +7120,37 @@ import { Box as Box13, Text as Text13 } from "ink";
 import { jsx as jsx13 } from "react/jsx-runtime";
 var ExitConfirm = () => /* @__PURE__ */ jsx13(Box13, { marginTop: 1, children: /* @__PURE__ */ jsx13(Text13, { color: "yellow", children: "Press Ctrl+C again within 2s to exit, or type /exit." }) });
 
-// src/components/ApprovalDialog.tsx
-import { Box as Box14, Text as Text14, useInput as useInput7 } from "ink";
+// src/components/TrustWorkspace.tsx
+import { useState as useState9 } from "react";
+import { Box as Box14, Text as Text14 } from "ink";
+import SelectInput from "ink-select-input";
 import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
+function TrustWorkspace({ workspacePath, onTrust, onExit }) {
+  const [items] = useState9([
+    { label: "Yes, I trust this folder", value: "yes" },
+    { label: "No, exit", value: "no" }
+  ]);
+  const handleSelect = (item) => {
+    if (item.value === "yes") {
+      onTrust();
+    } else {
+      onExit();
+    }
+  };
+  return /* @__PURE__ */ jsxs13(Box14, { flexDirection: "column", padding: 1, paddingLeft: 2, children: [
+    /* @__PURE__ */ jsx14(Text14, { color: "yellow", bold: true, children: "Accessing workspace:" }),
+    /* @__PURE__ */ jsx14(Box14, { marginY: 1, children: /* @__PURE__ */ jsx14(Text14, { bold: true, children: workspacePath }) }),
+    /* @__PURE__ */ jsx14(Box14, { marginBottom: 1, flexDirection: "column", children: /* @__PURE__ */ jsx14(Text14, { children: "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first." }) }),
+    /* @__PURE__ */ jsx14(Box14, { marginBottom: 1, children: /* @__PURE__ */ jsx14(Text14, { children: "CyberCoder will be able to read, edit, and execute files here." }) }),
+    /* @__PURE__ */ jsx14(Box14, { marginBottom: 1, children: /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "Security guide" }) }),
+    /* @__PURE__ */ jsx14(SelectInput, { items, onSelect: handleSelect }),
+    /* @__PURE__ */ jsx14(Box14, { marginTop: 1, children: /* @__PURE__ */ jsx14(Text14, { color: "gray", children: "Enter to confirm \u2022 Esc to cancel" }) })
+  ] });
+}
+
+// src/components/ApprovalDialog.tsx
+import { Box as Box15, Text as Text15, useInput as useInput7 } from "ink";
+import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
 var ApprovalDialog = ({ pending }) => {
   useInput7((input, key) => {
     const char = input.toLowerCase();
@@ -7106,8 +7162,8 @@ var ApprovalDialog = ({ pending }) => {
       pending.resolve("allow-persistent");
     }
   });
-  return /* @__PURE__ */ jsxs13(
-    Box14,
+  return /* @__PURE__ */ jsxs14(
+    Box15,
     {
       flexDirection: "column",
       borderStyle: "double",
@@ -7115,22 +7171,22 @@ var ApprovalDialog = ({ pending }) => {
       paddingX: 1,
       marginY: 1,
       children: [
-        /* @__PURE__ */ jsx14(Text14, { bold: true, color: pending.destructive ? "red" : "yellow", children: pending.destructive ? "\u26A0 Critical Tool Approval Required" : "\u26A1 Tool Approval Required" }),
-        /* @__PURE__ */ jsxs13(Box14, { marginTop: 1, flexDirection: "column", children: [
-          /* @__PURE__ */ jsxs13(Text14, { children: [
+        /* @__PURE__ */ jsx15(Text15, { bold: true, color: pending.destructive ? "red" : "yellow", children: pending.destructive ? "\u26A0 Critical Tool Approval Required" : "\u26A1 Tool Approval Required" }),
+        /* @__PURE__ */ jsxs14(Box15, { marginTop: 1, flexDirection: "column", children: [
+          /* @__PURE__ */ jsxs14(Text15, { children: [
             "Tool: ",
-            /* @__PURE__ */ jsx14(Text14, { color: "cyan", bold: true, children: pending.toolName })
+            /* @__PURE__ */ jsx15(Text15, { color: "cyan", bold: true, children: pending.toolName })
           ] }),
-          /* @__PURE__ */ jsx14(Text14, { color: "gray", children: pending.summary })
+          /* @__PURE__ */ jsx15(Text15, { color: "gray", children: pending.summary })
         ] }),
-        /* @__PURE__ */ jsx14(Box14, { marginTop: 1, children: /* @__PURE__ */ jsxs13(Text14, { children: [
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "green", children: "[y] Allow" }),
+        /* @__PURE__ */ jsx15(Box15, { marginTop: 1, children: /* @__PURE__ */ jsxs14(Text15, { children: [
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: "green", children: "[y] Allow" }),
           " \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "red", children: "[n] Deny" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: "red", children: "[n] Deny" }),
           " \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "yellow", children: "[a] Always allow" }),
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: "yellow", children: "[a] Always allow" }),
           " \xB7 ",
-          /* @__PURE__ */ jsx14(Text14, { bold: true, color: "gray", children: "[ESC] Cancel" })
+          /* @__PURE__ */ jsx15(Text15, { bold: true, color: "gray", children: "[ESC] Cancel" })
         ] }) })
       ]
     }
@@ -7138,8 +7194,8 @@ var ApprovalDialog = ({ pending }) => {
 };
 
 // src/components/HintBar.tsx
-import { Box as Box15, Text as Text15, useStdout as useStdout5 } from "ink";
-import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Box as Box16, Text as Text16, useStdout as useStdout5 } from "ink";
+import { jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
   const { stdout } = useStdout5();
   const t = useTheme();
@@ -7148,35 +7204,35 @@ var HintBar = ({ status = "idle" }) => {
   const getHints = () => {
     switch (status) {
       case "thinking":
-        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "Esc" }),
+        return /* @__PURE__ */ jsxs15(Text16, { color: t.muted, children: [
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.accent, children: "Esc" }),
           " to interrupt \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.accent, children: "?" }),
           " for shortcuts"
         ] });
       case "awaiting-approval":
-        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.success, children: "y" }),
+        return /* @__PURE__ */ jsxs15(Text16, { color: t.muted, children: [
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.success, children: "y" }),
           " allow \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.error, children: "n" }),
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.error, children: "n" }),
           " deny \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.warning, children: "a" }),
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.warning, children: "a" }),
           " always \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.dim, children: "ESC" }),
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.dim, children: "ESC" }),
           " cancel"
         ] });
       case "idle":
       default:
-        return /* @__PURE__ */ jsxs14(Text15, { color: t.muted, children: [
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "?" }),
+        return /* @__PURE__ */ jsxs15(Text16, { color: t.muted, children: [
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.accent, children: "?" }),
           " for shortcuts \xB7 ",
-          /* @__PURE__ */ jsx15(Text15, { bold: true, color: t.accent, children: "\u2190" }),
+          /* @__PURE__ */ jsx16(Text16, { bold: true, color: t.accent, children: "\u2190" }),
           " for agents"
         ] });
     }
   };
-  return /* @__PURE__ */ jsx15(
-    Box15,
+  return /* @__PURE__ */ jsx16(
+    Box16,
     {
       flexDirection: "row",
       width: "100%",
@@ -7591,6 +7647,7 @@ function buildSecretCommand(ctx) {
 
 // src/commands/model-provider.ts
 init_chat();
+init_config();
 function buildModelCommand(ctx) {
   return {
     name: "model",
@@ -7613,6 +7670,16 @@ Use /model <name> to switch.`);
       if (!ctx.setModel) {
         reply("Model switching is not available in this context.");
         return;
+      }
+      if (["madhav", "abhimanyu"].includes(name.toLowerCase())) {
+        const profile = getUserProfile();
+        const plan = (profile?.plan || "free").toLowerCase();
+        if (plan === "free") {
+          reply(`\u274C Access Denied: The '${name}' model is only available on PRO tiers.
+Please upgrade your plan at https://opencode.ai/zen to use this model.
+You can use 'trinity' or 'kali' on the free tier.`);
+          return;
+        }
       }
       ctx.setModel(name);
       reply(`Model set to '${name}'. Takes effect on the next message.`);
@@ -10367,34 +10434,37 @@ async function getUpdateMessage() {
 }
 
 // src/app.tsx
-import { jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs16 } from "react/jsx-runtime";
 var App = ({ showWelcome, initialModel, initialProvider }) => {
   const { exit } = useApp2();
   const configTheme = getTheme();
-  const [themeVersion, setThemeVersion] = useState9(0);
+  const [themeVersion, setThemeVersion] = useState10(0);
   if (themeVersion === 0) {
     setActiveTheme(configTheme.mode ?? "dark");
   }
   const hasCompletedOnboarding = isOnboardingComplete() && isAuthenticated();
-  const [screen, setScreen] = useState9(hasCompletedOnboarding ? "welcome" : "onboarding");
-  const [themeConfig, setThemeConfig] = useState9({
+  const cwd2 = process.cwd();
+  const isTrusted = isWorkspaceTrusted(cwd2);
+  const initialScreen = !hasCompletedOnboarding ? "onboarding" : !isTrusted ? "trust-workspace" : "welcome";
+  const [screen, setScreen] = useState10(initialScreen);
+  const [themeConfig, setThemeConfig] = useState10({
     mode: configTheme.mode,
     syntaxTheme: configTheme.syntaxTheme
   });
   void themeConfig;
-  const [messages, setMessages] = useState9([]);
-  const [totalTokens, setTotalTokens] = useState9(0);
-  const [totalCost, setTotalCost] = useState9(0);
-  const [status, setStatus] = useState9("idle");
-  const [model, setModel] = useState9(initialModel ?? "auto");
-  const [provider, setProvider] = useState9(initialProvider ?? "auto");
-  const [statusMessage, setStatusMessage] = useState9(void 0);
-  const [, setPromptColor] = useState9("cyan");
-  const [welcomeVisible, setWelcomeVisible] = useState9(showWelcome);
-  const [exitConfirm, setExitConfirm] = useState9(false);
-  const [pendingApproval, setPendingApproval] = useState9(null);
-  const [updateNotice, setUpdateNotice] = useState9("");
-  const [terminalHeight, setTerminalHeight] = useState9(process.stdout.rows || 24);
+  const [messages, setMessages] = useState10([]);
+  const [totalTokens, setTotalTokens] = useState10(0);
+  const [totalCost, setTotalCost] = useState10(0);
+  const [status, setStatus] = useState10("idle");
+  const [model, setModel] = useState10(initialModel ?? "auto");
+  const [provider, setProvider] = useState10(initialProvider ?? "auto");
+  const [statusMessage, setStatusMessage] = useState10(void 0);
+  const [, setPromptColor] = useState10("cyan");
+  const [welcomeVisible, setWelcomeVisible] = useState10(showWelcome);
+  const [exitConfirm, setExitConfirm] = useState10(false);
+  const [pendingApproval, setPendingApproval] = useState10(null);
+  const [updateNotice, setUpdateNotice] = useState10("");
+  const [terminalHeight, setTerminalHeight] = useState10(process.stdout.rows || 24);
   useEffect4(() => {
     const handleResize = () => setTerminalHeight(process.stdout.rows || 24);
     process.stdout.on("resize", handleResize);
@@ -10631,9 +10701,25 @@ ${trimmed}
     setScreen("chat");
   }, []);
   const handleModelSelect = useCallback((modelId) => {
+    if (["madhav", "abhimanyu"].includes(modelId)) {
+      const profile = getUserProfile();
+      const plan = (profile?.plan || "free").toLowerCase();
+      if (plan === "free") {
+        appendMessage({
+          id: cryptoRandomId(),
+          role: "system",
+          content: `\u274C Access Denied: The '${modelId}' model is only available on PRO tiers.
+Please upgrade your plan at https://opencode.ai/zen to use this model.
+You can use 'trinity' or 'kali' on the free tier.`,
+          createdAt: Date.now()
+        });
+        setScreen("chat");
+        return;
+      }
+    }
     setModel(modelId);
     setScreen("chat");
-  }, []);
+  }, [appendMessage]);
   const handleModelClose = useCallback(() => {
     setScreen("chat");
   }, []);
@@ -10643,33 +10729,45 @@ ${trimmed}
   const renderScreen = () => {
     switch (screen) {
       case "onboarding":
-        return /* @__PURE__ */ jsx16(Onboarding, { onComplete: handleOnboardingComplete });
+        return /* @__PURE__ */ jsx17(Onboarding, { onComplete: handleOnboardingComplete });
       case "theme":
-        return /* @__PURE__ */ jsx16(ThemePicker, { onComplete: handleThemeComplete });
+        return /* @__PURE__ */ jsx17(ThemePicker, { onComplete: handleThemeComplete });
       case "settings":
-        return /* @__PURE__ */ jsx16(Settings, { onClose: handleSettingsClose });
+        return /* @__PURE__ */ jsx17(Settings, { onClose: handleSettingsClose });
       case "model":
-        return /* @__PURE__ */ jsx16(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
+        return /* @__PURE__ */ jsx17(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
       case "release-notes":
-        return /* @__PURE__ */ jsx16(ReleaseNotes, { onClose: handleReleaseNotesClose });
+        return /* @__PURE__ */ jsx17(ReleaseNotes, { onClose: handleReleaseNotesClose });
+      case "trust-workspace":
+        return /* @__PURE__ */ jsx17(
+          TrustWorkspace,
+          {
+            workspacePath: process.cwd(),
+            onTrust: () => {
+              trustWorkspace(process.cwd());
+              setScreen("welcome");
+            },
+            onExit: () => exit()
+          }
+        );
       case "welcome":
       case "chat":
       default:
-        return /* @__PURE__ */ jsxs15(Box16, { flexDirection: "column", flexGrow: 1, children: [
-          updateNotice && /* @__PURE__ */ jsx16(Box16, { marginBottom: 1, children: /* @__PURE__ */ jsx16(Text16, { color: "yellow", children: updateNotice }) }),
-          welcomeVisible && /* @__PURE__ */ jsx16(Welcome, { provider, model }),
-          /* @__PURE__ */ jsx16(MessageList, { messages }),
-          pendingApproval && /* @__PURE__ */ jsx16(ApprovalDialog, { pending: pendingApproval }),
-          status === "thinking" && /* @__PURE__ */ jsx16(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),
-          /* @__PURE__ */ jsx16(Box16, { flexGrow: 1 }),
-          /* @__PURE__ */ jsx16(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
-          /* @__PURE__ */ jsx16(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
-          /* @__PURE__ */ jsx16(HintBar, { status }),
-          exitConfirm && /* @__PURE__ */ jsx16(ExitConfirm, {})
+        return /* @__PURE__ */ jsxs16(Box17, { flexDirection: "column", flexGrow: 1, children: [
+          updateNotice && /* @__PURE__ */ jsx17(Box17, { marginBottom: 1, children: /* @__PURE__ */ jsx17(Text17, { color: "yellow", children: updateNotice }) }),
+          welcomeVisible && /* @__PURE__ */ jsx17(Welcome, { provider, model }),
+          /* @__PURE__ */ jsx17(MessageList, { messages }),
+          pendingApproval && /* @__PURE__ */ jsx17(ApprovalDialog, { pending: pendingApproval }),
+          status === "thinking" && /* @__PURE__ */ jsx17(ThinkingIndicator, { tokens: totalTokens, label: statusMessage }),
+          /* @__PURE__ */ jsx17(Box17, { flexGrow: 1 }),
+          /* @__PURE__ */ jsx17(StatusBar, { status, model, provider, tokens: totalTokens, cost: totalCost }),
+          /* @__PURE__ */ jsx17(Prompt, { onSubmit: handleSubmit, disabled: status !== "idle" }),
+          /* @__PURE__ */ jsx17(HintBar, { status }),
+          exitConfirm && /* @__PURE__ */ jsx17(ExitConfirm, {})
         ] });
     }
   };
-  return /* @__PURE__ */ jsx16(Box16, { flexDirection: "column", minHeight: terminalHeight, children: renderScreen() });
+  return /* @__PURE__ */ jsx17(Box17, { flexDirection: "column", minHeight: terminalHeight, children: renderScreen() });
 };
 function cryptoRandomId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -10686,7 +10784,7 @@ function stringifyArgs(input) {
 // src/index.tsx
 init_chat();
 init_config();
-import { jsx as jsx17 } from "react/jsx-runtime";
+import { jsx as jsx18 } from "react/jsx-runtime";
 var log21 = createLogger("cli");
 async function main() {
   const program = new Command();
@@ -10706,7 +10804,7 @@ async function main() {
       return;
     }
     const { waitUntilExit } = render(
-      /* @__PURE__ */ jsx17(
+      /* @__PURE__ */ jsx18(
         App,
         {
           showWelcome: opts.welcome !== false,

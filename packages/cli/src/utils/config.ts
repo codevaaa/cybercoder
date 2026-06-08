@@ -26,6 +26,7 @@ export interface UserConfig {
   showWelcome?: boolean;
   telemetry?: boolean;
   version?: string;
+  trustedWorkspaces?: string[];
 }
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -45,6 +46,7 @@ const DEFAULT_CONFIG: UserConfig = {
   showWelcome: true,
   telemetry: true,
   version: '0.1.16',
+  trustedWorkspaces: [],
 };
 
 function ensureConfigDir(): void {
@@ -159,4 +161,16 @@ export function setTheme(
 
 export function getTheme(): { mode: string; syntaxTheme: string } {
   return loadConfig().theme ?? DEFAULT_CONFIG.theme!;
+}
+
+export function isWorkspaceTrusted(dir: string): boolean {
+  const config = loadConfig();
+  return (config.trustedWorkspaces ?? []).includes(dir);
+}
+
+export function trustWorkspace(dir: string): void {
+  const config = loadConfig();
+  const trusted = new Set(config.trustedWorkspaces ?? []);
+  trusted.add(dir);
+  updateConfig({ trustedWorkspaces: Array.from(trusted) });
 }

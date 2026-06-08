@@ -73,6 +73,7 @@ export class CybermindCloudProvider implements LLMProvider {
           temperature: req.temperature,
           max_tokens: req.maxTokens,
           stream: true,
+          tools: req.tools,
         }),
       });
 
@@ -104,9 +105,26 @@ export class CybermindCloudProvider implements LLMProvider {
           try {
             const parsed = JSON.parse(dataStr);
             if (parsed.type === 'status') {
-              yield { type: 'status', text: parsed.content };
+              // Status events are not supported in ChatChunk yet, ignoring
             } else if (parsed.type === 'usage') {
               yield { type: 'usage', inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0 };
+            } else if (parsed.type === 'tool_calls') {
+              for (const tc of parsed.toolCalls || []) {
+                try {
+                  yield { 
+                    type: 'tool_call', 
+                    toolCall: {
+                      id: tc.id,
+                      name: tc.function.name,
+                      input: typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments) : tc.function.arguments
+                    }
+                  };
+                } catch (e) {
+                  log.error('Failed to parse tool call arguments', e);
+                }
+              }
+            } else if (parsed.type === 'token') {
+              yield { type: 'text', text: parsed.content };
             } else if (parsed.content !== undefined) {
               yield { type: 'text', text: parsed.content };
             }
