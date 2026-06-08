@@ -108,7 +108,8 @@ jobs:
     name: Publish to NPM
     needs: [build]
     runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
+    # Temporarily disabled since we are publishing locally
+    if: false
     
     steps:
     - name: Checkout code
