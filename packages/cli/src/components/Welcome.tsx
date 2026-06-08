@@ -11,13 +11,6 @@ interface WelcomeProps {
   model?: string;
 }
 
-/**
- * Claude Code-style welcome card:
- * ╭─ CyberCoder v0.1.34 ─────────────────────────────────────────╮
- * │   [mascot]   minimax-m2.5-free with xhigh effort             │
- * │              C:\Users\PC\project                             │
- * ╰──────────────────────────────────────────────────────────────╯
- */
 export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'auto' }) => {
   const t = useTheme();
   const cwd = process.cwd();
@@ -36,40 +29,69 @@ export const Welcome: React.FC<WelcomeProps> = ({ model = 'auto', provider = 'au
 
   const { stdout } = useStdout();
   const termWidth = stdout?.columns ?? 80;
-  // Use full terminal width minus a small margin to be fully responsive
-  const contentWidth = Math.max(termWidth - 4, 40);
+  const contentWidth = Math.max(termWidth - 4, 60);
 
-  // Calculate the custom top border with embedded title
   const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
   const dashLength = Math.max(2, contentWidth - title.length);
 
+  // Divide width roughly 45% / 55%
+  const leftWidth = Math.floor(contentWidth * 0.45);
+  const rightWidth = contentWidth - leftWidth - 1; // -1 for the middle border character
+
+  // Make sure model text fits in left column
+  const modelText = `${model} with ${provider} · ${userPlan}`;
+  const truncatedModelText = modelText.length > leftWidth - 2 ? modelText.slice(0, leftWidth - 5) + '...' : modelText;
+  
+  // Truncate path if too long
+  const truncatedCwd = cwd.length > leftWidth - 2 ? '...' + cwd.slice(-(leftWidth - 5)) : cwd;
+
   return (
     <Box flexDirection="column" paddingX={1} marginBottom={1}>
-      {/* Custom Top Border */}
       <Text color={t.accent}>╭─<Text color={t.accent}>{title}</Text>{'─'.repeat(dashLength)}╮</Text>
       
-      <Box
-        flexDirection="row"
-        paddingX={1}
-        width={contentWidth + 2}
-        borderLeftColor={t.accent}
-        borderRightColor={t.accent}
-        borderLeft={true}
-        borderRight={true}
-      >
-        <Box marginRight={2} marginLeft={2}>
-          <Mascot />
+      <Box flexDirection="row" width={contentWidth + 2}>
+        <Text color={t.accent}>│</Text>
+        
+        {/* Left Column */}
+        <Box width={leftWidth} flexDirection="column" alignItems="center" paddingTop={1} paddingBottom={1} paddingX={1}>
+          <Text bold color={t.text}>Welcome back!</Text>
+          <Box marginTop={1} marginBottom={1}>
+            <Mascot />
+          </Box>
+          <Text color={t.muted}>{truncatedModelText}</Text>
+          <Text color={t.dim}>{truncatedCwd}</Text>
         </Box>
-        <Box flexDirection="column" justifyContent="center">
-          <Text color={t.muted}>
-            <Text bold color={t.text}>{model}</Text> with <Text color={t.accentAlt}>{provider}</Text> · {userPlan}
-          </Text>
-          <Text color={t.dim} wrap="truncate-middle">{cwd}</Text>
+
+        {/* Middle Border */}
+        <Box flexDirection="column">
+          <Text color={t.accent}>│</Text>
+          <Text color={t.accent}>│</Text>
+          <Text color={t.accent}>│</Text>
+          <Text color={t.accent}>│</Text>
+          <Text color={t.accent}>│</Text>
+          <Text color={t.accent}>│</Text>
+          <Text color={t.accent}>│</Text>
         </Box>
+
+        {/* Right Column */}
+        <Box width={rightWidth} flexDirection="column" paddingLeft={2} paddingTop={1}>
+          <Box marginBottom={1}>
+            <Text bold color={t.accentAlt || t.accent}>Tips for getting started</Text>
+            <Text color={t.muted}>Run /init to create a CYBER.md file with instructions for {CYBERCODER_NAME}</Text>
+          </Box>
+          
+          <Text bold color={t.accentAlt || t.accent}>What's new</Text>
+          <Text color={t.muted}>Bug fixes and reliability improvements</Text>
+          <Text color={t.muted}>Bug fixes and reliability improvements</Text>
+          <Text color={t.muted}>Added robust slash commands and improved UI layout.</Text>
+          <Text color={t.dim} italic>/release-notes for more</Text>
+        </Box>
+
+        <Text color={t.accent}>│</Text>
       </Box>
 
-      {/* Custom Bottom Border */}
-      <Text color={t.accent}>╰{'─'.repeat(contentWidth)}╯</Text>
+      {/* Bottom Border */}
+      <Text color={t.accent}>╰{'─'.repeat(leftWidth)}┴{'─'.repeat(rightWidth)}╯</Text>
 
       {updateInfo && (
         <Box marginTop={1} paddingLeft={2}>

@@ -2466,7 +2466,7 @@ var init_ollama = __esm({
       defaultModel;
       constructor(opts = {}) {
         this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
-        this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? "llama3.1";
+        this.defaultModel = opts.defaultModel && opts.defaultModel !== "auto" ? opts.defaultModel : process.env.OLLAMA_MODEL ?? "llama3.1";
         this.info = {
           id: "ollama",
           displayName: "Ollama (local)",
@@ -5568,9 +5568,14 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
   }, []);
   const { stdout } = useStdout();
   const termWidth = stdout?.columns ?? 80;
-  const contentWidth = Math.max(termWidth - 4, 40);
+  const contentWidth = Math.max(termWidth - 4, 60);
   const title = ` ${CYBERCODER_NAME} v${CYBERCODER_VERSION} `;
   const dashLength = Math.max(2, contentWidth - title.length);
+  const leftWidth = Math.floor(contentWidth * 0.45);
+  const rightWidth = contentWidth - leftWidth - 1;
+  const modelText = `${model} with ${provider} \xB7 ${userPlan}`;
+  const truncatedModelText = modelText.length > leftWidth - 2 ? modelText.slice(0, leftWidth - 5) + "..." : modelText;
+  const truncatedCwd = cwd2.length > leftWidth - 2 ? "..." + cwd2.slice(-(leftWidth - 5)) : cwd2;
   return /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", paddingX: 1, marginBottom: 1, children: [
     /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
       "\u256D\u2500",
@@ -5578,34 +5583,44 @@ var Welcome = ({ model = "auto", provider = "auto" }) => {
       "\u2500".repeat(dashLength),
       "\u256E"
     ] }),
-    /* @__PURE__ */ jsxs2(
-      Box2,
-      {
-        flexDirection: "row",
-        paddingX: 1,
-        width: contentWidth + 2,
-        borderLeftColor: t.accent,
-        borderRightColor: t.accent,
-        borderLeft: true,
-        borderRight: true,
-        children: [
-          /* @__PURE__ */ jsx2(Box2, { marginRight: 2, marginLeft: 2, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
-          /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", justifyContent: "center", children: [
-            /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
-              /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.text, children: model }),
-              " with ",
-              /* @__PURE__ */ jsx2(Text2, { color: t.accentAlt, children: provider }),
-              " \xB7 ",
-              userPlan
-            ] }),
-            /* @__PURE__ */ jsx2(Text2, { color: t.dim, wrap: "truncate-middle", children: cwd2 })
+    /* @__PURE__ */ jsxs2(Box2, { flexDirection: "row", width: contentWidth + 2, children: [
+      /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+      /* @__PURE__ */ jsxs2(Box2, { width: leftWidth, flexDirection: "column", alignItems: "center", paddingTop: 1, paddingBottom: 1, paddingX: 1, children: [
+        /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.text, children: "Welcome back!" }),
+        /* @__PURE__ */ jsx2(Box2, { marginTop: 1, marginBottom: 1, children: /* @__PURE__ */ jsx2(Mascot, {}) }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: truncatedModelText }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.dim, children: truncatedCwd })
+      ] }),
+      /* @__PURE__ */ jsxs2(Box2, { flexDirection: "column", children: [
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" })
+      ] }),
+      /* @__PURE__ */ jsxs2(Box2, { width: rightWidth, flexDirection: "column", paddingLeft: 2, paddingTop: 1, children: [
+        /* @__PURE__ */ jsxs2(Box2, { marginBottom: 1, children: [
+          /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accentAlt || t.accent, children: "Tips for getting started" }),
+          /* @__PURE__ */ jsxs2(Text2, { color: t.muted, children: [
+            "Run /init to create a CYBER.md file with instructions for ",
+            CYBERCODER_NAME
           ] })
-        ]
-      }
-    ),
+        ] }),
+        /* @__PURE__ */ jsx2(Text2, { bold: true, color: t.accentAlt || t.accent, children: "What's new" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Bug fixes and reliability improvements" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Bug fixes and reliability improvements" }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.muted, children: "Added robust slash commands and improved UI layout." }),
+        /* @__PURE__ */ jsx2(Text2, { color: t.dim, italic: true, children: "/release-notes for more" })
+      ] }),
+      /* @__PURE__ */ jsx2(Text2, { color: t.accent, children: "\u2502" })
+    ] }),
     /* @__PURE__ */ jsxs2(Text2, { color: t.accent, children: [
       "\u2570",
-      "\u2500".repeat(contentWidth),
+      "\u2500".repeat(leftWidth),
+      "\u2534",
+      "\u2500".repeat(rightWidth),
       "\u256F"
     ] }),
     updateInfo && /* @__PURE__ */ jsxs2(Box2, { marginTop: 1, paddingLeft: 2, children: [
@@ -6667,7 +6682,7 @@ var ModelPicker = ({ currentModel, onSelect, onClose }) => {
       stage === "provider" && /* @__PURE__ */ jsxs7(Fragment2, { children: [
         /* @__PURE__ */ jsx7(Text7, { bold: true, color: "white", children: "Select a provider:" }),
         /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-        PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
+        providers.map((prov, i) => /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs7(Text7, { children: [
           i === providerIdx ? /* @__PURE__ */ jsx7(Text7, { color: "#D97736", children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: "gray", children: "  " }),
           /* @__PURE__ */ jsx7(Text7, { color: i === providerIdx ? "white" : "gray", bold: i === providerIdx, children: prov.label }),
           /* @__PURE__ */ jsxs7(Text7, { color: "gray", children: [

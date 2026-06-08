@@ -122,7 +122,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ currentModel, onSelect
           <>
             <Text bold color="white">Select a provider:</Text>
             <Box marginTop={1} />
-            {PROVIDERS.map((prov, i) => (
+            {providers.map((prov, i) => (
               <Box key={prov.id} flexDirection="row" marginBottom={1}>
                 <Text>
                   {i === providerIdx ? (

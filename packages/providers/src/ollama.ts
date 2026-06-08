@@ -29,7 +29,7 @@ export class OllamaProvider implements LLMProvider {
 
   constructor(opts: OllamaProviderOptions = {}) {
     this.baseURL = opts.baseURL ?? process.env.OLLAMA_HOST ?? 'http://127.0.0.1:11434';
-    this.defaultModel = opts.defaultModel ?? process.env.OLLAMA_MODEL ?? 'llama3.1';
+    this.defaultModel = (opts.defaultModel && opts.defaultModel !== 'auto') ? opts.defaultModel : (process.env.OLLAMA_MODEL ?? 'llama3.1');
     this.info = {
       id: 'ollama',
       displayName: 'Ollama (local)',
