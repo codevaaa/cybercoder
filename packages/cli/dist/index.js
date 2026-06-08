@@ -4900,6 +4900,7 @@ __export(chat_exports, {
   getCheckpoints: () => getCheckpoints,
   getRouter: () => getRouter,
   getSkillRegistry: () => getSkillRegistry,
+  resetRouter: () => resetRouter,
   runChat: () => runChat,
   runGoalChat: () => runGoalChat,
   runPlanChat: () => runPlanChat,
@@ -4908,6 +4909,9 @@ __export(chat_exports, {
 function getCheckpoints() {
   if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
   return singletonCheckpoints;
+}
+function resetRouter() {
+  singletonRouter = null;
 }
 function getRouter() {
   const config = loadConfig();
@@ -9776,8 +9780,16 @@ function buildCyberCoderCommand(ctx) {
 
 // src/commands/auth.ts
 init_src();
+import { exec as exec2 } from "child_process";
+init_chat();
 init_config();
 var log20 = createLogger("auth");
+var openUrl = (url) => {
+  const platform = process.platform;
+  if (platform === "win32") exec2(`start ${url}`);
+  else if (platform === "darwin") exec2(`open ${url}`);
+  else exec2(`xdg-open ${url}`);
+};
 function buildLoginCommand(ctx) {
   return {
     name: "login",
@@ -9796,13 +9808,13 @@ function buildLoginCommand(ctx) {
         reply(
           `\u{1F510} CyberCoder Authentication Required
 
-Usage: /login <api_key>
-
-You can get an API key from the Web dashboard:
-https://cybercodercli.info/settings/api-keys
+Opening browser to fetch your API Key...
+Once you have the key, run:
+/login <api_key>
 
 Or use local models offline: /provider ollama`
         );
+        openUrl("https://cybercodercli.info/settings/api-keys");
         return;
       }
       reply("\u{1F510} Authenticating key with Codeva Cloud...");
@@ -9811,6 +9823,7 @@ Or use local models offline: /provider ollama`
         setAuthToken(key);
         setSessionId(authInfo.session_id);
         setUserProfile(authInfo.user);
+        resetRouter();
         reply(
           `\u2705 Authentication Successful!
 
@@ -9846,6 +9859,7 @@ function buildLogoutCommand(ctx) {
       } catch {
       }
       clearLogin();
+      resetRouter();
       if (ctx.logout) {
         ctx.logout();
       }

@@ -29,6 +29,10 @@ export function getCheckpoints(): WorkspaceCheckpoints {
   return singletonCheckpoints;
 }
 
+export function resetRouter(): void {
+  singletonRouter = null;
+}
+
 export function getRouter(): ProviderRouter {
   const config = loadConfig();
   const configKeys = config.apiKeys ?? {};

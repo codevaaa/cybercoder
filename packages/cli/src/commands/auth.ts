@@ -1,6 +1,8 @@
 import { createLogger } from '@cybermind/shared';
+import { exec } from 'child_process';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 import { apiClient } from '../utils/api-client.js';
+import { resetRouter } from '../runtime/chat.js';
 import {
   setAuthToken,
   setSessionId,
@@ -11,6 +13,13 @@ import {
 } from '../utils/config.js';
 
 const log = createLogger('auth');
+
+const openUrl = (url: string) => {
+  const platform = process.platform;
+  if (platform === 'win32') exec(`start ${url}`);
+  else if (platform === 'darwin') exec(`open ${url}`);
+  else exec(`xdg-open ${url}`);
+};
 
 export function buildLoginCommand(ctx: CommandContext): SlashCommandHandler {
   return {
@@ -32,11 +41,12 @@ export function buildLoginCommand(ctx: CommandContext): SlashCommandHandler {
       if (!key) {
         reply(
           `🔐 CyberCoder Authentication Required\n\n` +
-          `Usage: /login <api_key>\n\n` +
-          `You can get an API key from the Web dashboard:\n` +
-          `https://cybercodercli.info/settings/api-keys\n\n` +
+          `Opening browser to fetch your API Key...\n` +
+          `Once you have the key, run:\n` +
+          `/login <api_key>\n\n` +
           `Or use local models offline: /provider ollama`
         );
+        openUrl('https://cybercodercli.info/settings/api-keys');
         return;
       }
 
@@ -47,6 +57,7 @@ export function buildLoginCommand(ctx: CommandContext): SlashCommandHandler {
         setAuthToken(key);
         setSessionId(authInfo.session_id);
         setUserProfile(authInfo.user);
+        resetRouter();
 
         reply(
           `✅ Authentication Successful!\n\n` +
@@ -86,6 +97,7 @@ export function buildLogoutCommand(ctx: CommandContext): SlashCommandHandler {
       }
 
       clearLogin();
+      resetRouter();
       if (ctx.logout) {
         ctx.logout();
       }
