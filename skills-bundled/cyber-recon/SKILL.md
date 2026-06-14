@@ -1,69 +1,140 @@
 ---
 name: cyber-recon
-description: Placeholder for CyberMind's autonomous reconnaissance / bug-bounty mode. Disabled by default — the full implementation lands in Phase 2.
-version: 0.0.1
+description: Autonomous bug bounty hunting — full recon to report pipeline. Powered by Codeva Hunter Engine with 300+ security tools via E2B cloud sandbox. Cross-platform (Windows/Mac/Linux).
+version: 1.0.0
 inputs:
-  - { name: target, type: string, required: true, description: Authorized target (URL, IP range, or scope spec). MUST be explicitly authorized. }
+  - { name: target, type: string, required: true, description: "Authorized target domain (e.g. example.com). MUST be in an active bug bounty program scope." }
+  - { name: mode, type: string, required: false, description: "Hunt mode: autopilot (default), recon_only, web3" }
 outputs:
-  - { name: report, type: string, description: Recon summary (Phase 2). }
+  - { name: report, type: string, description: "H1/Bugcrowd ready bug report in markdown" }
+  - { name: findings, type: array, description: "Validated vulnerability findings" }
 requires:
-  tools: []
+  tools: [bash, node]
 triggers:
   - "/cyber"
+  - "/hunt"
+  - "/recon"
+  - "/bug-hunt"
 license: MIT
-author: cybermind
+author: Codeva
 category: cyber
 official: true
 ---
 
-# Cyber-Recon (Phase 2 placeholder)
+# Cyber-Recon — Autonomous Bug Bounty Hunter
 
-This skill is a **stub**. It documents the intended interface for CyberMind's
-future autonomous reconnaissance and bug-bounty automation mode. **No actions
-are currently performed.**
+Full autonomous pipeline: **Recon → Intel → Hunt → Triage → Chain → Report**
 
-## Why a stub?
+Powered by **Codeva Hunter Engine** — reconFTW + 300+ security tools running in E2B cloud sandbox.
 
-Authorized offensive security tooling is high-risk. We do not ship an active
-implementation in v1 because:
+## Quick Start
 
-1. **Legal scope is hard.** Running recon against a target without
-   authorization is illegal in most jurisdictions. We don't want the CLI to
-   make that mistake easy.
-2. **Toolchain is heavy.** Nmap, Nuclei, ffuf, subfinder, httpx, etc. are
-   all OS-level dependencies that change frequently and don't bundle cleanly.
-3. **Output is sensitive.** Findings need encrypted storage, structured
-   reporting, and a clear "responsible disclosure draft" workflow.
+```bash
+/cyber target.com
+# or
+/hunt target.com
+```
 
-## Phase 2 design (reserved for future work)
+User sirf target deta hai. AI sab kuch khud karta hai.
 
-When the user invokes `/cyber`, the agent will:
+## What Happens Automatically
 
-1. **Verify authorization.** Read `.cybermind/cyber/scope.yml` for an
-   explicit list of authorized hosts/CIDRs and require it to be present
-   (signed by the user) before any network request.
-2. **Plan the recon.** Combine `research` + `plan` skills to outline phases
-   (subdomain enum → port scan → service fingerprint → web-app crawl →
-   vulnerability templates). Each phase is a separate confirm-and-go step.
-3. **Run tooling under sandbox.** All external scanners (`subfinder`,
-   `nuclei`, etc.) run inside a Docker container with no host network
-   access — only the authorized scope.
-4. **Capture artifacts.** Findings stored at `.cybermind/cyber/runs/<id>/`,
-   encrypted, never sent to any LLM.
-5. **Draft responsible disclosure.** Generate a triaged report with severity,
-   CVSS, repro steps, and a redacted public summary.
+### Phase 1 — Recon (15–30 min)
+- **reconFTW** full pipeline (80+ tools orchestrated)
+- **subfinder** + **assetfinder** — passive subdomain enumeration
+- **httpx** — live host probing + tech stack detection
+- **naabu** — port scanning
+- **katana** + **gau** + **waybackurls** — URL collection (4 sources parallel)
+- **gf patterns** — classify URLs by vulnerability class
+- **nuclei** — 9,000+ CVE templates
+- **SecretFinder** + **jsluice** — JavaScript secret scanning
 
-## Behaviour today
+### Phase 2 — Intel (2–3 min)
+- AI analysis of attack surface (Ravan model)
+- MITRE ATT&CK aligned priority ranking
+- CybersecurityMCP — 754 skills injected as context
+- Exploit chain candidates identified
 
-If invoked, this skill currently emits a friendly notice explaining that
-the feature is reserved for Phase 2 and links to the design doc above. It
-does **not** invoke any tools.
+### Phase 3 — Hunt (30–60 min) — 5 Parallel Agents
+- **Scout** → subdomain + live host validation
+- **Crawler** → JS analysis + API endpoint discovery
+- **Scanner** → nuclei CVEs + exposed files + GraphQL
+- **Fuzzer** → dalfox XSS + sqlmap SQLi + SSRF probe + LFI
+- **Exploiter** → verify top findings, generate PoC
 
-When the user asks about `/cyber`, respond with:
+### Phase 4 — Triage (5 min)
+- 7-Question Gate on every finding (Kali model)
+- SUBMIT / CHAIN / DROP per finding
+- Weak findings automatically killed
 
-> CyberMind's autonomous recon mode is reserved for Phase 2. It will require
-> an explicit, signed authorization file at `.cybermind/cyber/scope.yml`
-> before any network activity. See the cyber-recon skill body for the full
-> design.
+### Phase 5 — Chain Builder (2 min)
+- A→B→C exploit chains built (Ravan model)
+- Known chains: SSRF→metadata, XSS→ATO, Open Redirect→OAuth theft
 
-Do not perform any scans, network calls, or tool invocations.
+### Phase 6 — Report (3 min)
+- H1/Bugcrowd/Intigriti/Immunefi format
+- Copy-paste ready — no editing needed
+- CVSS 3.1 auto-calculated
+
+## Tool Arsenal (300+)
+
+| Phase | Tools |
+|-------|-------|
+| Subdomain | reconFTW, subfinder, assetfinder, amass, bbot, puredns |
+| Probing | httpx, dnsx, naabu, nmap, masscan, smap |
+| Crawling | katana, gau, waybackurls, hakrawler, gospider |
+| Fuzzing | ffuf, feroxbuster, gobuster, kiterunner, arjun |
+| XSS | dalfox, XSStrike |
+| SQLi | sqlmap, ghauri |
+| Secrets | trufflehog, gitleaks, jsluice, SecretFinder, noseyparker |
+| CVE | nuclei (9K+ templates) |
+| Auth | jwt_tool, byp4xx |
+| Takeover | subzy, subjack, dnsReaper |
+| C2 | Sliver, Havoc, Metasploit (post-exploitation, authorized only) |
+| Post-Exploit | LinPEAS, WinPEAS, impacket, Ligolo-ng |
+| Web3 | Slither, Mythril, Foundry, Echidna |
+
+## Prerequisites
+
+1. **E2B API key** (free tier at e2b.dev) in backend `.env`:
+   ```
+   E2B_API_KEY=e2b_xxx...
+   ```
+2. **MAX plan** on Codeva — Bug Bounty Engine is MAX-only feature
+3. **Authorized scope** — only test targets in active bug bounty programs
+
+## API Endpoints
+
+```
+POST /api/v1/hunt/autopilot  { target: "example.com" }
+POST /api/v1/hunt/web3       { target: "0x...", audit_type: "full" }
+GET  /api/v1/hunt/sessions   — Hunt history
+GET  /api/v1/hunt/status     — Execution mode + tools
+GET  /api/v1/hunt/mcp/tools  — CybersecurityMCP tool registry
+POST /api/v1/hunt/mcp/call   { tool: "get_cybersecurity_skill", arguments: { technique: "ssrf" } }
+```
+
+## CybersecurityMCP Integration
+
+754 cybersecurity skills from Anthropic-Cybersecurity-Skills repo mapped to:
+- MITRE ATT&CK
+- NIST CSF 2.0
+- MITRE ATLAS
+- D3FEND
+- NIST AI RMF
+
+Available as MCP tools — auto-injected into each hunt phase.
+
+## Platform Support
+
+| OS | Mode | Tools |
+|----|------|-------|
+| Any (via E2B) | ☁ Cloud | All 300+ tools |
+| Linux/Mac (local tools) | 💻 Local | Local installs |
+| Any (no key/tools) | 🤖 AI-only | AI analysis only |
+
+## Legal Notice
+
+This tool is for **authorized security testing only**.
+Always test within an approved bug bounty program scope.
+Never test targets without explicit written permission.
