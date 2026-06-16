@@ -12,8 +12,8 @@ export interface CybermindCloudProviderOptions {
 
 /**
  * `cybermind-cloud` provider connects directly to our SaaS Swarm Orchestrator.
- * It uses native fetch to stream completions using the user's SaaS API key
- * and token quotas.
+ * Uses /completions endpoint for fastest response (no session overhead).
+ * Falls back to /cli/complete for authenticated CLI sessions.
  */
 export class CybermindCloudProvider implements LLMProvider {
   public readonly info: ProviderInfo;
@@ -22,17 +22,17 @@ export class CybermindCloudProvider implements LLMProvider {
 
   constructor(opts: CybermindCloudProviderOptions = {}) {
     this.opts = opts;
-    this.defaultModel = opts.defaultModel ?? 'trinity'; // Default to free tier
+    this.defaultModel = opts.defaultModel ?? 'auto';
     this.info = {
       id: 'cybermind-cloud',
       displayName: 'Codeva Cloud (Swarm)',
       requiresNetwork: true,
-      ready: true, // We assume true and handle errors during the chat call
+      ready: true,
     };
   }
 
   async listModels(): Promise<string[]> {
-    return ['madhav', 'kali', 'abhimanyu', 'trinity'];
+    return ['auto', 'ravan', 'madhav', 'kali', 'abhimanyu', 'arjun', 'trinity'];
   }
 
   async *chat(req: ChatRequest): AsyncIterable<ChatChunk> {
@@ -53,8 +53,6 @@ export class CybermindCloudProvider implements LLMProvider {
         }
       }
 
-      const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || '';
-      
       const rawBaseURL = this.opts.baseURL || 'https://cybercli-api.onrender.com';
       const baseURL = rawBaseURL.endsWith('/api/v1') ? rawBaseURL : `${rawBaseURL.replace(/\/+$/, '')}/api/v1`;
       
@@ -62,19 +60,35 @@ export class CybermindCloudProvider implements LLMProvider {
       if (this.opts.apiKey) headers['Authorization'] = `Bearer ${this.opts.apiKey}`;
       if (this.opts.sessionId) headers['x-cli-session'] = this.opts.sessionId;
 
-      const response = await fetch(`${baseURL}/cli/complete`, {
+      // Use /completions for anonymous/fast path, /cli/complete for authenticated CLI
+      const endpoint = this.opts.sessionId
+        ? `${baseURL}/cli/complete`
+        : `${baseURL}/completions`;
+
+      const body = this.opts.sessionId
+        ? {
+            model,
+            system: systemPrompt,
+            messages: filteredMessages,
+            prompt: filteredMessages[filteredMessages.length - 1]?.content || '',
+            temperature: req.temperature,
+            max_tokens: req.maxTokens,
+            stream: true,
+            tools: req.tools,
+          }
+        : {
+            messages: systemPrompt
+              ? [{ role: 'system', content: systemPrompt }, ...filteredMessages]
+              : filteredMessages,
+            model,
+            temperature: req.temperature ?? 0.7,
+            stream: true,
+          };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model,
-          system: systemPrompt,
-          messages: filteredMessages,
-          prompt: lastMessage,
-          temperature: req.temperature,
-          max_tokens: req.maxTokens,
-          stream: true,
-          tools: req.tools,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {

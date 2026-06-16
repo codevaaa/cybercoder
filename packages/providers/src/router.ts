@@ -49,14 +49,12 @@ export class ProviderRouter implements LLMProvider {
 
   /** First preferred-and-ready provider, or the fallback. */
   activeProvider(model?: string): LLMProvider {
-    const isCloudModel = ['madhav', 'kali', 'abhimanyu', 'trinity'].includes(model || '');
+    // Cloud models route to Codeva backend
+    const cloudModels = ['ravan', 'madhav', 'kali', 'abhimanyu', 'arjun', 'trinity', 'auto']
+    const isCloudModel = cloudModels.includes(model || '')
     
     if (isCloudModel && this.providers.has('cybermind-cloud')) {
-      return this.providers.get('cybermind-cloud')!;
-    }
-
-    if (model === 'auto' && this.preferred.includes('cybermind-cloud')) {
-      return this.providers.get('cybermind-cloud')!;
+      return this.providers.get('cybermind-cloud')!
     }
 
     for (const id of this.preferred) {
