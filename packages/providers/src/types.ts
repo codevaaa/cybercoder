@@ -44,6 +44,8 @@ export interface UsageChunk {
   type: 'usage';
   inputTokens: number;
   outputTokens: number;
+  /** True when the gateway provides an estimate instead of provider token counts. */
+  estimated?: boolean;
   cost?: number;
 }
 

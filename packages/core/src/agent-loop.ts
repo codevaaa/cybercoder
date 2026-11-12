@@ -1,4 +1,5 @@
 import { createLogger } from '@cybermind/shared';
+import { resolve } from 'node:path';
 import {
   manageContext,
   trimToolOutput,
@@ -34,6 +35,8 @@ export interface ToolContext {
   cwd: string;
   /** Caller-provided approval gate. Throw or return false to deny. */
   approve?: (toolName: string, input: Record<string, unknown>) => Promise<boolean>;
+  /** Signal for stopping a long-running tool when the user cancels a task. */
+  signal?: AbortSignal;
 }
 
 export interface AgentLoopOptions {
@@ -41,6 +44,10 @@ export interface AgentLoopOptions {
   systemPrompt?: string;
   model?: string;
   tools?: AgentTool[];
+  /** Workspace root used by tools. Defaults to the process working directory for existing CLI callers. */
+  cwd?: string;
+  /** Approval callback for tools that request permission before execution. */
+  approve?: ToolContext['approve'];
   /** Hard cap on tool-use iterations to prevent runaway loops. */
   maxIterations?: number;
   /** Cancel the entire loop. */
@@ -60,7 +67,7 @@ export type AgentEvent =
   | { type: 'text'; text: string }
   | { type: 'tool_call'; name: string; input: Record<string, unknown>; id: string }
   | { type: 'tool_result'; name: string; id: string; output: string; ok: boolean }
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
+  | { type: 'usage'; inputTokens: number; outputTokens: number; estimated?: boolean }
   | { type: 'iteration'; index: number; max: number }
   | { type: 'context'; note: string; tokens: number }
   | { type: 'done'; reason: 'end_turn' | 'max_iterations' | 'error'; error?: string };
@@ -78,7 +85,11 @@ export async function* runAgentLoop(
   const toolMap = new Map(tools.map((t) => [t.schema.name, t] as const));
   const toolSchemas = tools.map((t) => t.schema);
   const max = opts.maxIterations ?? 10;
-  const ctx: ToolContext = { cwd: process.cwd() };
+  const ctx: ToolContext = {
+    cwd: resolve(opts.cwd ?? process.cwd()),
+    ...(opts.approve ? { approve: opts.approve } : {}),
+    ...(opts.signal ? { signal: opts.signal } : {}),
+  };
   const maxToolChars = opts.maxToolOutputChars ?? 12_000;
 
   // Resolve the context budget from explicit opts or the model family.
@@ -138,7 +149,7 @@ export async function* runAgentLoop(
             id: chunk.toolCall.id,
           };
         } else if (chunk.type === 'usage') {
-          yield { type: 'usage', inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+          yield { type: 'usage', inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens, ...(chunk.estimated ? { estimated: true } : {}) };
         } else if (chunk.type === 'done') {
           stopReason = chunk;
           if (chunk.reason === 'error') sawError = chunk.error;

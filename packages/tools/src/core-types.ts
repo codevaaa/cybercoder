@@ -8,6 +8,7 @@ import type { ToolSchema } from '@cybermind/providers';
 export interface ToolContext {
   cwd: string;
   approve?: (toolName: string, input: Record<string, unknown>) => Promise<boolean>;
+  signal?: AbortSignal;
 }
 
 export interface AgentTool {
