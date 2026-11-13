@@ -6,7 +6,7 @@ const MAX_CHARS = 20_000;
 /**
  * `web_fetch` — fetch a URL and return readable text content. Strips scripts,
  * styles, and markup so the model gets clean prose/code. Pairs with web_search
- * for real research workflows. Read-only but performs network I/O.
+ * for real research workflows. Read-only but external network access still requires approval.
  */
 export const webFetchTool: AgentTool = {
   schema: {
@@ -22,7 +22,7 @@ export const webFetchTool: AgentTool = {
       required: ['url'],
     },
   },
-  destructive: false,
+  destructive: true,
   async execute(input) {
     const url = String(input.url ?? '').trim();
     if (!/^https?:\/\//i.test(url)) throw new Error('web_fetch requires an absolute http(s) URL');

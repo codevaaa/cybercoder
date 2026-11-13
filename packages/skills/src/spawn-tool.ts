@@ -1,4 +1,4 @@
-import type { AgentTool, ToolContext } from '@cybermind/core';
+import type { AgentEvent, AgentTool, ToolContext } from '@cybermind/core';
 import type { LLMProvider } from '@cybermind/providers';
 import type { SkillRegistry } from './registry.js';
 import { spawnSubagent } from './runner.js';
@@ -8,6 +8,7 @@ export interface SpawnToolDeps {
   provider: LLMProvider;
   /** All tools that *could* be exposed to a sub-agent; the sub-agent will see only the subset its skill declares. */
   toolPool: AgentTool[];
+  onProgress?: (event: Extract<AgentEvent, { type: 'subagent_progress' }>) => void;
 }
 
 /**
@@ -39,7 +40,7 @@ export function buildSpawnSubagentTool(deps: SpawnToolDeps): AgentTool {
         required: ['skill', 'prompt'],
       },
     },
-    async execute(input: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+    async execute(input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
       const name = String(input.skill ?? '').trim();
       const prompt = String(input.prompt ?? '').trim();
       if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
@@ -54,12 +55,25 @@ export function buildSpawnSubagentTool(deps: SpawnToolDeps): AgentTool {
         return `Error: skill "${name}" is not installed. Available skills: ${available || '(none)'}`;
       }
 
-      const result = await spawnSubagent({
-        skill,
-        prompt,
-        provider: deps.provider,
-        toolPool: deps.toolPool,
-      });
+      const agentId = `subagent-${Date.now().toString(36)}`;
+      let result;
+      try {
+        result = await spawnSubagent({
+          skill,
+          prompt,
+          provider: deps.provider,
+          cwd: ctx.cwd,
+          toolPool: deps.toolPool,
+          agentId,
+          signal: ctx.signal,
+          onEvent: (event) => {
+            if (event.type === 'subagent_progress') deps.onProgress?.(event);
+          },
+        });
+      } catch (error) {
+        deps.onProgress?.({ type: 'subagent_progress', agentId, skill: name, status: 'failed', message: error instanceof Error ? error.message : String(error) });
+        return `[sub-agent ${name} failed: ${error instanceof Error ? error.message : String(error)}]`;
+      }
 
       if (result.reason === 'error') {
         return `[sub-agent ${name} failed: ${result.error ?? 'unknown'}]`;

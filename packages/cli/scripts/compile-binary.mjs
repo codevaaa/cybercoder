@@ -42,7 +42,7 @@ console.log(`[compile] Entry: ${ENTRY}`)
 console.log(`[compile] Output: ${outPath}`)
 
 if (!existsSync(ENTRY)) {
-  console.error('[compile] ERROR: dist/index.js not found. Run `npm run build` first.')
+  console.error('[compile] ERROR: dist/rpc/rpc-entry.js not found. Run `npm run build:rpc` first.')
   process.exit(1)
 }
 

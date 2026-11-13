@@ -33,6 +33,8 @@ export const SkillFrontmatterSchema = z.object({
   category: z.string().optional(),
   /** Used by the marketplace to flag curated/official skills. */
   official: z.boolean().default(false),
+  /** Include this skill's body in the main agent prompt for every task. */
+  inject_always: z.boolean().optional(),
 });
 export type SkillFrontmatter = z.infer<typeof SkillFrontmatterSchema>;
 

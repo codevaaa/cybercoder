@@ -34,7 +34,6 @@ export function buildCustomCommand(ctx: CommandContext): SlashCommandHandler {
 
       const command = parts[0];
       const customServer = new CustomServerManager();
-
       switch (command) {
         case 'connect':
           if (parts.length < 2) {
@@ -218,7 +217,6 @@ export function buildCyberCoderCommand(ctx: CommandContext): SlashCommandHandler
       }
 
       const command = parts[0];
-      const customServer = new CustomServerManager();
 
       switch (command) {
         case 'models':
@@ -253,7 +251,6 @@ export function buildCyberCoderCommand(ctx: CommandContext): SlashCommandHandler
           }
 
           const cybercoderModelId = `codeva-${command}`;
-          const cybercoderModel = customServer.getModel(cybercoderModelId);
           const cybercoderPrompt = parts.slice(1).join(' ');
 
           if (!cybercoderPrompt) {

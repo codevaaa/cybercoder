@@ -4,9 +4,11 @@
  * approval framework and persistent /trust store. browser_action lands in M7.
  */
 export * from './approval.js';
+export * from './approved-tool.js';
 export * from './secrets.js';
 export * from './workspace-checkpoint.js';
 export * from './mcp-client.js';
+export * from './mcp-config.js';
 export * from './builtin/read-file.js';
 export * from './builtin/read-many.js';
 export * from './builtin/write-file.js';

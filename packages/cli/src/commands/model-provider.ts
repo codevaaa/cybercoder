@@ -1,5 +1,6 @@
 import { getRouter } from '../runtime/chat.js';
 import { getUserProfile } from '../utils/config.js';
+import { getModelPlanRestrictionMessage } from '../utils/model-access.js';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
@@ -40,7 +41,7 @@ export function buildModelCommand(ctx: CommandContext): SlashCommandHandler {
         const profile = getUserProfile();
         const plan = (profile?.plan || 'free').toLowerCase();
         if (plan === 'free') {
-          reply(`❌ Access Denied: The '${name}' model is only available on PRO tiers.\nPlease upgrade your plan at https://opencode.ai/zen to use this model.\nYou can use 'trinity' or 'kali' on the free tier.`);
+          reply(getModelPlanRestrictionMessage(name));
           return;
         }
       }

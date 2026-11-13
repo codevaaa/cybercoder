@@ -9,16 +9,22 @@ export function buildTestCommand(ctx: CommandContext): SlashCommandHandler {
     run: (args) => {
       const cmd = args.trim();
       if (!cmd) {
-        ctx.appendMessage({ role: 'assistant', type: 'text', text: 'Usage: /test <command> (e.g. /test npm run test)' });
+        ctx.appendMessage({
+          id: `test-usage-${Date.now()}`,
+          role: 'system',
+          content: 'Usage: /test <command> (e.g. /test npm run test)',
+          createdAt: Date.now(),
+        });
         return;
       }
       
       const prompt = `Run the following test command: \`${cmd}\`. If it fails with a non-zero exit code, analyze the stderr/stdout, determine why it failed, apply the necessary code fixes using your tools, and then run the test again. Repeat this loop autonomously until the test passes with exit code 0 or you hit a limit of 3 attempts.`;
       
       ctx.appendMessage({
+        id: `test-prompt-${Date.now()}`,
         role: 'user',
-        type: 'text',
-        text: prompt,
+        content: prompt,
+        createdAt: Date.now(),
       });
       ctx.submitUserPrompt?.(prompt);
     },
@@ -41,9 +47,10 @@ export function buildPRCommand(ctx: CommandContext): SlashCommandHandler {
 4. Use the \`run_command\` tool with \`gh pr create --title "..." --body "..."\` to open a GitHub Pull Request. You MUST generate a beautiful Markdown body describing the changes, testing steps, and architectural decisions.`;
 
       ctx.appendMessage({
+        id: `pr-prompt-${Date.now()}`,
         role: 'user',
-        type: 'text',
-        text: prompt,
+        content: prompt,
+        createdAt: Date.now(),
       });
       ctx.submitUserPrompt?.(prompt);
     },

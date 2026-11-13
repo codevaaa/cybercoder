@@ -30,8 +30,12 @@ export class WorkspaceCheckpoints {
   private readonly dir: string;
   private seq = 0;
 
-  constructor(sessionId: string, private readonly cwd: string = process.cwd()) {
-    this.dir = join(checkpointRoot(), sessionId);
+  constructor(
+    sessionId: string,
+    private readonly cwd: string = process.cwd(),
+    storageRoot: string = checkpointRoot(),
+  ) {
+    this.dir = join(storageRoot, sessionId);
     if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true });
     // Resume seq from existing entries.
     this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);

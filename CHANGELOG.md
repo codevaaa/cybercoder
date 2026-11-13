@@ -5,6 +5,99 @@ All notable changes to CyberMind CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.53] - 2026-11-13
+
+### Fixed
+
+- Windows, macOS, and Linux compile scripts now build the RPC bundle they require before packaging it; the missing-entry error names the correct output path. Added a temporary-project smoke check for the compiled Windows RPC binary.
+
+## [0.1.52] - 2026-11-13
+
+### Added
+
+- Write-capable `spawn_team` agents now run in separate managed Git worktrees, preserving their changes for review and enabling safe parallel work. The tool output gives local sync and cleanup commands; dirty or non-Git workspaces fall back to serial execution.
+
+## [0.1.51] - 2026-11-13
+
+### Fixed
+
+- Plan-restricted model guidance now links to Codeva pricing instead of an unrelated product, and tells users which free models remain available.
+
+## [0.1.50] - 2026-11-13
+
+### Fixed
+
+- The interactive model picker now loads the selected provider's actual catalog instead of showing the fixed placeholder list. It displays loading, empty, and error states, maps provider IDs without inventing tiers, and preserves the searchable bounded viewport for long lists.
+
+## [0.1.49] - 2026-11-13
+
+### Fixed
+
+- Specialist routing recognizes common “documentation” phrasing and sends documentation requests to the docs skill before the API design fallback. Checks now route prompts against both source and packaged skill catalogs.
+
+## [0.1.48] - 2026-11-13
+
+### Fixed
+
+- `spawn_team` now keeps read-only specialists parallel but runs the full task batch serially if any skill can call a destructive tool, preventing concurrent writes to the shared project directory until automatic worktree routing is available.
+
+## [0.1.47] - 2026-11-13
+
+### Added
+
+- `/worktree create|list|sync|close` now manages real Git worktrees, merges committed changes into the selected local repository without pushing, refuses dirty source workspaces, and protects against tampered or escaped worktree paths. Collaboration sessions cannot be deleted while they still track worktrees.
+
+## [0.1.46] - 2026-11-13
+
+### Fixed
+
+- Specialist routing now prefers matching frontend, database, security, test, and debugging skills ahead of general plan/research roles.
+- The bundled `cyber-recon` entry now accurately states that execution is not implemented and cannot be selected by automatic routing.
+- Added self-checks for declared tool validity and parity between source and generated install skill catalogs.
+
+## [0.1.45] - 2026-11-13
+
+### Fixed
+
+- Single subagents and teams now inherit the selected project working directory instead of falling back to the process directory.
+- Extracted approval-before-checkpoint execution for workspace edits and reused it in the main agent path. The self-check exercises a write-capable subagent through denial, approval, file edit, and checkpoint restore.
+
+## [0.1.44] - 2026-11-13
+
+### Fixed
+
+- MCP servers now start in the selected project directory, use the shared CyberCoder version during initialization, drain diagnostics, and shut down through stdio close with process-kill fallback.
+- MCP tool calls now use one shared approval wrapper. Added an end-to-end local server check for tool discovery/call, allow and deny decisions, clean shutdown, malformed handshake recovery, and unavailable commands.
+
+## [0.1.43] - 2026-11-13
+
+### Added
+
+- `/compact [focus]` uses the selected model, bounds the summary output, and keeps the original history if summarization fails. Self-checks cover success, empty output, model/focus forwarding, provider failure, and short histories.
+
+## [0.1.42] - 2026-11-13
+
+### Added
+
+- Added skills-package self-checks proving skill tool allowlists are enforced and parallel team work stays within its configured concurrency limit while preserving result order.
+- Added `SPEC.md` with evidence-based completion ticks and explicit gaps for write-capable agent recovery, terminal smoke checks, and packaging.
+
+## [0.1.41] - 2026-11-13
+
+### Security
+
+- Shell commands configured in project or global hooks now require explicit approval before execution. Hooks fail closed without an approval UI, and pre-command block rules still stop the requested shell action.
+- Added an end-to-end check for denied, approved, unattended, and blocked hook cases.
+
+## [0.1.40] - 2026-11-13
+
+### Fixed
+
+- Model picker now captures terminal SGR mouse-wheel input while open, supports split input reports, and restores terminal mouse mode when it closes. Keyboard navigation and search continue to work.
+- Added self-check coverage for a 120-model list, wheel directions and partial input chunks, selection of the final model, and non-wheel mouse reports.
+- JSON-RPC version responses now use the shared CyberCoder version constant instead of reporting a stale version.
+- Recorded the Skills.sh role shortlist and review gate in `docs/SKILLS-CATALOG.md`.
+
 ## [1.0.0] - 2024-12-XX
 
 ### 🎉 Initial Release

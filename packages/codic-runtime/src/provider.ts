@@ -66,6 +66,7 @@ export class CodevaProvider implements LLMProvider {
             function: { name: tool.name, description: tool.description, parameters: tool.inputSchema },
           })),
           temperature: request.temperature,
+          effort: request.effort ?? 'low',
           max_tokens: request.maxTokens,
           stream: true,
         }),

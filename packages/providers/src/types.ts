@@ -36,6 +36,7 @@ export interface ChatRequest {
   tools?: ToolSchema[];
   temperature?: number;
   maxTokens?: number;
+  effort?: 'low' | 'medium' | 'high';
   /** Abort the underlying HTTP request. */
   signal?: AbortSignal;
 }

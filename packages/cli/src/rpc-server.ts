@@ -1,11 +1,12 @@
 import { createInterface } from 'node:readline'
-import { runChat, getRouter, getSkillRegistry, getCheckpoints } from './runtime/chat.js'
+import { runChat } from './runtime/chat.js'
 import { builtinTools } from '@cybermind/tools'
-import { getGitContext, gitContextPrompt } from './utils/git-context.js'
+import { getGitContext } from './utils/git-context.js'
 import { projectMemoryPrompt } from './utils/project-memory.js'
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from 'node:fs'
-import { join, resolve, relative } from 'node:path'
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { execSync } from 'node:child_process'
+import { CYBERMIND_VERSION } from '@cybermind/shared'
 
 /**
  * RPC Server mode for the CyberCoder CLI.
@@ -45,7 +46,7 @@ async function handleMethod(id: number, method: string, params: Record<string, u
   try {
     switch (method) {
       case 'ping':
-        respond(id, { pong: true, version: '0.1.22', cwd })
+        respond(id, { pong: true, version: CYBERMIND_VERSION, cwd })
         break
 
       case 'read_file': {
@@ -125,23 +126,24 @@ async function handleMethod(id: number, method: string, params: Record<string, u
         // Full agentic completion using the CLI's agent loop
         const messages = (params.messages as Array<{ role: string; content: string }>) || []
         const model = String(params.model || 'auto')
-        const system = String(params.system || '')
+        const systemPrompt = String(params.system || '')
 
         let fullText = ''
         await runChat(
           messages.map(m => ({ id: `rpc-${Date.now()}`, role: m.role as 'user' | 'assistant', content: m.content, createdAt: Date.now() })),
           {
             model,
+            systemPrompt,
             onEvent: (evt) => {
               if (evt.type === 'text') {
                 fullText += evt.text
                 event('token', { content: evt.text })
-              } else if (evt.type === 'tool_start') {
+              } else if (evt.type === 'tool_call') {
                 event('tool_start', { name: evt.name, input: evt.input })
-              } else if (evt.type === 'tool_end') {
-                event('tool_end', { name: evt.name, output: evt.output?.slice(0, 4000) })
-              } else if (evt.type === 'error') {
-                event('error', { message: evt.message })
+              } else if (evt.type === 'tool_result') {
+                event('tool_end', { name: evt.name, output: evt.output.slice(0, 4000), ok: evt.ok })
+              } else if (evt.type === 'done' && evt.reason === 'error') {
+                event('error', { message: evt.error ?? 'Agent turn failed' })
               }
             },
           },
@@ -168,7 +170,7 @@ async function handleMethod(id: number, method: string, params: Record<string, u
 
 export function startRpcServer(): void {
   // Signal readiness
-  event('ready', { version: '0.1.22', cwd, tools: builtinTools().map(t => t.schema.name) })
+  event('ready', { version: CYBERMIND_VERSION, cwd, tools: builtinTools().map(t => t.schema.name) })
 
   const rl = createInterface({ input: process.stdin, terminal: false })
   rl.on('line', (line) => {

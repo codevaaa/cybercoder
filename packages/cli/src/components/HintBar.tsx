@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text, useStdout } from 'ink';
+import { Box, Text } from 'ink';
 import { useTheme } from '../theme/useTheme.js';
 
 interface HintBarProps {
@@ -7,10 +7,7 @@ interface HintBarProps {
 }
 
 export const HintBar: React.FC<HintBarProps> = ({ status = 'idle' }) => {
-  const { stdout } = useStdout();
   const t = useTheme();
-  const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 76);
 
   const getHints = () => {
     switch (status) {

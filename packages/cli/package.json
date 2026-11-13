@@ -1,6 +1,6 @@
 {
   "name": "cybercoder-cli",
-  "version": "0.1.39",
+  "version": "0.1.53",
   "description": "CyberCoder CLI — fullstack agentic coding assistant by Codeva",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,15 +28,21 @@
     "prebuild": "node scripts/bundle-skills.mjs",
     "build": "tsup",
     "build:rpc": "tsup src/rpc-entry.ts --format esm --target node20 --outDir dist/rpc --clean",
-    "compile": "npm run build:rpc && node scripts/compile-binary.mjs",
-    "compile:win": "npm run build && node scripts/compile-binary.mjs --target win",
-    "compile:mac": "npm run build && node scripts/compile-binary.mjs --target mac",
-    "compile:linux": "npm run build && node scripts/compile-binary.mjs --target linux",
+    "compile": "npm run build && npm run build:rpc && node scripts/compile-binary.mjs",
+    "compile:win": "npm run build && npm run build:rpc && node scripts/compile-binary.mjs --target win",
+    "compile:mac": "npm run build && npm run build:rpc && node scripts/compile-binary.mjs --target mac",
+    "compile:linux": "npm run build && npm run build:rpc && node scripts/compile-binary.mjs --target linux",
+    "smoke:win": "node scripts/smoke-compiled-win.mjs",
     "prepublishOnly": "node scripts/bundle-skills.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "echo '(tests added in M14)'"
+    "test": "tsx --test src/components/ModelPicker.test.ts src/commands/ecosystem.test.ts src/commands/compact.test.ts src/commands/skills-catalog.test.ts src/commands/worktree.test.ts src/runtime/hooks.test.ts src/runtime/subagent-write.test.ts src/utils/model-access.test.ts"
   },
   "dependencies": {
+    "@cybermind/core": "workspace:*",
+    "@cybermind/providers": "workspace:*",
+    "@cybermind/shared": "workspace:*",
+    "@cybermind/skills": "workspace:*",
+    "@cybermind/tools": "workspace:*",
     "@anthropic-ai/sdk": "^0.32.1",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
@@ -46,6 +52,7 @@
     "ink-select-input": "^6.2.0",
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
+    "open": "^10.2.0",
     "react": "^18.3.1",
     "yaml": "^2.6.1",
     "zod": "^3.23.8"

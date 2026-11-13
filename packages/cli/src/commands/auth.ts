@@ -1,4 +1,3 @@
-import { createLogger } from '@cybermind/shared';
 import { exec } from 'child_process';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 import { apiClient } from '../utils/api-client.js';
@@ -11,8 +10,6 @@ import {
   getAuthToken,
   getUserProfile,
 } from '../utils/config.js';
-
-const log = createLogger('auth');
 
 const openUrl = (url: string) => {
   const platform = process.platform;

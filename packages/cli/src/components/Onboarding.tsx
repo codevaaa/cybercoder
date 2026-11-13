@@ -463,9 +463,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         <Box flexDirection="column" paddingX={1} width={contentWidth + 4}>
           {renderBorderTop('Select API Provider')}
           <Box flexDirection="column" paddingX={2} marginY={1}>
-            <Text color="white" bold marginBottom={1}>
-              Select an API provider:
-            </Text>
+            <Box marginBottom={1}><Text color="white" bold>Select an API provider:</Text></Box>
 
             {API_PROVIDERS.map((prov, i) => (
               <Box key={prov.id} flexDirection="row" marginBottom={1}>
@@ -495,12 +493,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       <Box flexDirection="column" paddingX={1} width={contentWidth + 4}>
         {renderBorderTop('Enter API Key')}
         <Box flexDirection="column" paddingX={2} marginY={1}>
-          <Text color="white" bold marginBottom={1}>
-            Paste your API key below:
-          </Text>
-          <Text color="gray" marginBottom={1}>
-            Provider: <Text color="cyan" bold>{apiKeyProvider}</Text>
-          </Text>
+          <Box marginBottom={1}><Text color="white" bold>Paste your API key below:</Text></Box>
+          <Box marginBottom={1}><Text color="gray">Provider: <Text color="cyan" bold>{apiKeyProvider}</Text></Text></Box>
 
           <Box flexDirection="row" marginBottom={1}>
             <Text color="gray">{'>'} </Text>
@@ -521,7 +515,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                         markOnboardingComplete('apikey');
                         onComplete('apikey');
                       })
-                      .catch((err) => {
+                      .catch(() => {
                         // Save key anyway, client can run offline
                         markOnboardingComplete('apikey');
                         onComplete('apikey');
@@ -551,9 +545,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       <Box flexDirection="column" paddingX={1} width={contentWidth + 4}>
         {renderBorderTop('3rd-Party Platforms')}
         <Box flexDirection="column" paddingX={2} marginY={1}>
-          <Text color="white" bold marginBottom={1}>
-            Select a local or 3rd-party platform to set up:
-          </Text>
+          <Box marginBottom={1}><Text color="white" bold>Select a local or 3rd-party platform to set up:</Text></Box>
 
           {THIRDPARTY_PLATFORMS.map((plat, i) => (
             <Box key={plat.id} flexDirection="column" marginBottom={1}>

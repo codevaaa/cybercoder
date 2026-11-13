@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { CommandContext, SlashCommandHandler } from './index.js';
-import { loadHooks, reloadHooks } from '../runtime/hooks.js';
+import { loadHooks, reloadHooks, type HookEvent } from '../runtime/hooks.js';
 
 /**
  * `/hooks` — view configured automation hooks, or reload after editing the
@@ -24,7 +24,7 @@ export function buildHooksCommand(ctx: CommandContext): SlashCommandHandler {
       }
 
       const cfg = loadHooks();
-      const events = Object.keys(cfg);
+      const events = Object.keys(cfg) as HookEvent[];
       if (events.length === 0) {
         reply(
           'No hooks configured.\n\n' +

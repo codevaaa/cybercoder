@@ -7,7 +7,7 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 
 export interface UserConfig {
   onboardingComplete?: boolean;
-  loginMethod?: 'cybercli' | 'apikey' | 'thirdparty' | null;
+  loginMethod?: 'codeva' | 'cybercli' | 'apikey' | 'thirdparty' | null;
   theme?: {
     mode: 'auto' | 'dark' | 'light' | 'dark-colorblind' | 'light-colorblind' | 'dark-ansi' | 'light-ansi';
     syntaxTheme: string;

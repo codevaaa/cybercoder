@@ -1,4 +1,4 @@
-import { runAgentLoop, type AgentEvent } from '@cybermind/core';
+import { runAgentLoop, type AgentEvent, type ToolContext } from '@cybermind/core';
 import { runGoal, runPlan } from '@cybermind/core';
 import { ProviderRouter, type ProviderId } from '@cybermind/providers';
 import type { ProviderMessage } from '@cybermind/providers';
@@ -7,10 +7,13 @@ import {
   HeadlessApprovalUI,
   builtinTools,
   WorkspaceCheckpoints,
+  executeApprovedWorkspaceTool,
+  gateMcpTools,
   loadMcpTools,
   type ApprovalUI,
 } from '@cybermind/tools';
 import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from '@cybermind/skills';
+import { CollaborationManager } from '@cybermind/shared';
 import type { SessionMessage } from '../state/session.js';
 import { loadConfig } from '../utils/config.js';
 import { getGitContext, gitContextPrompt } from '../utils/git-context.js';
@@ -133,6 +136,7 @@ export function toProviderMessages(messages: SessionMessage[]): ProviderMessage[
 
 export interface RunChatOptions {
   model?: string;
+  systemPrompt?: string;
   onEvent: (evt: AgentEvent) => void;
   signal?: AbortSignal;
   /** Caller-supplied approval UI; defaults to headless (auto-deny destructive). */
@@ -140,8 +144,9 @@ export interface RunChatOptions {
 }
 
 /** MCP tools are loaded once per process (servers stay alive for the session). */
-let mcpToolsCache: any[] | null = null;
-async function getMcpTools(): Promise<any[]> {
+type McpAgentTool = Awaited<ReturnType<typeof loadMcpTools>>['tools'][number];
+let mcpToolsCache: McpAgentTool[] | null = null;
+async function getMcpTools(): Promise<McpAgentTool[]> {
   if (mcpToolsCache) return mcpToolsCache;
   try {
     const { tools } = await loadMcpTools();
@@ -149,7 +154,7 @@ async function getMcpTools(): Promise<any[]> {
   } catch {
     mcpToolsCache = [];
   }
-  return mcpToolsCache;
+  return mcpToolsCache ?? [];
 }
 
 /**
@@ -157,86 +162,67 @@ async function getMcpTools(): Promise<any[]> {
  * spawn_subagent and spawn_team orchestration tools, plus any configured MCP
  * server tools) and the git-aware system prompt. Shared by runChat/runGoalChat.
  */
-async function buildAgentTools(approvalUI?: ApprovalUI): Promise<{ tools: any[]; systemPrompt: string }> {
+async function buildAgentTools(
+  approvalUI?: ApprovalUI,
+  additionalSystemPrompt = '',
+  onProgress?: (event: Extract<AgentEvent, { type: 'subagent_progress' }>) => void,
+): Promise<{ tools: any[]; systemPrompt: string }> {
   const router = getRouter();
   const registry = getSkillRegistry();
-  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
+  const hookApprovalUI = approvalUI ?? new HeadlessApprovalUI();
+  const gate = new ApprovalGate(hookApprovalUI);
   const builtins = builtinTools();
 
   const wrappedBuiltins = builtins.map((t) => ({
     schema: t.schema,
     destructive: t.destructive,
     verify: t.verify,
-    execute: async (input: Record<string, unknown>, ctx: { cwd: string }) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: summarizeCall(t.schema.name, input),
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
+    execute: async (input: Record<string, unknown>, ctx: ToolContext) => {
+      return executeApprovedWorkspaceTool(t, gate, getCheckpoints(), input, ctx, summarizeCall(t.schema.name, input), async () => {
+        // preCommand hooks can block dangerous shell commands.
+        if (t.schema.name === 'run_command') {
+          const cmd = typeof input.command === 'string' ? input.command : '';
+          const pre = await runHooks('preCommand', cmd, ctx.cwd, hookApprovalUI);
+          if (pre.blocked) return `[blocked by preCommand hook]\n${pre.output}`;
+        }
 
-      // preCommand hooks can block dangerous shell commands.
-      if (t.schema.name === 'run_command') {
-        const cmd = typeof input.command === 'string' ? input.command : '';
-        const pre = runHooks('preCommand', cmd);
-        if (pre.blocked) return `[blocked by preCommand hook]\n${pre.output}`;
-      }
+        const output = await t.execute(input, ctx);
 
-      // Snapshot the target file before any destructive file edit so /rewind
-      // can restore it. (write_file/edit carry a `path`; run_command is shell.)
-      if (t.destructive && (t.schema.name === 'edit' || t.schema.name === 'write_file')) {
-        const target = input.path;
-        if (typeof target === 'string' && target) {
-          try {
-            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
-          } catch {
-            /* checkpointing must never block the edit */
+        // postEdit / postWrite / postCommand hooks (auto-format, lint, etc.).
+        try {
+          if (t.schema.name === 'edit') {
+            const h = await runHooks('postEdit', String(input.path ?? ''), ctx.cwd, hookApprovalUI);
+            if (h.output) return `${output}\n${h.output}`;
+          } else if (t.schema.name === 'write_file') {
+            const h = await runHooks('postWrite', String(input.path ?? ''), ctx.cwd, hookApprovalUI);
+            if (h.output) return `${output}\n${h.output}`;
+          } else if (t.schema.name === 'run_command') {
+            const h = await runHooks('postCommand', String(input.command ?? ''), ctx.cwd, hookApprovalUI);
+            if (h.output) return `${output}\n${h.output}`;
           }
+        } catch {
+          /* hooks must never break the tool result */
         }
-      }
-
-      const result = await t.execute(input, { cwd: ctx.cwd });
-
-      // postEdit / postWrite / postCommand hooks (auto-format, lint, etc.).
-      try {
-        if (t.schema.name === 'edit') {
-          const h = runHooks('postEdit', String(input.path ?? ''));
-          if (h.output) return `${result}\n${h.output}`;
-        } else if (t.schema.name === 'write_file') {
-          const h = runHooks('postWrite', String(input.path ?? ''));
-          if (h.output) return `${result}\n${h.output}`;
-        } else if (t.schema.name === 'run_command') {
-          const h = runHooks('postCommand', String(input.command ?? ''));
-          if (h.output) return `${result}\n${h.output}`;
-        }
-      } catch {
-        /* hooks must never break the tool result */
-      }
-      return result;
+        return output;
+      });
     },
   }));
-
-  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
-  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
-  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
 
   // MCP server tools, each gated through approval (they can do anything).
-  const mcpRaw = await getMcpTools();
-  const mcpWrapped = mcpRaw.map((t: any) => ({
-    schema: t.schema,
-    destructive: t.destructive,
-    execute: async (input: Record<string, unknown>, ctx: { cwd: string }) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: `MCP: ${t.schema.name}`,
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      return t.execute(input, ctx);
-    },
-  }));
+  const mcpWrapped = gateMcpTools(await getMcpTools(), gate);
+
+  // Sub-agents use the exact same wrapped tools and security hooks as the
+  // parent. This prevents delegation from becoming an approval bypass.
+  const toolPool = [...wrappedBuiltins, ...mcpWrapped];
+  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool, onProgress });
+  const teamTool = buildSpawnTeamTool({
+    registry,
+    provider: router,
+    toolPool,
+    concurrency: 3,
+    worktreeManager: new CollaborationManager(),
+    onProgress,
+  });
 
   const gitBlock = gitContextPrompt(getGitContext());
   const memoryBlock = projectMemoryPrompt();
@@ -258,7 +244,7 @@ async function buildAgentTools(approvalUI?: ApprovalUI): Promise<{ tools: any[];
     dynamicSkillsBlock = [skillList, ...injected].filter(Boolean).join('\n\n');
   } catch(e) {}
 
-  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join('\n\n');
+  const systemPrompt = [SYSTEM_PROMPT, additionalSystemPrompt, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join('\n\n');
 
   return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
 }
@@ -273,7 +259,7 @@ export async function runChat(
 ): Promise<void> {
   const router = getRouter();
   const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI, opts.systemPrompt, (evt) => opts.onEvent(evt));
 
   for await (const evt of runAgentLoop(providerMessages, {
     provider: router,
@@ -296,7 +282,7 @@ export async function runGoalChat(
 ): Promise<void> {
   const router = getRouter();
   const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI, opts.systemPrompt, (evt) => opts.onEvent(evt));
 
   for await (const evt of runGoal(providerMessages, {
     provider: router,
@@ -321,7 +307,7 @@ export async function runPlanChat(
 ): Promise<{ plan: string; steps: string[] }> {
   const router = getRouter();
   const providerMessages = toProviderMessages(history);
-  const { tools } = await buildAgentTools(opts.approvalUI);
+  const { tools } = await buildAgentTools(opts.approvalUI, '', (evt) => opts.onEvent(evt));
 
   return runPlan(providerMessages, {
     provider: router,

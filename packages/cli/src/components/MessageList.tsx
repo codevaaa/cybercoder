@@ -7,13 +7,6 @@ interface Props {
   messages: SessionMessage[];
 }
 
-const ROLE_LABEL: Record<SessionMessage['role'], string> = {
-  user: 'you',
-  assistant: 'cybercoder',
-  system: 'info',
-  tool: 'tool',
-};
-
 function renderFormattedText(text: string, key: any) {
   const parts: React.ReactNode[] = [];
   let currentText = '';

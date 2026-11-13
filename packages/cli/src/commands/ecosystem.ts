@@ -1,45 +1,22 @@
 import { EcosystemManager } from '@cybermind/shared';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { projectMcpConfigPath, readMcpConfig, writeProjectMcpConfig } from '@cybermind/tools';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
  * `/mcp` — manage MCP (Model Context Protocol) servers for real.
  *
  *   /mcp                     — show configured servers + config file location
- *   /mcp add <name> <cmd...> — add a server to .codeva/mcp.json
+ *   /mcp add <name> <cmd...> — add a server to .cyber/mcp.json
  *   /mcp remove <name>       — remove a server
  *
  * Configured servers are launched automatically each session; their tools
  * appear to the agent as mcp__<server>__<tool>. Restart the session to pick up
  * changes.
  */
-function mcpConfigPath(): string {
-  return join(process.cwd(), '.codeva', 'mcp.json');
-}
-
-function readMcp(): { mcpServers: Record<string, { command: string; args?: string[]; env?: Record<string, string> }> } {
-  for (const p of [mcpConfigPath(), join(homedir(), '.codeva', 'mcp.json')]) {
-    try {
-      if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
-    } catch {
-      /* ignore */
-    }
-  }
-  return { mcpServers: {} };
-}
-
-function writeMcp(cfg: unknown): void {
-  const p = mcpConfigPath();
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(cfg, null, 2), 'utf8');
-}
-
 export function buildMCPCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'mcp',
-    description: 'Manage MCP servers (.codeva/mcp.json). Tools appear as mcp__<server>__<tool>.',
+    description: 'Manage MCP servers (.cyber/mcp.json). Tools appear as mcp__<server>__<tool>.',
     category: 'utility',
     usage: '/mcp [add <name> <command...> | remove <name>]',
     run: async (args: string) => {
@@ -50,13 +27,13 @@ export function buildMCPCommand(ctx: CommandContext): SlashCommandHandler {
       const sub = parts[0];
 
       if (!sub) {
-        const cfg = readMcp();
+        const cfg = readMcpConfig();
         const names = Object.keys(cfg.mcpServers ?? {});
         if (names.length === 0) {
           reply(
             'No MCP servers configured.\n\n' +
               `Add one: /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem .\n` +
-              `Config file: ${mcpConfigPath()}\n` +
+              `Config file: ${projectMcpConfigPath()}\n` +
               'Connected servers expose their tools to the agent as mcp__<server>__<tool>. ' +
               'Restart the session after changes.',
           );
@@ -64,10 +41,11 @@ export function buildMCPCommand(ctx: CommandContext): SlashCommandHandler {
         }
         const lines = ['Configured MCP servers:'];
         for (const n of names) {
-          const s = cfg.mcpServers[n]!;
+          const s = cfg.mcpServers?.[n];
+          if (!s) continue;
           lines.push(`  • ${n}: ${s.command} ${(s.args ?? []).join(' ')}`);
         }
-        lines.push('', `Config: ${mcpConfigPath()} — restart session to apply changes.`);
+        lines.push('', `Config: ${projectMcpConfigPath()} — restart session to apply changes.`);
         reply(lines.join('\n'));
         return;
       }
@@ -80,10 +58,10 @@ export function buildMCPCommand(ctx: CommandContext): SlashCommandHandler {
           reply('Usage: /mcp add <name> <command> [args...]\nExample: /mcp add github npx -y @modelcontextprotocol/server-github');
           return;
         }
-        const cfg = readMcp();
+        const cfg = readMcpConfig();
         cfg.mcpServers = cfg.mcpServers ?? {};
         cfg.mcpServers[name] = { command, args: cmdArgs };
-        writeMcp(cfg);
+        writeProjectMcpConfig(cfg);
         reply(`Added MCP server '${name}'. Restart the session to connect it.`);
         return;
       }
@@ -94,10 +72,12 @@ export function buildMCPCommand(ctx: CommandContext): SlashCommandHandler {
           reply('Usage: /mcp remove <name>');
           return;
         }
-        const cfg = readMcp();
-        if (cfg.mcpServers?.[name]) {
-          delete cfg.mcpServers[name];
-          writeMcp(cfg);
+        const cfg = readMcpConfig();
+        const servers = cfg.mcpServers ?? {};
+        if (servers[name]) {
+          delete servers[name];
+          cfg.mcpServers = servers;
+          writeProjectMcpConfig(cfg);
           reply(`Removed MCP server '${name}'. Restart the session to apply.`);
         } else {
           reply(`No MCP server named '${name}'.`);

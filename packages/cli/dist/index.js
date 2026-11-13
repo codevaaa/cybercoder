@@ -166,7 +166,7 @@ var CYBERMIND_VERSION, CYBERMIND_NAME, CYBERCODER_VERSION, CYBERCODER_NAME;
 var init_version = __esm({
   "../shared/src/version.ts"() {
     "use strict";
-    CYBERMIND_VERSION = "0.1.39";
+    CYBERMIND_VERSION = "0.1.53";
     CYBERMIND_NAME = "CyberCoder";
     CYBERCODER_VERSION = CYBERMIND_VERSION;
     CYBERCODER_NAME = CYBERMIND_NAME;
@@ -504,15 +504,51 @@ var init_profiles = __esm({
 });
 
 // ../shared/src/collaboration.ts
-import { existsSync as existsSync4, mkdirSync as mkdirSync3, readFileSync as readFileSync3, writeFileSync as writeFileSync3, readdirSync as readdirSync2 } from "fs";
-import { join as join4 } from "path";
+import { execFile } from "child_process";
+import { existsSync as existsSync4, mkdirSync as mkdirSync3, readFileSync as readFileSync3, writeFileSync as writeFileSync3, readdirSync as readdirSync2, realpathSync, rmSync } from "fs";
+import { isAbsolute, join as join4, relative, resolve as resolve2, sep } from "path";
+import { promisify } from "util";
 import { z as z4 } from "zod";
-var log3, CollaborationSessionSchema, CollaborationManager;
+async function git(args, cwd2) {
+  const { stdout } = await execFileAsync("git", args, { cwd: cwd2, windowsHide: true, encoding: "utf8" });
+  return stdout.trim();
+}
+function safeComponent(value, label) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value) || value === "." || value === "..") {
+    throw new Error(`${label} must contain only letters, digits, dots, underscores, or hyphens.`);
+  }
+  return value;
+}
+function safeBaseRef(value) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(value) || value.includes("..") || value.includes("//") || value.endsWith("/")) {
+    throw new Error("Base ref must be a branch or commit reference without shell options or path traversal.");
+  }
+  return value;
+}
+function samePath(left, right) {
+  const a = resolve2(left);
+  const b = resolve2(right);
+  return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+function isInside(root, candidate) {
+  const rel = relative(resolve2(root), resolve2(candidate));
+  return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+function isManagedWorktree(root, candidate) {
+  if (!isInside(root, candidate) || !existsSync4(root) || !existsSync4(candidate)) return false;
+  try {
+    return isInside(realpathSync(root), realpathSync(candidate));
+  } catch {
+    return false;
+  }
+}
+var log3, execFileAsync, CollaborationSessionSchema, CollaborationManager;
 var init_collaboration = __esm({
   "../shared/src/collaboration.ts"() {
     "use strict";
     init_logger();
     log3 = createLogger("collaboration");
+    execFileAsync = promisify(execFile);
     CollaborationSessionSchema = z4.object({
       id: z4.string(),
       name: z4.string(),
@@ -525,9 +561,10 @@ var init_collaboration = __esm({
     CollaborationManager = class {
       sessionsDir;
       worktreesDir;
-      constructor() {
-        this.sessionsDir = join4(getDataDir(), "collaboration", "sessions");
-        this.worktreesDir = join4(getDataDir(), "collaboration", "worktrees");
+      constructor(options = {}) {
+        const dataDir = options.dataDir ?? getDataDir();
+        this.sessionsDir = join4(dataDir, "collaboration", "sessions");
+        this.worktreesDir = join4(dataDir, "collaboration", "worktrees");
         if (!existsSync4(this.sessionsDir)) mkdirSync3(this.sessionsDir, { recursive: true });
         if (!existsSync4(this.worktreesDir)) mkdirSync3(this.worktreesDir, { recursive: true });
       }
@@ -548,6 +585,11 @@ var init_collaboration = __esm({
       }
       /** Get a session by ID */
       getSession(sessionId) {
+        try {
+          safeComponent(sessionId, "Session ID");
+        } catch {
+          return null;
+        }
         const path3 = join4(this.sessionsDir, `${sessionId}.json`);
         if (!existsSync4(path3)) return null;
         try {
@@ -583,16 +625,94 @@ var init_collaboration = __esm({
         log3.info("Added participant to session", { sessionId, agentId });
         return true;
       }
-      /** Create a worktree for an agent in a session */
-      createWorktree(sessionId, agentId, _baseBranch = "main") {
+      /** Create a real isolated Git worktree from a clean selected repository. */
+      async createWorktree(sessionId, agentId, baseRef = "HEAD", repoCwd = process.cwd()) {
         const session = this.getSession(sessionId);
         if (!session) return null;
-        const worktreeName = `${sessionId}-${agentId}`;
+        const safeSession = safeComponent(sessionId, "Session ID");
+        const safeAgent = safeComponent(agentId, "Agent ID");
+        const safeBase = safeBaseRef(baseRef);
+        const repoRoot = await git(["rev-parse", "--show-toplevel"], repoCwd);
+        const status = await git(["status", "--porcelain"], repoRoot);
+        if (status) {
+          throw new Error("Cannot create an isolated worktree while the selected repository has uncommitted or untracked changes. Commit or move those changes first.");
+        }
+        await git(["rev-parse", "--verify", `${safeBase}^{commit}`], repoRoot);
+        const worktreeName = `${safeSession}-${safeAgent}`;
         const worktreePath = join4(this.worktreesDir, worktreeName);
-        session.worktrees[agentId] = worktreePath;
-        this.saveSession(session);
-        log3.info("Created worktree for agent", { sessionId, agentId, worktreePath });
+        if (existsSync4(worktreePath)) throw new Error(`Worktree path already exists: ${worktreePath}`);
+        const branch = `codic/${safeSession}/${safeAgent}-${Date.now().toString(36)}`;
+        try {
+          await git(["worktree", "add", "-b", branch, worktreePath, safeBase], repoRoot);
+          if (!isManagedWorktree(this.worktreesDir, worktreePath)) {
+            throw new Error("Git created a worktree outside CyberCoder managed storage.");
+          }
+          session.worktrees[agentId] = worktreePath;
+          this.saveSession(session);
+        } catch (error) {
+          try {
+            await git(["worktree", "remove", "--force", worktreePath], repoRoot);
+          } catch {
+          }
+          throw error;
+        }
+        log3.info("Created Git worktree for agent", { sessionId, agentId, worktreePath, branch });
         return worktreePath;
+      }
+      /** Return the actual branch checked out in a recorded worktree. */
+      async getWorktreeBranch(sessionId, agentId) {
+        const path3 = this.getSession(sessionId)?.worktrees[agentId];
+        if (!path3 || !isManagedWorktree(this.worktreesDir, path3)) return null;
+        return git(["branch", "--show-current"], path3);
+      }
+      /** Describe pending files and local commits for a managed worktree. */
+      async getWorktreeState(sessionId, agentId, repoCwd = process.cwd()) {
+        const path3 = this.getSession(sessionId)?.worktrees[agentId];
+        if (!path3) throw new Error(`No existing worktree for agent '${agentId}' in session '${sessionId}'.`);
+        if (!isManagedWorktree(this.worktreesDir, path3)) throw new Error("The recorded worktree path is outside CyberCoder managed storage.");
+        const repoRoot = await git(["rev-parse", "--show-toplevel"], repoCwd);
+        const sourceCommon = resolve2(path3, await git(["rev-parse", "--git-common-dir"], path3));
+        const targetCommon = resolve2(repoRoot, await git(["rev-parse", "--git-common-dir"], repoRoot));
+        if (!samePath(sourceCommon, targetCommon)) throw new Error("The worktree belongs to a different Git repository.");
+        const branch = await git(["branch", "--show-current"], path3);
+        if (!branch) throw new Error("The worktree has no branch checked out.");
+        const base = await git(["rev-parse", "HEAD"], repoRoot);
+        const [status, ahead] = await Promise.all([
+          git(["status", "--porcelain"], path3),
+          git(["rev-list", "--count", `${base}..HEAD`], path3)
+        ]);
+        return { path: path3, branch, status, commitsAhead: Number(ahead) || 0 };
+      }
+      /** Merge a worktree branch into the currently selected project, without pushing. */
+      async mergeWorktree(sessionId, agentId, repoCwd = process.cwd()) {
+        const path3 = this.getSession(sessionId)?.worktrees[agentId];
+        if (!path3) throw new Error(`No existing worktree for agent '${agentId}' in session '${sessionId}'.`);
+        if (!isManagedWorktree(this.worktreesDir, path3)) throw new Error("The recorded worktree path is outside CyberCoder managed storage.");
+        const repoRoot = await git(["rev-parse", "--show-toplevel"], repoCwd);
+        const sourceCommon = resolve2(path3, await git(["rev-parse", "--git-common-dir"], path3));
+        const targetCommon = resolve2(repoRoot, await git(["rev-parse", "--git-common-dir"], repoRoot));
+        if (!samePath(sourceCommon, targetCommon)) throw new Error("The worktree belongs to a different Git repository.");
+        const status = await git(["status", "--porcelain"], repoRoot);
+        if (status) throw new Error("Cannot merge into a repository with uncommitted or untracked changes.");
+        const branch = await git(["branch", "--show-current"], path3);
+        if (!branch) throw new Error("The worktree has no branch checked out.");
+        await git(["merge", "--no-ff", "--no-edit", branch], repoRoot);
+        return branch;
+      }
+      /** Remove a clean worktree; Git refuses to discard uncommitted work. */
+      async removeWorktree(sessionId, agentId, repoCwd = process.cwd()) {
+        const session = this.getSession(sessionId);
+        const path3 = session?.worktrees[agentId];
+        if (!session || !path3) return false;
+        if (!isManagedWorktree(this.worktreesDir, path3)) throw new Error("The recorded worktree path is outside CyberCoder managed storage.");
+        const repoRoot = await git(["rev-parse", "--show-toplevel"], repoCwd);
+        const sourceCommon = resolve2(path3, await git(["rev-parse", "--git-common-dir"], path3));
+        const targetCommon = resolve2(repoRoot, await git(["rev-parse", "--git-common-dir"], repoRoot));
+        if (!samePath(sourceCommon, targetCommon)) throw new Error("The worktree belongs to a different Git repository.");
+        await git(["worktree", "remove", path3], repoRoot);
+        delete session.worktrees[agentId];
+        this.saveSession(session);
+        return true;
       }
       /** Update shared context for a session */
       updateSharedContext(sessionId, updates) {
@@ -616,13 +736,14 @@ var init_collaboration = __esm({
         log3.info("Updated session status", { sessionId, status });
         return true;
       }
-      /** Delete a session and its worktrees */
+      /** Delete an empty session record; worktrees must be removed first. */
       deleteSession(sessionId) {
         const session = this.getSession(sessionId);
         if (!session) return false;
+        if (Object.keys(session.worktrees).length > 0) return false;
         const sessionPath = join4(this.sessionsDir, `${sessionId}.json`);
         try {
-          writeFileSync3(sessionPath, "");
+          rmSync(sessionPath, { force: true });
         } catch (err) {
           log3.warn("Failed to delete session file", { sessionId, error: String(err) });
         }
@@ -630,6 +751,11 @@ var init_collaboration = __esm({
         return true;
       }
       saveSession(session) {
+        try {
+          safeComponent(session.id, "Session ID");
+        } catch {
+          return;
+        }
         const path3 = join4(this.sessionsDir, `${session.id}.json`);
         try {
           writeFileSync3(path3, JSON.stringify(session, null, 2), "utf8");
@@ -2046,12 +2172,17 @@ var init_context = __esm({
 });
 
 // ../core/src/agent-loop.ts
+import { resolve as resolve3 } from "path";
 async function* runAgentLoop(messages, opts) {
   const tools = opts.tools ?? [];
   const toolMap = new Map(tools.map((t) => [t.schema.name, t]));
   const toolSchemas = tools.map((t) => t.schema);
   const max = opts.maxIterations ?? 10;
-  const ctx = { cwd: process.cwd() };
+  const ctx = {
+    cwd: resolve3(opts.cwd ?? process.cwd()),
+    ...opts.approve ? { approve: opts.approve } : {},
+    ...opts.signal ? { signal: opts.signal } : {}
+  };
   const maxToolChars = opts.maxToolOutputChars ?? 12e3;
   const budget = {
     windowTokens: opts.contextBudget?.windowTokens ?? windowForModel(opts.model ?? "auto"),
@@ -2072,6 +2203,7 @@ async function* runAgentLoop(messages, opts) {
     }
     const req = {
       model: opts.model ?? "auto",
+      effort: opts.reasoningEffort ?? "low",
       messages: buffer,
       systemPrompt: opts.systemPrompt,
       tools: toolSchemas.length > 0 ? toolSchemas : void 0,
@@ -2081,6 +2213,7 @@ async function* runAgentLoop(messages, opts) {
     let assistantToolCalls = [];
     let stopReason = { type: "done", reason: "end_turn" };
     let attempt = 0;
+    const retryPolicy = { ...DEFAULT_RETRY_POLICY, ...opts.retryPolicy };
     while (true) {
       assistantText = "";
       assistantToolCalls = [];
@@ -2099,17 +2232,28 @@ async function* runAgentLoop(messages, opts) {
             id: chunk.toolCall.id
           };
         } else if (chunk.type === "usage") {
-          yield { type: "usage", inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+          yield {
+            type: "usage",
+            inputTokens: chunk.inputTokens,
+            outputTokens: chunk.outputTokens,
+            ...chunk.estimated ? { estimated: true } : {},
+            ...chunk.cost !== void 0 ? { cost: chunk.cost } : {}
+          };
         } else if (chunk.type === "done") {
           stopReason = chunk;
           if (chunk.reason === "error") sawError = chunk.error;
         }
       }
-      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
+      if (sawError && attempt < retryPolicy.maxRetries && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
         attempt++;
-        log10.warn("provider transient error; retrying once", { error: sawError });
-        yield { type: "context", note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
-        await delay(400);
+        const waitMs = providerRetryDelayMs(sawError, attempt, retryPolicy);
+        log10.warn("provider transient error; waiting before retry", { attempt, waitMs, error: sawError });
+        yield { type: "context", note: `provider busy; retry ${attempt}/${retryPolicy.maxRetries} in ${formatWait(waitMs)}: ${sawError}`, tokens: managed.tokens };
+        const completed = await delay(waitMs, opts.signal);
+        if (!completed) {
+          yield { type: "done", reason: "error", error: "aborted while waiting to retry" };
+          return;
+        }
         continue;
       }
       break;
@@ -2194,16 +2338,49 @@ function isTransient(error) {
   const e = error.toLowerCase();
   return e.includes("429") || e.includes("rate limit") || e.includes("timeout") || e.includes("econnreset") || e.includes("etimedout") || e.includes("503") || e.includes("502") || e.includes("overloaded") || e.includes("fetch failed");
 }
-function delay(ms) {
-  return new Promise((resolve13) => setTimeout(resolve13, ms));
+function providerRetryDelayMs(error, retryNumber, policy = DEFAULT_RETRY_POLICY) {
+  const retryAfter = error.match(/retry[- ]after\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|sec(?:onds?)?)?/i);
+  if (retryAfter) {
+    const amount = Number(retryAfter[1]);
+    const unit = retryAfter[2]?.toLowerCase();
+    const suggested = unit?.startsWith("m") ? amount : amount * 1e3;
+    if (Number.isFinite(suggested) && suggested >= 0) return Math.min(suggested, policy.maxDelayMs);
+  }
+  return Math.min(policy.baseDelayMs * 2 ** Math.max(0, retryNumber - 1), policy.maxDelayMs);
 }
-var log10;
+function formatWait(ms) {
+  return ms < 1e3 ? `${Math.ceil(ms)}ms` : `${(ms / 1e3).toFixed(1)}s`;
+}
+function delay(ms, signal) {
+  return new Promise((resolve15) => {
+    if (signal?.aborted) {
+      resolve15(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve15(true);
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      resolve15(false);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+var log10, DEFAULT_RETRY_POLICY;
 var init_agent_loop = __esm({
   "../core/src/agent-loop.ts"() {
     "use strict";
     init_src();
     init_context();
     log10 = createLogger("core:agent");
+    DEFAULT_RETRY_POLICY = {
+      maxRetries: 3,
+      baseDelayMs: 1e3,
+      maxDelayMs: 3e4
+    };
   }
 });
 
@@ -2272,6 +2449,7 @@ async function runPlan(messages, opts) {
     systemPrompt: PLAN_SYSTEM,
     model: opts.model ?? "auto",
     tools: readonly,
+    cwd: opts.cwd,
     maxIterations: 6,
     signal: opts.signal
   })) {
@@ -2297,6 +2475,8 @@ async function* runGoal(initialMessages, opts) {
       systemPrompt: system,
       model: opts.model ?? "auto",
       tools: opts.tools,
+      cwd: opts.cwd,
+      approve: opts.approve,
       signal: opts.signal
     })) {
       if (evt.type === "text") roundText += evt.text;
@@ -2372,17 +2552,16 @@ var init_cybermind_cloud = __esm({
       opts;
       constructor(opts = {}) {
         this.opts = opts;
-        this.defaultModel = opts.defaultModel ?? "trinity";
+        this.defaultModel = opts.defaultModel ?? "auto";
         this.info = {
           id: "cybermind-cloud",
           displayName: "Codeva Cloud (Swarm)",
           requiresNetwork: true,
           ready: true
-          // We assume true and handle errors during the chat call
         };
       }
       async listModels() {
-        return ["madhav", "kali", "abhimanyu", "trinity"];
+        return ["auto", "ravan", "madhav", "kali", "abhimanyu", "arjun", "trinity"];
       }
       async *chat(req) {
         const model = req.model || this.defaultModel;
@@ -2400,25 +2579,31 @@ var init_cybermind_cloud = __esm({
               });
             }
           }
-          const lastMessage = filteredMessages[filteredMessages.length - 1]?.content || "";
           const rawBaseURL = this.opts.baseURL || "https://cybercli-api.onrender.com";
           const baseURL = rawBaseURL.endsWith("/api/v1") ? rawBaseURL : `${rawBaseURL.replace(/\/+$/, "")}/api/v1`;
           const headers = { "Content-Type": "application/json" };
           if (this.opts.apiKey) headers["Authorization"] = `Bearer ${this.opts.apiKey}`;
           if (this.opts.sessionId) headers["x-cli-session"] = this.opts.sessionId;
-          const response = await fetch(`${baseURL}/cli/complete`, {
+          const endpoint = this.opts.sessionId ? `${baseURL}/cli/complete` : `${baseURL}/completions`;
+          const body = this.opts.sessionId ? {
+            model,
+            system: systemPrompt,
+            messages: filteredMessages,
+            prompt: filteredMessages[filteredMessages.length - 1]?.content || "",
+            temperature: req.temperature,
+            max_tokens: req.maxTokens,
+            stream: true,
+            tools: req.tools
+          } : {
+            messages: systemPrompt ? [{ role: "system", content: systemPrompt }, ...filteredMessages] : filteredMessages,
+            model,
+            temperature: req.temperature ?? 0.7,
+            stream: true
+          };
+          const response = await fetch(endpoint, {
             method: "POST",
             headers,
-            body: JSON.stringify({
-              model,
-              system: systemPrompt,
-              messages: filteredMessages,
-              prompt: lastMessage,
-              temperature: req.temperature,
-              max_tokens: req.maxTokens,
-              stream: true,
-              tools: req.tools
-            })
+            body: JSON.stringify(body)
           });
           if (!response.ok) {
             const errText = await response.text();
@@ -2445,7 +2630,7 @@ var init_cybermind_cloud = __esm({
                 const parsed = JSON.parse(dataStr);
                 if (parsed.type === "status") {
                 } else if (parsed.type === "usage") {
-                  yield { type: "usage", inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0 };
+                  yield { type: "usage", inputTokens: parsed.inputTokens || 0, outputTokens: parsed.outputTokens || 0, cost: parsed.cost || 0 };
                 } else if (parsed.type === "tool_calls") {
                   for (const tc of parsed.toolCalls || []) {
                     try {
@@ -2480,6 +2665,428 @@ var init_cybermind_cloud = __esm({
   }
 });
 
+// ../providers/src/anthropic.ts
+function toAnthropicMessages(messages) {
+  const result = [];
+  for (const message of messages) {
+    if (message.role === "system") continue;
+    if (message.role === "tool") {
+      result.push({
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: message.toolCallId ?? "unknown", content: message.content }]
+      });
+      continue;
+    }
+    const content = [];
+    if (message.content) content.push({ type: "text", text: message.content });
+    if (message.role === "assistant") {
+      for (const toolCall of message.toolCalls ?? []) {
+        content.push({ type: "tool_use", id: toolCall.id, name: toolCall.name, input: toolCall.input });
+      }
+    }
+    result.push({ role: message.role, content: content.length ? content : [{ type: "text", text: "" }] });
+  }
+  return result;
+}
+var log12, AnthropicProvider;
+var init_anthropic = __esm({
+  "../providers/src/anthropic.ts"() {
+    "use strict";
+    init_src();
+    log12 = createLogger("providers:anthropic");
+    AnthropicProvider = class {
+      info;
+      apiKey;
+      baseURL;
+      defaultModel;
+      constructor(options = {}) {
+        this.apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY ?? "";
+        this.baseURL = (options.baseURL ?? "https://api.anthropic.com").replace(/\/+$/, "");
+        this.defaultModel = options.defaultModel ?? "claude-3-5-sonnet-latest";
+        this.info = {
+          id: "anthropic",
+          displayName: "Anthropic Claude",
+          requiresNetwork: true,
+          ready: Boolean(this.apiKey)
+        };
+      }
+      async listModels() {
+        return ["claude-sonnet-4-5", "claude-opus-4-1", "claude-haiku-4-5", this.defaultModel];
+      }
+      async *chat(req) {
+        if (!this.apiKey) {
+          yield { type: "done", reason: "error", error: "Anthropic API key is not configured." };
+          return;
+        }
+        const body = {
+          model: req.model && req.model !== "auto" ? req.model : this.defaultModel,
+          max_tokens: req.maxTokens ?? 4096,
+          stream: true,
+          messages: toAnthropicMessages(req.messages)
+        };
+        if (req.systemPrompt) body.system = req.systemPrompt;
+        if (req.temperature !== void 0) body.temperature = req.temperature;
+        if (req.tools?.length) {
+          body.tools = req.tools.map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+            input_schema: tool.inputSchema
+          }));
+        }
+        try {
+          const response = await fetch(`${this.baseURL}/v1/messages`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": this.apiKey,
+              "anthropic-version": "2023-06-01"
+            },
+            body: JSON.stringify(body),
+            signal: req.signal
+          });
+          if (!response.ok) {
+            const detail = await response.text().catch(() => response.statusText);
+            yield { type: "done", reason: "error", error: `Anthropic HTTP ${response.status}: ${detail}` };
+            return;
+          }
+          if (!response.body) {
+            yield { type: "done", reason: "error", error: "Anthropic response body is empty." };
+            return;
+          }
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          const toolBlocks = /* @__PURE__ */ new Map();
+          let buffer = "";
+          let eventType = "";
+          let inputTokens;
+          let outputTokens;
+          let stopReason = "end_turn";
+          let streamDone = false;
+          const handleEvent = (raw) => {
+            if (!raw.trim()) return void 0;
+            let data;
+            try {
+              data = JSON.parse(raw);
+            } catch {
+              return void 0;
+            }
+            const type = eventType || String(data.type ?? "");
+            if (type === "message_start") inputTokens = data.message?.usage?.input_tokens;
+            if (type === "message_delta") {
+              outputTokens = data.usage?.output_tokens ?? outputTokens;
+              stopReason = data.delta?.stop_reason ?? stopReason;
+            }
+            if (type === "content_block_start" && data.content_block?.type === "tool_use") {
+              toolBlocks.set(Number(data.index), {
+                id: String(data.content_block.id ?? `tool-${data.index}`),
+                name: String(data.content_block.name ?? ""),
+                json: Object.keys(data.content_block.input ?? {}).length ? JSON.stringify(data.content_block.input) : ""
+              });
+            }
+            if (type === "content_block_delta") {
+              const delta = data.delta;
+              if (delta?.type === "text_delta" && typeof delta.text === "string") return { text: delta.text };
+              if (delta?.type === "input_json_delta") {
+                const block = toolBlocks.get(Number(data.index));
+                if (block && typeof delta.partial_json === "string") block.json += delta.partial_json;
+              }
+            }
+            if (type === "message_stop") streamDone = true;
+            return void 0;
+          };
+          while (!streamDone) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? "";
+            let dataLines = [];
+            const flush = () => {
+              if (!dataLines.length) return;
+              const result = handleEvent(dataLines.join("\n"));
+              dataLines = [];
+              if (result?.text) pendingText.push(result.text);
+            };
+            const pendingText = [];
+            for (const line of lines) {
+              if (line.startsWith("event:")) {
+                flush();
+                eventType = line.slice(6).trim();
+              } else if (line.startsWith("data:")) {
+                dataLines.push(line.slice(5).trimStart());
+              } else if (!line.trim()) {
+                flush();
+                eventType = "";
+              }
+            }
+            flush();
+            for (const text of pendingText) yield { type: "text", text };
+          }
+          for (const [, block] of toolBlocks) {
+            if (!block.name) continue;
+            let input = {};
+            try {
+              input = JSON.parse(block.json || "{}");
+            } catch {
+              yield { type: "done", reason: "error", error: `Anthropic returned invalid JSON for tool '${block.name}'.` };
+              return;
+            }
+            yield { type: "tool_call", toolCall: { id: block.id, name: block.name, input } };
+          }
+          if (inputTokens !== void 0 && outputTokens !== void 0) {
+            yield { type: "usage", inputTokens, outputTokens };
+          }
+          yield { type: "done", reason: toolBlocks.size ? "tool_use" : stopReason === "max_tokens" ? "max_tokens" : "end_turn" };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log12.warn("Anthropic stream failed", { error: message });
+          yield { type: "done", reason: "error", error: message };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/openai.ts
+function toOpenAIMessage(m) {
+  if (m.role === "tool") {
+    return {
+      role: "tool",
+      content: m.content,
+      tool_call_id: m.toolCallId
+    };
+  }
+  if (m.role === "assistant" && m.toolCalls?.length) {
+    return {
+      role: "assistant",
+      content: m.content || null,
+      tool_calls: m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: "function",
+        function: {
+          name: tc.name,
+          arguments: JSON.stringify(tc.input)
+        }
+      }))
+    };
+  }
+  return {
+    role: m.role,
+    content: m.content
+  };
+}
+function toOpenAITool(t) {
+  return {
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema
+    }
+  };
+}
+var log13, OpenAIProvider;
+var init_openai = __esm({
+  "../providers/src/openai.ts"() {
+    "use strict";
+    init_src();
+    log13 = createLogger("providers:openai");
+    OpenAIProvider = class {
+      info;
+      apiKey;
+      baseURL;
+      defaultModel;
+      constructor(opts = {}, providerId = "openai", displayName = "OpenAI") {
+        this.apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY ?? "";
+        this.baseURL = opts.baseURL ?? "https://api.openai.com/v1";
+        this.defaultModel = opts.defaultModel ?? "gpt-4o-mini";
+        this.info = {
+          id: providerId,
+          displayName,
+          requiresNetwork: true,
+          ready: Boolean(this.apiKey)
+        };
+      }
+      async listModels() {
+        return ["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview"];
+      }
+      async *chat(req) {
+        const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
+        log13.debug("openai chat", { model, messages: req.messages.length });
+        const messages = [
+          ...req.systemPrompt ? [{ role: "system", content: req.systemPrompt }] : [],
+          ...req.messages.map(toOpenAIMessage)
+        ];
+        const body = {
+          model,
+          messages,
+          stream: true,
+          temperature: req.temperature ?? 0.7,
+          max_tokens: req.maxTokens ?? 4096,
+          stream_options: { include_usage: true }
+        };
+        if (req.tools?.length) {
+          body.tools = req.tools.map(toOpenAITool);
+        }
+        try {
+          const res = await fetch(`${this.baseURL}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify(body),
+            signal: req.signal
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => res.statusText);
+            yield {
+              type: "done",
+              reason: "error",
+              error: `OpenAI HTTP ${res.status}: ${errText}`
+            };
+            return;
+          }
+          if (!res.body) {
+            yield { type: "done", reason: "error", error: "Response body is null" };
+            return;
+          }
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let done = false;
+          const toolCallsMap = /* @__PURE__ */ new Map();
+          let usageInfo = null;
+          while (!done) {
+            const { value, done: chunkDone } = await reader.read();
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                if (trimmed === "data: [DONE]") {
+                  done = true;
+                  break;
+                }
+                if (trimmed.startsWith("data: ")) {
+                  try {
+                    const json = JSON.parse(trimmed.slice(6));
+                    if (json.usage) {
+                      usageInfo = json.usage;
+                    }
+                    const choice = json.choices?.[0];
+                    if (!choice) continue;
+                    if (choice.delta?.content) {
+                      yield { type: "text", text: choice.delta.content };
+                    }
+                    if (choice.delta?.tool_calls) {
+                      for (const tcDelta of choice.delta.tool_calls) {
+                        const idx = tcDelta.index ?? 0;
+                        let tc = toolCallsMap.get(idx);
+                        if (!tc) {
+                          tc = { id: tcDelta.id, name: tcDelta.function?.name, arguments: "" };
+                          toolCallsMap.set(idx, tc);
+                        }
+                        if (tcDelta.id) tc.id = tcDelta.id;
+                        if (tcDelta.function?.name) tc.name = tcDelta.function.name;
+                        if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
+                      }
+                    }
+                  } catch (err) {
+                  }
+                }
+              }
+            }
+            if (chunkDone) done = true;
+          }
+          for (const [, tc] of toolCallsMap) {
+            if (tc.id && tc.name) {
+              let parsedArgs = {};
+              try {
+                parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
+              } catch (e) {
+                log13.warn("Failed to parse tool arguments JSON", tc.arguments);
+              }
+              yield {
+                type: "tool_call",
+                toolCall: {
+                  id: tc.id,
+                  name: tc.name,
+                  input: parsedArgs
+                }
+              };
+            }
+          }
+          if (usageInfo) {
+            yield {
+              type: "usage",
+              inputTokens: usageInfo.prompt_tokens,
+              outputTokens: usageInfo.completion_tokens
+            };
+          }
+          yield { type: "done", reason: toolCallsMap.size > 0 ? "tool_use" : "end_turn" };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log13.error("openai stream failed", msg);
+          yield { type: "done", reason: "error", error: msg };
+        }
+      }
+    };
+  }
+});
+
+// ../providers/src/google.ts
+var GoogleProvider;
+var init_google = __esm({
+  "../providers/src/google.ts"() {
+    "use strict";
+    init_openai();
+    GoogleProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY,
+            baseURL: opts.baseURL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
+            defaultModel: opts.defaultModel ?? "gemini-2.5-flash"
+          },
+          "gemini",
+          "Google Gemini"
+        );
+      }
+      async listModels() {
+        return ["gemini-2.5-flash", "gemini-2.5-pro"];
+      }
+    };
+  }
+});
+
+// ../providers/src/groq.ts
+var GroqProvider;
+var init_groq = __esm({
+  "../providers/src/groq.ts"() {
+    "use strict";
+    init_openai();
+    GroqProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.GROQ_API_KEY,
+            baseURL: opts.baseURL ?? "https://api.groq.com/openai/v1",
+            defaultModel: opts.defaultModel ?? "llama-3.3-70b-versatile"
+          },
+          "groq",
+          "Groq"
+        );
+      }
+      async listModels() {
+        return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+      }
+    };
+  }
+});
+
 // ../providers/src/ollama.ts
 function toOllamaMessage(m) {
   if (m.role === "tool") {
@@ -2487,12 +3094,12 @@ function toOllamaMessage(m) {
   }
   return { role: m.role, content: m.content };
 }
-var log12, OllamaProvider;
+var log14, OllamaProvider;
 var init_ollama = __esm({
   "../providers/src/ollama.ts"() {
     "use strict";
     init_src();
-    log12 = createLogger("providers:ollama");
+    log14 = createLogger("providers:ollama");
     OllamaProvider = class {
       info;
       baseURL;
@@ -2515,13 +3122,13 @@ var init_ollama = __esm({
           const json = await res.json();
           return json.models?.map((m) => m.name) ?? [];
         } catch (err) {
-          log12.warn("ollama listModels failed", String(err));
+          log14.warn("ollama listModels failed", String(err));
           return [];
         }
       }
       async *chat(req) {
         const model = req.model && req.model !== "auto" ? req.model : this.defaultModel;
-        log12.debug("ollama chat", { model, messages: req.messages.length });
+        log14.debug("ollama chat", { model, messages: req.messages.length });
         const body = {
           model,
           messages: [
@@ -2598,7 +3205,7 @@ var init_ollama = __esm({
                     break;
                   }
                 } catch (err) {
-                  log12.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
+                  log14.warn("failed to parse ollama chunk", { line: trimmed, err: String(err) });
                 }
               }
             }
@@ -2607,7 +3214,7 @@ var init_ollama = __esm({
           yield stopReason;
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          log12.error("ollama chat failed", msg);
+          log14.error("ollama chat failed", msg);
           yield { type: "done", reason: "error", error: msg };
         }
       }
@@ -2615,15 +3222,64 @@ var init_ollama = __esm({
   }
 });
 
+// ../providers/src/openrouter.ts
+var OpenRouterProvider;
+var init_openrouter = __esm({
+  "../providers/src/openrouter.ts"() {
+    "use strict";
+    init_openai();
+    OpenRouterProvider = class extends OpenAIProvider {
+      constructor(opts = {}) {
+        super(
+          {
+            apiKey: opts.apiKey ?? process.env.OPENROUTER_API_KEY,
+            baseURL: opts.baseURL ?? "https://openrouter.ai/api/v1",
+            defaultModel: opts.defaultModel ?? "google/gemini-2.5-flash"
+          },
+          "openrouter",
+          "OpenRouter"
+        );
+      }
+      async listModels() {
+        return [
+          "google/gemini-2.5-flash",
+          "google/gemini-2.5-pro",
+          "meta-llama/llama-3.3-70b-instruct",
+          "deepseek/deepseek-r1-distill-llama-70b",
+          "anthropic/claude-3.5-sonnet"
+        ];
+      }
+    };
+  }
+});
+
 // ../providers/src/router.ts
-var log13, ProviderRouter;
+function providerForModel(model) {
+  if (!model || model === "auto") return void 0;
+  const name = model.toLowerCase();
+  if (["ravan", "madhav", "kali", "abhimanyu", "arjun", "trinity"].includes(name) || name.startsWith("codeva-")) {
+    return "cybermind-cloud";
+  }
+  if (name.startsWith("claude-")) return "anthropic";
+  if (name.startsWith("gpt-") || /^o[134](?:-|$)/.test(name)) return "openai";
+  if (name.startsWith("gemini-")) return "gemini";
+  if (name.startsWith("llama-") || name.startsWith("mixtral-")) return "groq";
+  if (name.includes("/")) return "openrouter";
+  return void 0;
+}
+var log15, ProviderRouter;
 var init_router = __esm({
   "../providers/src/router.ts"() {
     "use strict";
     init_src();
     init_cybermind_cloud();
+    init_anthropic();
+    init_google();
+    init_groq();
     init_ollama();
-    log13 = createLogger("providers:router");
+    init_openai();
+    init_openrouter();
+    log15 = createLogger("providers:router");
     ProviderRouter = class {
       info;
       providers = /* @__PURE__ */ new Map();
@@ -2631,6 +3287,11 @@ var init_router = __esm({
       fallback;
       constructor(opts = {}) {
         this.providers.set("cybermind-cloud", new CybermindCloudProvider(opts.cloud));
+        this.providers.set("anthropic", new AnthropicProvider(opts.anthropic));
+        this.providers.set("openai", new OpenAIProvider(opts.openai));
+        this.providers.set("groq", new GroqProvider(opts.groq));
+        this.providers.set("gemini", new GoogleProvider(opts.google));
+        this.providers.set("openrouter", new OpenRouterProvider(opts.openrouter));
         const ollama = new OllamaProvider(opts.ollama);
         this.providers.set("ollama", ollama);
         this.fallback = opts.fallback ?? ollama;
@@ -2645,13 +3306,9 @@ var init_router = __esm({
       }
       /** First preferred-and-ready provider, or the fallback. */
       activeProvider(model) {
-        const isCloudModel = ["madhav", "kali", "abhimanyu", "trinity"].includes(model || "");
-        if (isCloudModel && this.providers.has("cybermind-cloud")) {
-          return this.providers.get("cybermind-cloud");
-        }
-        if (model === "auto" && this.preferred.includes("cybermind-cloud")) {
-          return this.providers.get("cybermind-cloud");
-        }
+        const requestedProvider = providerForModel(model);
+        const requested = requestedProvider ? this.providers.get(requestedProvider) : void 0;
+        if (requested) return requested;
         for (const id of this.preferred) {
           const p2 = this.providers.get(id);
           if (p2?.info.ready) return p2;
@@ -2665,13 +3322,18 @@ var init_router = __esm({
         return this.activeProvider().listModels();
       }
       async *chat(req) {
-        const isCloudModel = ["madhav", "kali", "abhimanyu", "trinity"].includes(req.model || "");
-        if (isCloudModel && !this.preferred.includes("cybermind-cloud")) {
+        const requestedProvider = providerForModel(req.model);
+        const selected = requestedProvider ? this.providers.get(requestedProvider) : void 0;
+        if (requestedProvider === "cybermind-cloud" && !this.preferred.includes("cybermind-cloud")) {
           yield { type: "done", reason: "error", error: `Model '${req.model}' requires Codeva Cloud authentication. Please run /login` };
           return;
         }
+        if (selected && !selected.info.ready) {
+          yield { type: "done", reason: "error", error: `${selected.info.displayName} is selected but its API key is not configured.` };
+          return;
+        }
         const primary = this.activeProvider(req.model);
-        log13.debug("routing chat", { primary: primary.info.id, reqModel: req.model });
+        log15.debug("routing chat", { primary: primary.info.id, reqModel: req.model });
         let primaryYieldedSomething = false;
         let primaryError;
         for await (const chunk of primary.chat(req)) {
@@ -2683,7 +3345,7 @@ var init_router = __esm({
           yield chunk;
         }
         if (primaryError !== void 0) {
-          log13.warn("primary provider failed", {
+          log15.warn("primary provider failed", {
             primary: primary.info.id,
             error: primaryError
           });
@@ -2703,46 +3365,13 @@ var init_router = __esm({
   }
 });
 
-// ../providers/src/openai.ts
-var log14;
-var init_openai = __esm({
-  "../providers/src/openai.ts"() {
-    "use strict";
-    init_src();
-    log14 = createLogger("providers:openai");
-  }
-});
-
-// ../providers/src/groq.ts
-var init_groq = __esm({
-  "../providers/src/groq.ts"() {
-    "use strict";
-    init_openai();
-  }
-});
-
-// ../providers/src/google.ts
-var init_google = __esm({
-  "../providers/src/google.ts"() {
-    "use strict";
-    init_openai();
-  }
-});
-
-// ../providers/src/openrouter.ts
-var init_openrouter = __esm({
-  "../providers/src/openrouter.ts"() {
-    "use strict";
-    init_openai();
-  }
-});
-
 // ../providers/src/index.ts
 var init_src3 = __esm({
   "../providers/src/index.ts"() {
     "use strict";
     init_types2();
     init_router();
+    init_anthropic();
     init_ollama();
     init_cybermind_cloud();
     init_openai();
@@ -2763,7 +3392,7 @@ function loadTrustStore() {
     const parsed = JSON.parse(raw);
     return { tools: Array.isArray(parsed.tools) ? parsed.tools : [] };
   } catch (err) {
-    log15.warn("failed to load trust store", String(err));
+    log16.warn("failed to load trust store", String(err));
     return { tools: [] };
   }
 }
@@ -2772,12 +3401,12 @@ function saveTrustStore(store) {
   if (!existsSync9(dirname(path3))) mkdirSync8(dirname(path3), { recursive: true });
   writeFileSync8(path3, JSON.stringify(store, null, 2), "utf8");
 }
-var log15, ApprovalGate, HeadlessApprovalUI;
+var log16, ApprovalGate, HeadlessApprovalUI;
 var init_approval = __esm({
   "../tools/src/approval.ts"() {
     "use strict";
     init_src();
-    log15 = createLogger("tools:approval");
+    log16 = createLogger("tools:approval");
     ApprovalGate = class {
       constructor(ui) {
         this.ui = ui;
@@ -2787,6 +3416,7 @@ var init_approval = __esm({
       persistent;
       sessionAllow = /* @__PURE__ */ new Set();
       mode = "always-ask";
+      approvalQueue = Promise.resolve();
       setMode(mode) {
         this.mode = mode;
       }
@@ -2798,7 +3428,7 @@ var init_approval = __esm({
       trustPersistent(toolName) {
         this.persistent.add(toolName);
         saveTrustStore({ tools: [...this.persistent] });
-        log15.info("tool persistently trusted", { toolName });
+        log16.info("tool persistently trusted", { toolName });
       }
       /** Revoke persistent trust. */
       revoke(toolName) {
@@ -2814,6 +3444,20 @@ var init_approval = __esm({
        * may proceed; false when the user denied.
        */
       async request(prompt) {
+        return this.enqueue(() => this.decide(prompt));
+      }
+      /** Approve and run a mutating/external action while holding the shared gate. */
+      async withApproval(prompt, action) {
+        if (!prompt.destructive) {
+          if (!await this.request(prompt)) return { allowed: false };
+          return { allowed: true, value: await action() };
+        }
+        return this.enqueue(async () => {
+          if (!await this.decide(prompt)) return { allowed: false };
+          return { allowed: true, value: await action() };
+        });
+      }
+      async decide(prompt) {
         if (this.mode === "persistent-bypass") return true;
         if (this.isTrusted(prompt.toolName)) return true;
         if (this.mode === "session-bypass" && !prompt.destructive) return true;
@@ -2832,6 +3476,20 @@ var init_approval = __esm({
             return false;
         }
       }
+      async enqueue(action) {
+        let release;
+        const turn = new Promise((resolve15) => {
+          release = resolve15;
+        });
+        const previous = this.approvalQueue;
+        this.approvalQueue = turn;
+        await previous;
+        try {
+          return await action();
+        } finally {
+          release();
+        }
+      }
     };
     HeadlessApprovalUI = class {
       async ask(prompt) {
@@ -2841,15 +3499,42 @@ var init_approval = __esm({
   }
 });
 
+// ../tools/src/approved-tool.ts
+async function executeApprovedWorkspaceTool(tool, gate, checkpoints, input, ctx, summary, action = () => tool.execute(input, ctx)) {
+  const result = await gate.withApproval({
+    toolName: tool.schema.name,
+    input,
+    destructive: Boolean(tool.destructive),
+    summary
+  }, async () => {
+    if (tool.destructive && (tool.schema.name === "edit" || tool.schema.name === "write_file")) {
+      const target = input.path;
+      if (typeof target === "string" && target) {
+        try {
+          checkpoints.snapshot([target], `${tool.schema.name} ${target}`);
+        } catch {
+        }
+      }
+    }
+    return action();
+  });
+  return result.allowed ? result.value : `[user denied tool '${tool.schema.name}']`;
+}
+var init_approved_tool = __esm({
+  "../tools/src/approved-tool.ts"() {
+    "use strict";
+  }
+});
+
 // ../tools/src/secrets.ts
 import { existsSync as existsSync10, mkdirSync as mkdirSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync9 } from "fs";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
-var log16, ALGO, IV_LEN, SALT_LEN, KEY_LEN, SecretsVault;
+var log17, ALGO, IV_LEN, SALT_LEN, KEY_LEN, SecretsVault;
 var init_secrets = __esm({
   "../tools/src/secrets.ts"() {
     "use strict";
     init_src();
-    log16 = createLogger("tools:secrets");
+    log17 = createLogger("tools:secrets");
     ALGO = "aes-256-gcm";
     IV_LEN = 12;
     SALT_LEN = 16;
@@ -2898,7 +3583,7 @@ var init_secrets = __esm({
           this.cache = JSON.parse(plain.toString("utf8"));
           return this.cache;
         } catch (err) {
-          log16.error("failed to decrypt secrets vault; treating as empty", String(err));
+          log17.error("failed to decrypt secrets vault; treating as empty", String(err));
           this.cache = {};
           return this.cache;
         }
@@ -2928,9 +3613,9 @@ var init_secrets = __esm({
 });
 
 // ../tools/src/workspace-checkpoint.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync } from "fs";
+import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync as rmSync2 } from "fs";
 import { homedir as homedir3 } from "os";
-import { join as join9, resolve as resolve2, relative, dirname as dirname2 } from "path";
+import { join as join9, resolve as resolve4, relative as relative2, dirname as dirname2 } from "path";
 import { createHash as createHash2 } from "crypto";
 function checkpointRoot() {
   const dir = join9(homedir3(), ".codeva", "checkpoints");
@@ -2942,9 +3627,9 @@ var init_workspace_checkpoint = __esm({
   "../tools/src/workspace-checkpoint.ts"() {
     "use strict";
     WorkspaceCheckpoints = class {
-      constructor(sessionId, cwd2 = process.cwd()) {
+      constructor(sessionId, cwd2 = process.cwd(), storageRoot = checkpointRoot()) {
         this.cwd = cwd2;
-        this.dir = join9(checkpointRoot(), sessionId);
+        this.dir = join9(storageRoot, sessionId);
         if (!existsSync11(this.dir)) mkdirSync10(this.dir, { recursive: true });
         this.seq = this.list().reduce((max, e) => Math.max(max, e.seq), 0);
       }
@@ -2962,7 +3647,7 @@ var init_workspace_checkpoint = __esm({
         mkdirSync10(cpDir, { recursive: true });
         const files = [];
         for (const p2 of paths) {
-          const abs = resolve2(this.cwd, p2);
+          const abs = resolve4(this.cwd, p2);
           const existed = existsSync11(abs);
           const safeName = createHash2("sha1").update(abs).digest("hex");
           if (existed) {
@@ -3018,7 +3703,7 @@ var init_workspace_checkpoint = __esm({
               }
             } else if (!f.existed && existsSync11(f.path)) {
               try {
-                rmSync(f.path, { force: true });
+                rmSync2(f.path, { force: true });
                 deleted++;
               } catch {
               }
@@ -3029,36 +3714,63 @@ var init_workspace_checkpoint = __esm({
       }
       /** Human-readable relative path for display. */
       rel(abs) {
-        return relative(this.cwd, abs) || abs;
+        return relative2(this.cwd, abs) || abs;
       }
     };
   }
 });
 
-// ../tools/src/mcp-client.ts
-import { spawn } from "child_process";
-import { existsSync as existsSync12, readFileSync as readFileSync11 } from "fs";
+// ../tools/src/mcp-config.ts
+import { existsSync as existsSync12, mkdirSync as mkdirSync11, readFileSync as readFileSync11, writeFileSync as writeFileSync11 } from "fs";
 import { homedir as homedir4 } from "os";
-import { join as join10 } from "path";
-function readMcpConfig(cwd2) {
-  for (const path3 of [join10(cwd2, ".cyber", "mcp.json"), join10(homedir4(), ".cyber", "mcp.json")]) {
+import { dirname as dirname3, join as join10 } from "path";
+function projectMcpConfigPath(cwd2 = process.cwd()) {
+  return join10(cwd2, ".cyber", "mcp.json");
+}
+function readMcpConfig(cwd2 = process.cwd(), home = homedir4()) {
+  const paths = [
+    projectMcpConfigPath(cwd2),
+    join10(home, ".cyber", "mcp.json"),
+    join10(cwd2, ".codeva", "mcp.json"),
+    join10(home, ".codeva", "mcp.json")
+  ];
+  for (const path3 of paths) {
     try {
-      if (existsSync12(path3)) return JSON.parse(readFileSync11(path3, "utf8"));
+      if (!existsSync12(path3)) continue;
+      const value = JSON.parse(readFileSync11(path3, "utf8"));
+      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+      const servers = value.mcpServers;
+      if (!servers || typeof servers !== "object" || Array.isArray(servers)) continue;
+      return { mcpServers: servers };
     } catch {
     }
   }
-  return {};
+  return { mcpServers: {} };
 }
-async function loadMcpTools(cwd2 = process.cwd()) {
+function writeProjectMcpConfig(config, cwd2 = process.cwd()) {
+  const path3 = projectMcpConfigPath(cwd2);
+  mkdirSync11(dirname3(path3), { recursive: true });
+  writeFileSync11(path3, JSON.stringify(config, null, 2), "utf8");
+  return path3;
+}
+var init_mcp_config = __esm({
+  "../tools/src/mcp-config.ts"() {
+    "use strict";
+  }
+});
+
+// ../tools/src/mcp-client.ts
+import { spawn } from "child_process";
+async function loadMcpTools(cwd2 = process.cwd(), options = {}) {
   const cfg = readMcpConfig(cwd2);
   const servers = [];
   const tools = [];
   const entries = Object.entries(cfg.mcpServers ?? {});
   await Promise.all(
     entries.map(async ([name, sc]) => {
-      const server = new McpServer(name, sc);
+      const server = new McpServer(name, sc, cwd2, options.toolCallTimeoutMs ?? 6e4);
       try {
-        await server.start();
+        await server.start(options.startupTimeoutMs ?? 15e3);
         servers.push(server);
         for (const t of server.tools) {
           tools.push({
@@ -3075,58 +3787,136 @@ async function loadMcpTools(cwd2 = process.cwd()) {
           });
         }
       } catch (err) {
+        await server.stop();
         console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
       }
     })
   );
   return { tools, servers };
 }
+function gateMcpTools(tools, gate) {
+  return tools.map((tool) => ({
+    schema: tool.schema,
+    destructive: true,
+    async execute(input, ctx) {
+      const result = await gate.withApproval({
+        toolName: tool.schema.name,
+        input,
+        destructive: true,
+        summary: `MCP: ${tool.schema.name}`
+      }, () => tool.execute(input, ctx));
+      return result.allowed ? result.value : `[user denied tool '${tool.schema.name}']`;
+    }
+  }));
+}
 var McpServer;
 var init_mcp_client = __esm({
   "../tools/src/mcp-client.ts"() {
     "use strict";
+    init_src();
+    init_mcp_config();
     McpServer = class {
-      constructor(name, cfg) {
+      constructor(name, cfg, cwd2, toolCallTimeoutMs) {
         this.name = name;
         this.cfg = cfg;
+        this.cwd = cwd2;
+        this.toolCallTimeoutMs = toolCallTimeoutMs;
       }
       name;
       cfg;
+      cwd;
+      toolCallTimeoutMs;
       proc = null;
       nextId = 1;
       pending = /* @__PURE__ */ new Map();
       buffer = "";
       tools = [];
       async start(timeoutMs = 15e3) {
+        if (!this.cfg || typeof this.cfg.command !== "string" || !this.cfg.command.trim()) {
+          throw new Error(`MCP server '${this.name}' has no valid command`);
+        }
+        if (this.cfg.args !== void 0 && (!Array.isArray(this.cfg.args) || this.cfg.args.some((arg) => typeof arg !== "string"))) {
+          throw new Error(`MCP server '${this.name}' has invalid arguments`);
+        }
         const isWin = process.platform === "win32";
         const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
         this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
           env: { ...process.env, ...this.cfg.env ?? {} },
+          cwd: this.cwd,
           stdio: ["pipe", "pipe", "pipe"],
           windowsHide: true,
           shell: needsShell
         });
         this.proc.stdout.setEncoding("utf8");
         this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+        this.proc.stderr.resume();
         this.proc.on("error", () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
         this.proc.on("exit", () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
-        await this.rpc("initialize", {
-          protocolVersion: "2024-11-05",
-          capabilities: {},
-          clientInfo: { name: "cybercoder", version: "0.1.0" }
-        }, timeoutMs);
-        this.notify("notifications/initialized", {});
-        const listed = await this.rpc("tools/list", {}, timeoutMs);
-        this.tools = listed?.tools ?? [];
+        try {
+          await this.rpc("initialize", {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "cybercoder", version: CYBERCODER_VERSION }
+          }, timeoutMs);
+          this.notify("notifications/initialized", {});
+          const listed = await this.rpc("tools/list", {}, timeoutMs);
+          this.tools = Array.isArray(listed?.tools) ? listed.tools.filter((tool) => tool && typeof tool.name === "string" && typeof tool.description === "string") : [];
+        } catch (error) {
+          await this.stop();
+          throw error;
+        }
       }
-      async callTool(toolName, args, timeoutMs = 6e4) {
+      async callTool(toolName, args, timeoutMs = this.toolCallTimeoutMs) {
         const res = await this.rpc("tools/call", { name: toolName, arguments: args }, timeoutMs);
         const text = (res?.content ?? []).map((c) => c.type === "text" ? c.text ?? "" : `[${c.type}]`).join("\n");
         return res?.isError ? `[MCP error] ${text}` : text || "[no content]";
       }
-      stop() {
+      async stop(timeoutMs = 1e3) {
+        const proc = this.proc;
+        this.proc = null;
+        this.failAll(new Error(`MCP server '${this.name}' was stopped`));
+        if (!proc || !proc.pid || proc.exitCode !== null || proc.signalCode !== null) return;
         try {
-          this.proc?.kill();
+          await new Promise((resolve15) => {
+            let gracefulTimer;
+            let forceTimer;
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              if (gracefulTimer) clearTimeout(gracefulTimer);
+              if (forceTimer) clearTimeout(forceTimer);
+              proc.removeListener("exit", finish);
+              resolve15();
+            };
+            proc.once("exit", finish);
+            if (proc.exitCode !== null || proc.signalCode !== null) return finish();
+            gracefulTimer = setTimeout(() => {
+              if (proc.exitCode !== null || proc.signalCode !== null) return finish();
+              try {
+                proc.kill("SIGTERM");
+              } catch {
+              }
+              forceTimer = setTimeout(() => {
+                if (proc.exitCode === null && proc.signalCode === null) {
+                  try {
+                    proc.kill("SIGKILL");
+                  } catch {
+                  }
+                }
+                finish();
+              }, timeoutMs);
+            }, timeoutMs);
+            try {
+              proc.stdin.end();
+            } catch {
+              try {
+                proc.kill("SIGTERM");
+              } catch {
+                finish();
+              }
+            }
+          });
         } catch {
         }
       }
@@ -3153,7 +3943,7 @@ var init_mcp_client = __esm({
         if (!this.proc) return Promise.reject(new Error("MCP server not started"));
         const id = this.nextId++;
         const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
-        return new Promise((resolve13, reject) => {
+        return new Promise((resolve15, reject) => {
           const timer = setTimeout(() => {
             this.pending.delete(id);
             reject(new Error(`MCP '${this.name}' ${method} timed out`));
@@ -3161,14 +3951,28 @@ var init_mcp_client = __esm({
           this.pending.set(id, {
             resolve: (v) => {
               clearTimeout(timer);
-              resolve13(v);
+              resolve15(v);
             },
             reject: (e) => {
               clearTimeout(timer);
               reject(e);
             }
           });
-          this.proc.stdin.write(payload);
+          try {
+            this.proc.stdin.write(payload, (error) => {
+              if (!error) return;
+              const pending = this.pending.get(id);
+              if (!pending) return;
+              this.pending.delete(id);
+              pending.reject(new Error(`MCP '${this.name}' ${method} write failed: ${error.message}`));
+            });
+          } catch (error) {
+            const pending = this.pending.get(id);
+            if (pending) {
+              this.pending.delete(id);
+              pending.reject(error instanceof Error ? error : new Error(String(error)));
+            }
+          }
         });
       }
       notify(method, params) {
@@ -3185,7 +3989,7 @@ var init_mcp_client = __esm({
 
 // ../tools/src/builtin/read-file.ts
 import { readFileSync as readFileSync12 } from "fs";
-import { resolve as resolve3 } from "path";
+import { resolve as resolve5 } from "path";
 function numberLines(text, offset, limit) {
   const lines = text.split("\n");
   const start = Math.max(1, offset ?? 1);
@@ -3217,7 +4021,7 @@ var init_read_file = __esm({
       async execute(input, ctx) {
         const path3 = String(input.path ?? "");
         if (!path3) throw new Error("read_file requires a non-empty path");
-        const abs = resolve3(ctx.cwd, path3);
+        const abs = resolve5(ctx.cwd, path3);
         const raw = readFileSync12(abs);
         if (raw.byteLength > MAX_BYTES) {
           const truncated = raw.subarray(0, MAX_BYTES).toString("utf8");
@@ -3233,7 +4037,7 @@ var init_read_file = __esm({
 
 // ../tools/src/builtin/read-many.ts
 import { readFileSync as readFileSync13, statSync } from "fs";
-import { resolve as resolve4 } from "path";
+import { resolve as resolve6 } from "path";
 function numberLines2(text) {
   const lines = text.split("\n");
   const width = String(lines.length).length;
@@ -3267,7 +4071,7 @@ var init_read_many = __esm({
         if (paths.length === 0) throw new Error('read_many requires a non-empty "paths" array');
         const limited = paths.slice(0, MAX_FILES);
         const blocks = limited.map((p2) => {
-          const abs = resolve4(ctx.cwd, p2);
+          const abs = resolve6(ctx.cwd, p2);
           try {
             const st = statSync(abs);
             if (!st.isFile()) return `### ${p2}
@@ -3291,8 +4095,8 @@ ${numberLines2(text)}`;
 });
 
 // ../tools/src/builtin/write-file.ts
-import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync11 } from "fs";
-import { dirname as dirname3, resolve as resolve5 } from "path";
+import { existsSync as existsSync13, mkdirSync as mkdirSync12, readFileSync as readFileSync14, writeFileSync as writeFileSync12 } from "fs";
+import { dirname as dirname4, resolve as resolve7 } from "path";
 var writeFileTool;
 var init_write_file = __esm({
   "../tools/src/builtin/write-file.ts"() {
@@ -3316,7 +4120,7 @@ var init_write_file = __esm({
         const path3 = String(input.path ?? "");
         const content = String(input.content ?? "");
         if (!path3) throw new Error("write_file requires a path");
-        const abs = resolve5(ctx.cwd, path3);
+        const abs = resolve7(ctx.cwd, path3);
         if (existsSync13(abs)) {
           throw new Error(`Refusing to overwrite existing file ${abs}. Use the edit tool instead.`);
         }
@@ -3324,15 +4128,15 @@ var init_write_file = __esm({
         if (secrets.length > 0) {
           throw new Error(`[SECURITY ALERT] Refusing to write file ${path3}. Detected secrets: ${secrets.join(", ")}`);
         }
-        const dir = dirname3(abs);
-        if (!existsSync13(dir)) mkdirSync11(dir, { recursive: true });
-        writeFileSync11(abs, content, "utf8");
+        const dir = dirname4(abs);
+        if (!existsSync13(dir)) mkdirSync12(dir, { recursive: true });
+        writeFileSync12(abs, content, "utf8");
         return `Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${abs}.`;
       },
       // Self-correction: confirm the file now exists with the expected size.
       async verify(input, _output, ctx) {
         try {
-          const abs = resolve5(ctx.cwd, String(input.path ?? ""));
+          const abs = resolve7(ctx.cwd, String(input.path ?? ""));
           const content = String(input.content ?? "");
           if (!existsSync13(abs)) return "write_file verification failed: file does not exist after writing.";
           const written = readFileSync14(abs, "utf8");
@@ -3349,8 +4153,8 @@ var init_write_file = __esm({
 });
 
 // ../tools/src/builtin/edit.ts
-import { readFileSync as readFileSync15, writeFileSync as writeFileSync12 } from "fs";
-import { resolve as resolve6 } from "path";
+import { readFileSync as readFileSync15, writeFileSync as writeFileSync13 } from "fs";
+import { resolve as resolve8 } from "path";
 function occurrenceCount(haystack, needle) {
   if (!needle) return 0;
   let n = 0;
@@ -3390,7 +4194,7 @@ var init_edit = __esm({
         if (!path3) throw new Error("edit requires a path");
         if (!oldStr) throw new Error("edit requires a non-empty old_string");
         if (oldStr === newStr) throw new Error("edit requires old_string !== new_string");
-        const abs = resolve6(ctx.cwd, path3);
+        const abs = resolve8(ctx.cwd, path3);
         const original = readFileSync15(abs, "utf8");
         const secrets = SecretScanner.scan(newStr);
         if (secrets.length > 0) {
@@ -3400,7 +4204,7 @@ var init_edit = __esm({
           const count = occurrenceCount(original, oldStr);
           if (count === 0) throw new Error(`No occurrences of old_string found in ${abs}`);
           const next2 = original.split(oldStr).join(newStr);
-          writeFileSync12(abs, next2, "utf8");
+          writeFileSync13(abs, next2, "utf8");
           return `Replaced ${count} occurrence(s) in ${abs}.`;
         }
         const idx = original.indexOf(oldStr);
@@ -3411,13 +4215,13 @@ var init_edit = __esm({
           );
         }
         const next = original.slice(0, idx) + newStr + original.slice(idx + oldStr.length);
-        writeFileSync12(abs, next, "utf8");
+        writeFileSync13(abs, next, "utf8");
         return `Edited ${abs} (${original.length - next.length > 0 ? "-" : "+"}${Math.abs(original.length - next.length)} bytes).`;
       },
       // Self-correction: re-read the file and confirm the edit actually landed.
       async verify(input, _output, ctx) {
         try {
-          const abs = resolve6(ctx.cwd, String(input.path ?? ""));
+          const abs = resolve8(ctx.cwd, String(input.path ?? ""));
           const newStr = String(input.new_string ?? "");
           const current = readFileSync15(abs, "utf8");
           if (newStr && !current.includes(newStr)) {
@@ -3434,7 +4238,7 @@ var init_edit = __esm({
 
 // ../tools/src/builtin/list-dir.ts
 import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
-import { join as join11, resolve as resolve7 } from "path";
+import { join as join11, resolve as resolve9 } from "path";
 var MAX_ENTRIES, listDirTool;
 var init_list_dir = __esm({
   "../tools/src/builtin/list-dir.ts"() {
@@ -3455,7 +4259,7 @@ var init_list_dir = __esm({
       destructive: false,
       async execute(input, ctx) {
         const path3 = String(input.path ?? ".");
-        const abs = resolve7(ctx.cwd, path3);
+        const abs = resolve9(ctx.cwd, path3);
         const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
         const lines = [];
         for (const e of entries) {
@@ -3478,7 +4282,7 @@ var init_list_dir = __esm({
 
 // ../tools/src/builtin/grep.ts
 import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
-import { join as join12, resolve as resolve8 } from "path";
+import { join as join12, resolve as resolve10 } from "path";
 function extToRegex(glob) {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
   return new RegExp(`${escaped}$`, "i");
@@ -3538,7 +4342,7 @@ var init_grep = __esm({
         if (!pattern) throw new Error("grep requires a pattern");
         const flags = input.case_sensitive ? "g" : "gi";
         const re = new RegExp(pattern, flags);
-        const root = resolve8(ctx.cwd, String(input.path ?? "."));
+        const root = resolve10(ctx.cwd, String(input.path ?? "."));
         const include = typeof input.include === "string" ? extToRegex(input.include) : null;
         const matches = [];
         walk(root, (file) => {
@@ -3568,7 +4372,7 @@ var init_grep = __esm({
 
 // ../tools/src/builtin/repo-map.ts
 import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
-import { join as join13, resolve as resolve9, relative as relative2, extname } from "path";
+import { join as join13, resolve as resolve11, relative as relative3, extname } from "path";
 function extractSymbols(file) {
   let text;
   try {
@@ -3655,7 +4459,7 @@ var init_repo_map = __esm({
       },
       destructive: false,
       async execute(input, ctx) {
-        const root = resolve9(ctx.cwd, String(input.path ?? "."));
+        const root = resolve11(ctx.cwd, String(input.path ?? "."));
         const maxDepth = Number(input.max_depth ?? 4);
         const files = [];
         const walk2 = (dir, depth) => {
@@ -3679,12 +4483,12 @@ var init_repo_map = __esm({
         if (files.length === 0) return "No code files found to map.";
         const byDir = /* @__PURE__ */ new Map();
         for (const f of files) {
-          const rel = relative2(root, f);
+          const rel = relative3(root, f);
           const dir = rel.includes("/") || rel.includes("\\") ? rel.replace(/[\\/][^\\/]+$/, "") : ".";
           if (!byDir.has(dir)) byDir.set(dir, []);
           byDir.get(dir).push(f);
         }
-        const lines = [`# Repo map: ${relative2(ctx.cwd, root) || "."} (${files.length} code files)`];
+        const lines = [`# Repo map: ${relative3(ctx.cwd, root) || "."} (${files.length} code files)`];
         const dirs = [...byDir.keys()].sort();
         for (const dir of dirs) {
           lines.push(`
@@ -3707,14 +4511,14 @@ var init_repo_map = __esm({
 });
 
 // ../tools/src/builtin/project-memory-tool.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync18, writeFileSync as writeFileSync13, statSync as statSync5 } from "fs";
+import { existsSync as existsSync14, mkdirSync as mkdirSync13, readFileSync as readFileSync18, writeFileSync as writeFileSync14, statSync as statSync5 } from "fs";
 import { join as join14 } from "path";
 function p(cwd2, ...parts) {
   return join14(cwd2, CYBER_DIR, ...parts);
 }
 function ensureDir(cwd2) {
   const d = join14(cwd2, CYBER_DIR);
-  if (!existsSync14(d)) mkdirSync12(d, { recursive: true });
+  if (!existsSync14(d)) mkdirSync13(d, { recursive: true });
 }
 function read(cwd2) {
   const f = p(cwd2, "project.json");
@@ -3799,7 +4603,7 @@ var init_project_memory_tool = __esm({
           ensureDir(cwd2);
           const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ");
           const prev = readNotes(cwd2) || "# Project Memory Log\n";
-          writeFileSync13(p(cwd2, "memory.md"), `${prev}
+          writeFileSync14(p(cwd2, "memory.md"), `${prev}
 - [${stamp}] ${note}
 `, "utf8");
           return `Recorded learning to .cyber/memory.md`;
@@ -3823,10 +4627,10 @@ var init_project_memory_tool = __esm({
           createdAt: current.createdAt ?? now,
           updatedAt: now
         };
-        writeFileSync13(p(cwd2, "project.json"), JSON.stringify(next, null, 2), "utf8");
+        writeFileSync14(p(cwd2, "project.json"), JSON.stringify(next, null, 2), "utf8");
         const readme = p(cwd2, "README.md");
         if (!existsSync14(readme)) {
-          writeFileSync13(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
+          writeFileSync14(readme, "# .cyber \u2014 Project Memory\n\nRead this folder first to understand the project. `project.json` = structured facts; `memory.md` = learnings log. Maintained by CyberCoder.\n", "utf8");
         }
         return `Updated .cyber/project.json (${Object.keys(patch).filter((k) => k !== "action").join(", ") || "no fields"}).`;
       }
@@ -3989,7 +4793,7 @@ var init_web_search = __esm({
           required: ["query"]
         }
       },
-      destructive: false,
+      destructive: true,
       async execute(input) {
         const query = String(input.query ?? "").trim();
         if (!query) throw new Error("web_search requires a non-empty query");
@@ -4048,7 +4852,7 @@ var init_web_fetch = __esm({
           required: ["url"]
         }
       },
-      destructive: false,
+      destructive: true,
       async execute(input) {
         const url = String(input.url ?? "").trim();
         if (!/^https?:\/\//i.test(url)) throw new Error("web_fetch requires an absolute http(s) URL");
@@ -4088,11 +4892,11 @@ var init_web_fetch = __esm({
 });
 
 // ../tools/src/builtin/manage-artifact.ts
-import { existsSync as existsSync15, mkdirSync as mkdirSync13, readFileSync as readFileSync19, writeFileSync as writeFileSync14 } from "fs";
+import { existsSync as existsSync15, mkdirSync as mkdirSync14, readFileSync as readFileSync19, writeFileSync as writeFileSync15 } from "fs";
 import { join as join15 } from "path";
 function ensureDir2(cwd2) {
   const d = join15(cwd2, ARTIFACT_DIR);
-  if (!existsSync15(d)) mkdirSync13(d, { recursive: true });
+  if (!existsSync15(d)) mkdirSync14(d, { recursive: true });
 }
 var ARTIFACT_DIR, manageArtifactTool;
 var init_manage_artifact = __esm({
@@ -4133,7 +4937,7 @@ var init_manage_artifact = __esm({
         if (action === "write") {
           const content = String(input.content ?? "");
           try {
-            writeFileSync14(filePath, content, "utf8");
+            writeFileSync15(filePath, content, "utf8");
             return `Artifact ${filename} saved successfully to ${ARTIFACT_DIR}/${filename}`;
           } catch (e) {
             return `Failed to write artifact: ${e.message}`;
@@ -4216,9 +5020,11 @@ var init_src4 = __esm({
   "../tools/src/index.ts"() {
     "use strict";
     init_approval();
+    init_approved_tool();
     init_secrets();
     init_workspace_checkpoint();
     init_mcp_client();
+    init_mcp_config();
     init_read_file();
     init_read_many();
     init_write_file();
@@ -4265,7 +5071,9 @@ var init_types3 = __esm({
       author: z9.string().optional(),
       category: z9.string().optional(),
       /** Used by the marketplace to flag curated/official skills. */
-      official: z9.boolean().default(false)
+      official: z9.boolean().default(false),
+      /** Include this skill's body in the main agent prompt for every task. */
+      inject_always: z9.boolean().optional()
     });
   }
 });
@@ -4303,19 +5111,19 @@ var init_parser = __esm({
 
 // ../skills/src/loader.ts
 import { existsSync as existsSync16, readFileSync as readFileSync20, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
-import { dirname as dirname4, join as join16, resolve as resolve10 } from "path";
+import { dirname as dirname5, join as join16, resolve as resolve12 } from "path";
 import { fileURLToPath } from "url";
 function getBundledDir() {
-  const here = dirname4(fileURLToPath(import.meta.url));
+  const here = dirname5(fileURLToPath(import.meta.url));
   let dir = here;
   for (let i = 0; i < 8; i++) {
-    const candidate = resolve10(dir, "skills-bundled");
+    const candidate = resolve12(dir, "skills-bundled");
     if (existsSync16(candidate)) return candidate;
-    const parent = resolve10(dir, "..");
+    const parent = resolve12(dir, "..");
     if (parent === dir) break;
     dir = parent;
   }
-  return resolve10(here, "..", "..", "..", "skills-bundled");
+  return resolve12(here, "..", "..", "..", "skills-bundled");
 }
 function scanDir(root, source) {
   if (!existsSync16(root)) return [];
@@ -4324,7 +5132,7 @@ function scanDir(root, source) {
   try {
     entries = readdirSync8(root);
   } catch (err) {
-    log17.warn("failed to read skills dir", { root, err: String(err) });
+    log18.warn("failed to read skills dir", { root, err: String(err) });
     return [];
   }
   for (const name of entries) {
@@ -4344,7 +5152,7 @@ function scanDir(root, source) {
       const id = `${source}/${frontmatter.name}`;
       out.push({ id, source, path: skillFile, frontmatter, body });
     } catch (err) {
-      log17.warn("skipping malformed skill", { skillFile, err: String(err) });
+      log18.warn("skipping malformed skill", { skillFile, err: String(err) });
     }
   }
   return out;
@@ -4367,13 +5175,13 @@ function loadAllSkills(opts = {}) {
   }
   return out;
 }
-var log17;
+var log18;
 var init_loader = __esm({
   "../skills/src/loader.ts"() {
     "use strict";
     init_src();
     init_parser();
-    log17 = createLogger("skills:loader");
+    log18 = createLogger("skills:loader");
   }
 });
 
@@ -4443,6 +5251,7 @@ function selectTools(skill, pool) {
 async function spawnSubagent(opts) {
   const { skill, prompt, provider, toolPool } = opts;
   const tools = selectTools(skill, toolPool);
+  const agentId = opts.agentId ?? `agent-${Date.now().toString(36)}`;
   const systemPrompt = buildSubagentSystemPrompt(skill);
   const messages = [{ role: "user", content: prompt }];
   let summary = "";
@@ -4450,38 +5259,62 @@ async function spawnSubagent(opts) {
   let usage = { inputTokens: 0, outputTokens: 0 };
   let reason = "end_turn";
   let error;
-  log18.debug("spawning subagent", {
+  log19.debug("spawning subagent", {
     skill: skill.frontmatter.name,
     tools: tools.map((t) => t.schema.name)
+  });
+  opts.onEvent?.({
+    type: "subagent_progress",
+    agentId,
+    skill: skill.frontmatter.name,
+    status: "started",
+    message: "started"
   });
   for await (const evt of runAgentLoop(messages, {
     provider,
     systemPrompt,
     model: opts.model ?? "auto",
+    reasoningEffort: opts.reasoningEffort ?? "low",
+    cwd: opts.cwd,
     tools,
     maxIterations: opts.maxIterations ?? 6,
     signal: opts.signal
   })) {
-    opts.onEvent?.(evt);
+    if (evt.type === "tool_call") {
+      opts.onEvent?.({
+        type: "subagent_progress",
+        agentId,
+        skill: skill.frontmatter.name,
+        status: "working",
+        message: evt.name
+      });
+    }
     if (evt.type === "text") summary += evt.text;
     else if (evt.type === "tool_call") toolCalls++;
     else if (evt.type === "usage") {
       usage.inputTokens += evt.inputTokens;
       usage.outputTokens += evt.outputTokens;
     } else if (evt.type === "done") {
-      reason = evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
+      reason = opts.signal?.aborted ? "cancelled" : evt.reason === "max_iterations" ? "max_iterations" : evt.reason === "error" ? "error" : "end_turn";
       error = evt.error;
     }
   }
+  opts.onEvent?.({
+    type: "subagent_progress",
+    agentId,
+    skill: skill.frontmatter.name,
+    status: reason === "cancelled" ? "cancelled" : reason === "error" ? "failed" : "completed",
+    message: reason === "cancelled" ? "cancelled" : reason === "error" ? error ?? "failed" : `${toolCalls} tool calls`
+  });
   return { summary: summary.trim(), toolCalls, usage, reason, error };
 }
-var log18;
+var log19;
 var init_runner = __esm({
   "../skills/src/runner.ts"() {
     "use strict";
     init_src2();
     init_src();
-    log18 = createLogger("skills:runner");
+    log19 = createLogger("skills:runner");
   }
 });
 
@@ -4506,7 +5339,7 @@ function buildSpawnSubagentTool(deps) {
         required: ["skill", "prompt"]
       }
     },
-    async execute(input, _ctx) {
+    async execute(input, ctx) {
       const name = String(input.skill ?? "").trim();
       const prompt = String(input.prompt ?? "").trim();
       if (!name) return 'Error: spawn_subagent requires a non-empty "skill" name.';
@@ -4516,12 +5349,25 @@ function buildSpawnSubagentTool(deps) {
         const available = deps.registry.list().map((s) => s.frontmatter.name).join(", ");
         return `Error: skill "${name}" is not installed. Available skills: ${available || "(none)"}`;
       }
-      const result = await spawnSubagent({
-        skill,
-        prompt,
-        provider: deps.provider,
-        toolPool: deps.toolPool
-      });
+      const agentId = `subagent-${Date.now().toString(36)}`;
+      let result;
+      try {
+        result = await spawnSubagent({
+          skill,
+          prompt,
+          provider: deps.provider,
+          cwd: ctx.cwd,
+          toolPool: deps.toolPool,
+          agentId,
+          signal: ctx.signal,
+          onEvent: (event2) => {
+            if (event2.type === "subagent_progress") deps.onProgress?.(event2);
+          }
+        });
+      } catch (error) {
+        deps.onProgress?.({ type: "subagent_progress", agentId, skill: name, status: "failed", message: error instanceof Error ? error.message : String(error) });
+        return `[sub-agent ${name} failed: ${error instanceof Error ? error.message : String(error)}]`;
+      }
       if (result.reason === "error") {
         return `[sub-agent ${name} failed: ${result.error ?? "unknown"}]`;
       }
@@ -4543,10 +5389,63 @@ var init_spawn_tool = __esm({
 
 // ../skills/src/orchestrator.ts
 async function orchestrate(tasks, opts) {
-  const concurrency = Math.max(1, opts.concurrency ?? 3);
+  const requestedConcurrency = Math.max(1, opts.concurrency ?? 3);
+  const hasMutationCapableTask = tasks.some((task) => {
+    const skill = opts.registry.get(task.skill);
+    if (!skill) return false;
+    const allowedTools = new Set(skill.frontmatter.requires.tools);
+    return opts.toolPool.some((tool) => allowedTools.has(tool.schema.name) && tool.destructive === true);
+  });
+  let worktreeSessionId;
+  const worktrees = /* @__PURE__ */ new Map();
+  let executionNote;
+  if (hasMutationCapableTask) {
+    if (opts.worktreeManager && opts.cwd) {
+      const teamAgentIds = tasks.map((_, index) => `team-${Date.now().toString(36)}-${index + 1}`);
+      const session = opts.worktreeManager.createSession(`Agent team \xB7 ${(/* @__PURE__ */ new Date()).toISOString()}`, teamAgentIds[0] ?? "team-parent");
+      worktreeSessionId = session.id;
+      const created = [];
+      try {
+        for (let index = 0; index < tasks.length; index += 1) {
+          const agentId = teamAgentIds[index] ?? `team-${Date.now().toString(36)}-${index + 1}`;
+          if (index > 0) opts.worktreeManager.addParticipant(session.id, agentId);
+          const path3 = await opts.worktreeManager.createWorktree(session.id, agentId, "HEAD", opts.cwd);
+          if (!path3) throw new Error("The worktree session could not be created.");
+          created.push(agentId);
+          const branch = await opts.worktreeManager.getWorktreeBranch(session.id, agentId);
+          if (!branch) throw new Error(`Could not identify the branch for ${agentId}.`);
+          worktrees.set(index, { agentId, path: path3, branch });
+        }
+      } catch (error) {
+        const cleanupErrors = [];
+        for (const agentId of created.reverse()) {
+          try {
+            await opts.worktreeManager.removeWorktree(session.id, agentId, opts.cwd);
+          } catch (cleanupError) {
+            cleanupErrors.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError));
+          }
+        }
+        if (cleanupErrors.length === 0) opts.worktreeManager.deleteSession(session.id);
+        if (cleanupErrors.length > 0) {
+          throw new Error(`Could not prepare isolated agent worktrees (${error instanceof Error ? error.message : String(error)}). Cleanup also needs attention: ${cleanupErrors.join("; ")}. No agent tasks were started.`);
+        }
+        worktreeSessionId = void 0;
+        executionNote = `Git worktrees were unavailable (${error instanceof Error ? error.message : String(error)}); this team will run serially in the selected workspace.`;
+      }
+    } else {
+      executionNote = "No selected Git workspace or worktree manager is available; this team will run serially in the selected workspace.";
+    }
+  }
+  const concurrency = hasMutationCapableTask && worktrees.size === 0 ? 1 : requestedConcurrency;
   const results = new Array(tasks.length);
   let cursor = 0;
-  log19.debug("orchestrating tasks", { count: tasks.length, concurrency });
+  log20.debug("orchestrating tasks", {
+    count: tasks.length,
+    concurrency,
+    requestedConcurrency,
+    isolatedWorktreeMode: worktrees.size > 0,
+    mutationSafeSerialMode: hasMutationCapableTask && worktrees.size === 0
+  });
   async function worker() {
     while (true) {
       if (opts.signal?.aborted) return;
@@ -4564,30 +5463,45 @@ async function orchestrate(tasks, opts) {
           ok: false,
           error: `skill "${task.skill}" not installed. Available: ${available || "(none)"}`,
           toolCalls: 0,
-          durationMs: Date.now() - start
+          durationMs: Date.now() - start,
+          executionNote
         };
         opts.onTaskDone?.(task, index, results[index]);
         continue;
       }
       let sub;
+      const agentId = worktrees.get(index)?.agentId ?? `team-${Date.now().toString(36)}-${index + 1}`;
       try {
         sub = await spawnSubagent({
           skill,
           prompt: task.prompt,
           provider: opts.provider,
+          cwd: worktrees.get(index)?.path ?? opts.cwd,
           toolPool: opts.toolPool,
           model: opts.model,
-          signal: opts.signal
+          signal: opts.signal,
+          agentId,
+          onEvent: (event2) => {
+            if (event2.type === "subagent_progress") {
+              opts.onProgress?.({
+                ...event2,
+                message: task.label ? `${task.label}: ${event2.message ?? event2.status}` : event2.message
+              });
+            }
+          }
         });
       } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
         results[index] = {
           task,
           summary: "",
           ok: false,
-          error: err instanceof Error ? err.message : String(err),
+          error,
           toolCalls: 0,
-          durationMs: Date.now() - start
+          durationMs: Date.now() - start,
+          executionNote
         };
+        opts.onProgress?.({ type: "subagent_progress", agentId, skill: task.skill, status: "failed", message: error });
         opts.onTaskDone?.(task, index, results[index]);
         continue;
       }
@@ -4597,35 +5511,71 @@ async function orchestrate(tasks, opts) {
         ok: sub.reason !== "error",
         error: sub.error,
         toolCalls: sub.toolCalls,
-        durationMs: Date.now() - start
+        durationMs: Date.now() - start,
+        ...worktreeSessionId && worktrees.has(index) ? { worktree: { sessionId: worktreeSessionId, ...worktrees.get(index) } } : {},
+        executionNote
       };
       opts.onTaskDone?.(task, index, results[index]);
     }
   }
   const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
   await Promise.all(workers);
+  for (let index = 0; index < results.length; index += 1) {
+    if (!results[index]) {
+      results[index] = {
+        task: tasks[index],
+        summary: "",
+        ok: false,
+        error: "The task did not start because the parent run was cancelled.",
+        toolCalls: 0,
+        durationMs: 0,
+        executionNote
+      };
+    }
+  }
+  if (worktreeSessionId && opts.worktreeManager && opts.cwd) {
+    for (const [index, worktree] of worktrees) {
+      try {
+        const state = await opts.worktreeManager.getWorktreeState(worktreeSessionId, worktree.agentId, opts.cwd);
+        if (!state.status && state.commitsAhead === 0) {
+          await opts.worktreeManager.removeWorktree(worktreeSessionId, worktree.agentId, opts.cwd);
+          worktrees.delete(index);
+          if (results[index]) delete results[index].worktree;
+        } else if (results[index]) {
+          results[index].worktree = { sessionId: worktreeSessionId, ...worktree };
+        }
+      } catch (error) {
+        if (results[index]) {
+          results[index].worktree = { sessionId: worktreeSessionId, ...worktree };
+          results[index].executionNote = `Worktree cleanup is pending: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+    }
+    if (worktrees.size === 0) opts.worktreeManager.deleteSession(worktreeSessionId);
+  }
   return results;
 }
 function routeTaskToSkill(task, registry) {
   const t = task.toLowerCase();
   const has = (name) => registry.has(name);
   const rules = [
-    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"],
-    [/\b(plan|design|architect|break down|roadmap)\b/, "plan"],
-    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
-    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
+    [/\b(security|vulnerab\w*|exploit|pentest)\b/, "security-audit"],
+    [/\b(debug|bug|crash|stack trace|regression)\b/, "debugger"],
     [/\b(test|spec|coverage|unit test|jest|vitest)\b/, "test-writer"],
-    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
-    [/\b(security|vulnerab|exploit|recon|pentest)\b/, "cyber-recon"],
-    [/\b(database|schema|migration|sql|index)\b/, "db-architect"],
-    [/\b(document|docs|readme|comment|explain)\b/, "doc-writer"],
-    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
     [/\b(dependency|deps|package|upgrade|npm|version)\b/, "dep-doctor"],
-    [/\b(frontend|ui|css|component|design)\b/, "frontend-design"],
+    [/\b(database|postgres|mysql|schema|sql|index)\b/, "db-architect"],
+    [/\b(frontend|react|ui|css|component|responsive)\b/, "frontend-design"],
+    [/\b(document(?:ation|s)?|docs?|readme|comment)\b/, "doc-writer"],
     [/\b(api|endpoint|rest|graphql|openapi)\b/, "api-designer"],
     [/\b(infra|terraform|kubernetes|docker|cloud)\b/, "infra-as-code"],
     [/\b(git|commit|branch|merge|rebase)\b/, "git-master"],
-    [/\b(migrate|migration|port|convert)\b/, "migrate"]
+    [/\b(migrate|migration|port|convert)\b/, "migrate"],
+    [/\b(review|audit|critique|check).{0,20}(code|pr|diff|change)/, "code-review"],
+    [/\b(refactor|clean up|restructure|rename)\b/, "refactor"],
+    [/\b(deploy|ship|release|ci\/cd|pipeline)\b/, "deploy"],
+    [/\b(performance|optimi[sz]e|profile|slow|latency)\b/, "perf-profiler"],
+    [/\b(plan|roadmap|break down|architecture plan)\b/, "plan"],
+    [/\b(research|investigate|find out|explore|look up|gather)\b/, "research"]
   ];
   for (const [re, skill] of rules) {
     if (re.test(t) && has(skill)) return skill;
@@ -4633,15 +5583,15 @@ function routeTaskToSkill(task, registry) {
   for (const fallback of ["research", "plan"]) {
     if (has(fallback)) return fallback;
   }
-  return registry.list()[0]?.frontmatter.name;
+  return registry.list().find((skill) => skill.frontmatter.name !== "cyber-recon")?.frontmatter.name;
 }
-var log19;
+var log20;
 var init_orchestrator = __esm({
   "../skills/src/orchestrator.ts"() {
     "use strict";
     init_src();
     init_runner();
-    log19 = createLogger("skills:orchestrator");
+    log20 = createLogger("skills:orchestrator");
   }
 });
 
@@ -4671,7 +5621,7 @@ function buildSpawnTeamTool(deps) {
         required: ["tasks"]
       }
     },
-    async execute(input, _ctx) {
+    async execute(input, ctx) {
       const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
       if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
       const tasks = [];
@@ -4687,8 +5637,12 @@ function buildSpawnTeamTool(deps) {
       const results = await orchestrate(tasks, {
         registry: deps.registry,
         provider: deps.provider,
+        cwd: ctx.cwd,
+        worktreeManager: deps.worktreeManager,
         toolPool: deps.toolPool,
-        concurrency: deps.concurrency ?? 3
+        concurrency: deps.concurrency ?? 3,
+        signal: ctx.signal,
+        onProgress: deps.onProgress
       });
       const lines = [`# Team results (${results.length} agents)`];
       results.forEach((r, i) => {
@@ -4697,6 +5651,11 @@ function buildSpawnTeamTool(deps) {
 ## ${i + 1}. ${label} (${r.task.skill}) \u2014 ${r.ok ? "ok" : "failed"} \xB7 ${r.durationMs}ms`);
         if (r.ok) lines.push(r.summary || "(no output)");
         else lines.push(`Error: ${r.error ?? "unknown"}`);
+        if (r.worktree) {
+          lines.push(`Isolated worktree: ${r.worktree.path} (branch ${r.worktree.branch})`);
+          lines.push(`Review, then commit in that folder and run /worktree sync ${r.worktree.sessionId} ${r.worktree.agentId} to merge locally. Close it after review with /worktree close ${r.worktree.sessionId} ${r.worktree.agentId}. No remote push is made.`);
+        }
+        if (r.executionNote) lines.push(`Execution note: ${r.executionNote}`);
       });
       return lines.join("\n");
     }
@@ -4726,7 +5685,7 @@ var init_src5 = __esm({
 
 // src/utils/git-context.ts
 import { execSync as execSync2 } from "child_process";
-function git(args, cwd2) {
+function git2(args, cwd2) {
   return execSync2(`git ${args}`, {
     cwd: cwd2,
     encoding: "utf8",
@@ -4744,18 +5703,18 @@ function getGitContext(cwd2 = process.cwd()) {
     lastCommits: []
   };
   try {
-    const inside = git("rev-parse --is-inside-work-tree", cwd2);
+    const inside = git2("rev-parse --is-inside-work-tree", cwd2);
     if (inside !== "true") return empty;
   } catch {
     return empty;
   }
   const ctx = { ...empty, isRepo: true };
   try {
-    ctx.branch = git("rev-parse --abbrev-ref HEAD", cwd2);
+    ctx.branch = git2("rev-parse --abbrev-ref HEAD", cwd2);
   } catch {
   }
   try {
-    const status = git("status --porcelain", cwd2);
+    const status = git2("status --porcelain", cwd2);
     if (status) {
       for (const line of status.split("\n")) {
         const x = line[0];
@@ -4770,19 +5729,19 @@ function getGitContext(cwd2 = process.cwd()) {
   } catch {
   }
   try {
-    const counts = git("rev-list --left-right --count @{upstream}...HEAD", cwd2);
+    const counts = git2("rev-list --left-right --count @{upstream}...HEAD", cwd2);
     const [behind, ahead] = counts.split(/\s+/).map((n) => Number(n) || 0);
     ctx.behind = behind;
     ctx.ahead = ahead;
   } catch {
   }
   try {
-    const log22 = git("log --oneline -5", cwd2);
+    const log22 = git2("log --oneline -5", cwd2);
     ctx.lastCommits = log22 ? log22.split("\n") : [];
   } catch {
   }
   try {
-    ctx.remoteUrl = git("remote get-url origin", cwd2) || void 0;
+    ctx.remoteUrl = git2("remote get-url origin", cwd2) || void 0;
   } catch {
   }
   return ctx;
@@ -4807,7 +5766,7 @@ var init_git_context = __esm({
 });
 
 // src/utils/project-memory.ts
-import { existsSync as existsSync17, mkdirSync as mkdirSync14, readFileSync as readFileSync21, writeFileSync as writeFileSync15, statSync as statSync7 } from "fs";
+import { existsSync as existsSync17, mkdirSync as mkdirSync15, readFileSync as readFileSync21, writeFileSync as writeFileSync16, statSync as statSync7 } from "fs";
 import { join as join17 } from "path";
 function cyberPath(cwd2, ...parts) {
   return join17(cwd2, CYBER_DIR2, ...parts);
@@ -4841,7 +5800,7 @@ function readProjectMemoryNotes(cwd2 = process.cwd()) {
 }
 function ensureCyberDir(cwd2) {
   const dir = join17(cwd2, CYBER_DIR2);
-  if (!existsSync17(dir)) mkdirSync14(dir, { recursive: true });
+  if (!existsSync17(dir)) mkdirSync15(dir, { recursive: true });
 }
 function initProjectMemory(cwd2 = process.cwd(), seed) {
   ensureCyberDir(cwd2);
@@ -4855,12 +5814,12 @@ function initProjectMemory(cwd2 = process.cwd(), seed) {
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
   };
-  writeFileSync15(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
+  writeFileSync16(cyberPath(cwd2, "project.json"), JSON.stringify(memory, null, 2), "utf8");
   if (!existsSync17(cyberPath(cwd2, "README.md"))) {
-    writeFileSync15(cyberPath(cwd2, "README.md"), README, "utf8");
+    writeFileSync16(cyberPath(cwd2, "README.md"), README, "utf8");
   }
   if (!existsSync17(cyberPath(cwd2, "memory.md"))) {
-    writeFileSync15(cyberPath(cwd2, "memory.md"), `# Project Memory Log
+    writeFileSync16(cyberPath(cwd2, "memory.md"), `# Project Memory Log
 
 _CyberCoder records learnings and decisions here as it works._
 `, "utf8");
@@ -4928,16 +5887,30 @@ the whole team (and future sessions) share the same understanding.
 });
 
 // src/runtime/hooks.ts
-import { execSync as execSync3 } from "child_process";
+import { exec as execCallback } from "child_process";
 import { existsSync as existsSync18, readFileSync as readFileSync22 } from "fs";
 import { join as join18 } from "path";
 import { homedir as homedir5 } from "os";
+import { promisify as promisify2 } from "util";
+import { createHash as createHash3 } from "crypto";
 function readHooksFile(path3) {
   try {
     if (existsSync18(path3)) return JSON.parse(readFileSync22(path3, "utf8"));
   } catch {
   }
   return {};
+}
+function getHookApprovalGate(ui) {
+  let gate = approvalGates.get(ui);
+  if (!gate) {
+    gate = new ApprovalGate(ui);
+    approvalGates.set(ui, gate);
+  }
+  return gate;
+}
+function getHookTrustKey(event2, cwd2, command) {
+  const digest = createHash3("sha256").update(`${cwd2}\0${command}`).digest("hex").slice(0, 24);
+  return `hook:${event2}:${digest}`;
 }
 function loadHooks(cwd2 = process.cwd()) {
   if (cached) return cached;
@@ -4953,17 +5926,19 @@ function loadHooks(cwd2 = process.cwd()) {
 function reloadHooks() {
   cached = null;
 }
-function runHooks(event2, subject = "", cwd2 = process.cwd()) {
+async function runHooks(event2, subject = "", cwd2 = process.cwd(), approvalUI) {
   const rules = loadHooks(cwd2)[event2] ?? [];
   if (rules.length === 0) return { ran: false, blocked: false, output: "" };
   const outputs = [];
   let blocked = false;
+  let ran = false;
   for (const rule of rules) {
     if (rule.match) {
       let re;
       try {
         re = new RegExp(rule.match);
       } catch {
+        outputs.push(`[hook ${event2}] skipped: invalid match pattern`);
         continue;
       }
       if (!re.test(subject)) continue;
@@ -4974,29 +5949,53 @@ function runHooks(event2, subject = "", cwd2 = process.cwd()) {
       continue;
     }
     const command = rule.command.replace(/\{file\}/g, subject);
+    if (!approvalUI) {
+      outputs.push(`[hook ${event2}] skipped: no approval UI is available`);
+      continue;
+    }
+    const gate = getHookApprovalGate(approvalUI);
+    let result;
     try {
-      const out = execSync3(command, {
+      const outcome = await gate.withApproval({
+        toolName: getHookTrustKey(event2, cwd2, command),
+        input: { command, event: event2, subject, cwd: cwd2 },
+        summary: `Run configured ${event2} hook: ${command}`,
+        destructive: true
+      }, async () => exec2(command, {
         cwd: cwd2,
         encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
-        timeout: rule.timeoutMs ?? 3e4
-      });
-      outputs.push(`[hook ${event2}] ${command}
-${out.trim().slice(0, 2e3)}`);
-    } catch (err) {
-      const e = err;
+        timeout: rule.timeoutMs ?? 3e4,
+        maxBuffer: 1024 * 1024
+      }));
+      if (!outcome.allowed) {
+        outputs.push(`[hook ${event2}] denied by user: ${command}`);
+        continue;
+      }
+      result = outcome.value;
+    } catch (error) {
+      const e = error;
+      const output2 = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
       outputs.push(`[hook ${event2}] ${command} (failed)
-${(e.stdout || "") + (e.stderr || e.message || "")}`.slice(0, 2e3));
+${output2}`.slice(0, 2e3));
+      ran = true;
+      continue;
     }
+    ran = true;
+    const output = [result.stdout.trim(), result.stderr.trim()].filter(Boolean).join("\n");
+    outputs.push(`[hook ${event2}] ${command}${output ? `
+${output.slice(0, 2e3)}` : ""}`);
   }
-  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join("\n") };
+  return { ran, blocked, output: outputs.join("\n") };
 }
-var cached;
+var exec2, cached, approvalGates;
 var init_hooks = __esm({
   "src/runtime/hooks.ts"() {
     "use strict";
+    init_src4();
+    exec2 = promisify2(execCallback);
     cached = null;
+    approvalGates = /* @__PURE__ */ new WeakMap();
   }
 });
 
@@ -5081,99 +6080,77 @@ async function getMcpTools() {
   } catch {
     mcpToolsCache = [];
   }
-  return mcpToolsCache;
+  return mcpToolsCache ?? [];
 }
-async function buildAgentTools(approvalUI) {
+async function buildAgentTools(approvalUI, additionalSystemPrompt = "", onProgress) {
   const router = getRouter();
   const registry = getSkillRegistry();
-  const gate = new ApprovalGate(approvalUI ?? new HeadlessApprovalUI());
+  const hookApprovalUI = approvalUI ?? new HeadlessApprovalUI();
+  const gate = new ApprovalGate(hookApprovalUI);
   const builtins = builtinTools();
   const wrappedBuiltins = builtins.map((t) => ({
     schema: t.schema,
     destructive: t.destructive,
     verify: t.verify,
     execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: summarizeCall(t.schema.name, input)
-      });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      if (t.schema.name === "run_command") {
-        const cmd = typeof input.command === "string" ? input.command : "";
-        const pre = runHooks("preCommand", cmd);
-        if (pre.blocked) return `[blocked by preCommand hook]
+      return executeApprovedWorkspaceTool(t, gate, getCheckpoints(), input, ctx, summarizeCall(t.schema.name, input), async () => {
+        if (t.schema.name === "run_command") {
+          const cmd = typeof input.command === "string" ? input.command : "";
+          const pre = await runHooks("preCommand", cmd, ctx.cwd, hookApprovalUI);
+          if (pre.blocked) return `[blocked by preCommand hook]
 ${pre.output}`;
-      }
-      if (t.destructive && (t.schema.name === "edit" || t.schema.name === "write_file")) {
-        const target = input.path;
-        if (typeof target === "string" && target) {
-          try {
-            getCheckpoints().snapshot([target], `${t.schema.name} ${target}`);
-          } catch {
+        }
+        const output = await t.execute(input, ctx);
+        try {
+          if (t.schema.name === "edit") {
+            const h = await runHooks("postEdit", String(input.path ?? ""), ctx.cwd, hookApprovalUI);
+            if (h.output) return `${output}
+${h.output}`;
+          } else if (t.schema.name === "write_file") {
+            const h = await runHooks("postWrite", String(input.path ?? ""), ctx.cwd, hookApprovalUI);
+            if (h.output) return `${output}
+${h.output}`;
+          } else if (t.schema.name === "run_command") {
+            const h = await runHooks("postCommand", String(input.command ?? ""), ctx.cwd, hookApprovalUI);
+            if (h.output) return `${output}
+${h.output}`;
           }
+        } catch {
         }
-      }
-      const result = await t.execute(input, { cwd: ctx.cwd });
-      try {
-        if (t.schema.name === "edit") {
-          const h = runHooks("postEdit", String(input.path ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        } else if (t.schema.name === "write_file") {
-          const h = runHooks("postWrite", String(input.path ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        } else if (t.schema.name === "run_command") {
-          const h = runHooks("postCommand", String(input.command ?? ""));
-          if (h.output) return `${result}
-${h.output}`;
-        }
-      } catch {
-      }
-      return result;
-    }
-  }));
-  const toolPool = builtins.map((t) => ({ schema: t.schema, execute: t.execute, destructive: t.destructive, verify: t.verify }));
-  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool });
-  const teamTool = buildSpawnTeamTool({ registry, provider: router, toolPool, concurrency: 3 });
-  const mcpRaw = await getMcpTools();
-  const mcpWrapped = mcpRaw.map((t) => ({
-    schema: t.schema,
-    destructive: t.destructive,
-    execute: async (input, ctx) => {
-      const ok = await gate.request({
-        toolName: t.schema.name,
-        input,
-        destructive: t.destructive,
-        summary: `MCP: ${t.schema.name}`
+        return output;
       });
-      if (!ok) return `[user denied tool '${t.schema.name}']`;
-      return t.execute(input, ctx);
     }
   }));
+  const mcpWrapped = gateMcpTools(await getMcpTools(), gate);
+  const toolPool = [...wrappedBuiltins, ...mcpWrapped];
+  const spawnTool = buildSpawnSubagentTool({ registry, provider: router, toolPool, onProgress });
+  const teamTool = buildSpawnTeamTool({
+    registry,
+    provider: router,
+    toolPool,
+    concurrency: 3,
+    worktreeManager: new CollaborationManager(),
+    onProgress
+  });
   const gitBlock = gitContextPrompt(getGitContext());
   const memoryBlock = projectMemoryPrompt();
   let dynamicSkillsBlock = "";
   try {
-    const mem = getCheckpoints();
-    const allSkills = registry.listSkills();
-    const injected = allSkills.filter((s) => s.frontmatter.inject_always).map((s) => `
---- SKILL INJECTED: ${s.frontmatter.name} ---
+    const allSkills = registry.list();
+    const skillList = allSkills.length > 0 ? "AVAILABLE SKILLS (You can delegate tasks to these skills using spawn_subagent or spawn_team):\n" + allSkills.map((s) => `- ${s.frontmatter.name}: ${s.frontmatter.description || "No description"}`).join("\n") : "";
+    const injected = allSkills.filter((s) => s.frontmatter?.inject_always).map((s) => `
+--- SKILL INJECTED: ${s.frontmatter?.name} ---
 ${s.body}`);
-    if (injected.length > 0) {
-      dynamicSkillsBlock = "DYNAMICALLY INJECTED SKILLS:\n" + injected.join("\n");
-    }
+    dynamicSkillsBlock = [skillList, ...injected].filter(Boolean).join("\n\n");
   } catch (e) {
   }
-  const systemPrompt = [SYSTEM_PROMPT, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join("\n\n");
+  const systemPrompt = [SYSTEM_PROMPT, additionalSystemPrompt, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join("\n\n");
   return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
 }
 async function runChat(history, opts) {
   const router = getRouter();
   const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI, opts.systemPrompt, (evt) => opts.onEvent(evt));
   for await (const evt of runAgentLoop(providerMessages, {
     provider: router,
     systemPrompt,
@@ -5187,7 +6164,7 @@ async function runChat(history, opts) {
 async function runGoalChat(history, opts) {
   const router = getRouter();
   const providerMessages = toProviderMessages(history);
-  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI);
+  const { tools, systemPrompt } = await buildAgentTools(opts.approvalUI, opts.systemPrompt, (evt) => opts.onEvent(evt));
   for await (const evt of runGoal(providerMessages, {
     provider: router,
     systemPrompt,
@@ -5203,7 +6180,7 @@ async function runGoalChat(history, opts) {
 async function runPlanChat(history, opts) {
   const router = getRouter();
   const providerMessages = toProviderMessages(history);
-  const { tools } = await buildAgentTools(opts.approvalUI);
+  const { tools } = await buildAgentTools(opts.approvalUI, "", (evt) => opts.onEvent(evt));
   return runPlan(providerMessages, {
     provider: router,
     model: opts.model ?? "auto",
@@ -5230,6 +6207,7 @@ var init_chat = __esm({
     init_src3();
     init_src4();
     init_src5();
+    init_src();
     init_config();
     init_git_context();
     init_project_memory();
@@ -5278,9 +6256,9 @@ __export(rpc_server_exports, {
   startRpcServer: () => startRpcServer
 });
 import { createInterface } from "readline";
-import { readFileSync as readFileSync25, writeFileSync as writeFileSync18, readdirSync as readdirSync10, existsSync as existsSync22, mkdirSync as mkdirSync16 } from "fs";
-import { join as join23, resolve as resolve12 } from "path";
-import { execSync as execSync4 } from "child_process";
+import { readFileSync as readFileSync24, writeFileSync as writeFileSync18, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync16 } from "fs";
+import { join as join22, resolve as resolve14 } from "path";
+import { execSync as execSync3 } from "child_process";
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
 }
@@ -5297,25 +6275,25 @@ async function handleMethod(id, method, params = {}) {
   try {
     switch (method) {
       case "ping":
-        respond(id, { pong: true, version: "0.1.22", cwd });
+        respond(id, { pong: true, version: CYBERMIND_VERSION, cwd });
         break;
       case "read_file": {
-        const path3 = resolve12(cwd, String(params.path || ""));
-        const text = readFileSync25(path3, "utf8");
+        const path3 = resolve14(cwd, String(params.path || ""));
+        const text = readFileSync24(path3, "utf8");
         const lines = text.split("\n").slice(0, Number(params.limit || 2e3));
         respond(id, { content: lines.map((l, i) => `${i + 1}	${l}`).join("\n") });
         break;
       }
       case "write_file": {
-        const path3 = resolve12(cwd, String(params.path || ""));
-        const dir = join23(path3, "..");
-        if (!existsSync22(dir)) mkdirSync16(dir, { recursive: true });
+        const path3 = resolve14(cwd, String(params.path || ""));
+        const dir = join22(path3, "..");
+        if (!existsSync21(dir)) mkdirSync16(dir, { recursive: true });
         writeFileSync18(path3, String(params.content || ""), "utf8");
         respond(id, { written: path3 });
         break;
       }
       case "list_dir": {
-        const path3 = resolve12(cwd, String(params.path || "."));
+        const path3 = resolve14(cwd, String(params.path || "."));
         const entries = readdirSync10(path3, { withFileTypes: true });
         respond(id, { entries: entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "dir" : "file" })) });
         break;
@@ -5324,7 +6302,7 @@ async function handleMethod(id, method, params = {}) {
         const pattern = String(params.pattern || "");
         const include = String(params.include || ".");
         try {
-          const out = execSync4(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
+          const out = execSync3(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
           respond(id, { matches: out });
         } catch (e) {
           respond(id, { matches: e.stdout?.slice(0, 16e3) || "" });
@@ -5335,7 +6313,7 @@ async function handleMethod(id, method, params = {}) {
         const command = String(params.command || "");
         event("tool_start", { name: "run_command", summary: `Run: ${command}` });
         try {
-          const out = execSync4(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
+          const out = execSync3(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
           event("tool_end", { name: "run_command", ok: true });
           respond(id, { output: out.slice(0, 2e4), exitCode: 0 });
         } catch (e) {
@@ -5347,7 +6325,7 @@ async function handleMethod(id, method, params = {}) {
       case "git": {
         const op = String(params.operation || "status");
         try {
-          const out = execSync4(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
+          const out = execSync3(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
           respond(id, { output: out.slice(0, 12e3) });
         } catch (e) {
           respond(id, { output: (e.stdout || "") + (e.stderr || ""), error: e.message });
@@ -5367,22 +6345,23 @@ async function handleMethod(id, method, params = {}) {
       case "complete": {
         const messages = params.messages || [];
         const model = String(params.model || "auto");
-        const system = String(params.system || "");
+        const systemPrompt = String(params.system || "");
         let fullText = "";
         await runChat(
           messages.map((m) => ({ id: `rpc-${Date.now()}`, role: m.role, content: m.content, createdAt: Date.now() })),
           {
             model,
+            systemPrompt,
             onEvent: (evt) => {
               if (evt.type === "text") {
                 fullText += evt.text;
                 event("token", { content: evt.text });
-              } else if (evt.type === "tool_start") {
+              } else if (evt.type === "tool_call") {
                 event("tool_start", { name: evt.name, input: evt.input });
-              } else if (evt.type === "tool_end") {
-                event("tool_end", { name: evt.name, output: evt.output?.slice(0, 4e3) });
-              } else if (evt.type === "error") {
-                event("error", { message: evt.message });
+              } else if (evt.type === "tool_result") {
+                event("tool_end", { name: evt.name, output: evt.output.slice(0, 4e3), ok: evt.ok });
+              } else if (evt.type === "done" && evt.reason === "error") {
+                event("error", { message: evt.error ?? "Agent turn failed" });
               }
             }
           }
@@ -5403,7 +6382,7 @@ async function handleMethod(id, method, params = {}) {
   }
 }
 function startRpcServer() {
-  event("ready", { version: "0.1.22", cwd, tools: builtinTools().map((t) => t.schema.name) });
+  event("ready", { version: CYBERMIND_VERSION, cwd, tools: builtinTools().map((t) => t.schema.name) });
   const rl = createInterface({ input: process.stdin, terminal: false });
   rl.on("line", (line) => {
     const trimmed = line.trim();
@@ -5426,6 +6405,7 @@ var init_rpc_server = __esm({
     init_src4();
     init_git_context();
     init_project_memory();
+    init_src();
     cwd = process.cwd();
   }
 });
@@ -5437,7 +6417,7 @@ import { render } from "ink";
 
 // src/app.tsx
 import { Box as Box17, Text as Text17, useApp as useApp2, useInput as useInput8 } from "ink";
-import { useCallback, useEffect as useEffect4, useMemo, useRef as useRef2, useState as useState10 } from "react";
+import { useCallback, useEffect as useEffect5, useMemo as useMemo2, useRef as useRef3, useState as useState10 } from "react";
 
 // src/components/Welcome.tsx
 init_src();
@@ -6382,7 +7362,7 @@ var Onboarding = ({ onComplete }) => {
       return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
         renderBorderTop("Select API Provider"),
         /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
-          /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Select an API provider:" }),
+          /* @__PURE__ */ jsx4(Box4, { marginBottom: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, children: "Select an API provider:" }) }),
           API_PROVIDERS.map((prov, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "row", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
             i === selected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
             /* @__PURE__ */ jsxs4(Text4, { color: i === selected ? "white" : "gray", bold: i === selected, children: [
@@ -6399,11 +7379,11 @@ var Onboarding = ({ onComplete }) => {
     return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
       renderBorderTop("Enter API Key"),
       /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
-        /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Paste your API key below:" }),
-        /* @__PURE__ */ jsxs4(Text4, { color: "gray", marginBottom: 1, children: [
+        /* @__PURE__ */ jsx4(Box4, { marginBottom: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, children: "Paste your API key below:" }) }),
+        /* @__PURE__ */ jsx4(Box4, { marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
           "Provider: ",
           /* @__PURE__ */ jsx4(Text4, { color: "cyan", bold: true, children: apiKeyProvider })
-        ] }),
+        ] }) }),
         /* @__PURE__ */ jsxs4(Box4, { flexDirection: "row", marginBottom: 1, children: [
           /* @__PURE__ */ jsxs4(Text4, { color: "gray", children: [
             ">",
@@ -6425,7 +7405,7 @@ var Onboarding = ({ onComplete }) => {
                       setUserProfile(authInfo.user);
                       markOnboardingComplete("apikey");
                       onComplete("apikey");
-                    }).catch((err) => {
+                    }).catch(() => {
                       markOnboardingComplete("apikey");
                       onComplete("apikey");
                     });
@@ -6448,7 +7428,7 @@ var Onboarding = ({ onComplete }) => {
     return /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 1, width: contentWidth + 4, children: [
       renderBorderTop("3rd-Party Platforms"),
       /* @__PURE__ */ jsxs4(Box4, { flexDirection: "column", paddingX: 2, marginY: 1, children: [
-        /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, marginBottom: 1, children: "Select a local or 3rd-party platform to set up:" }),
+        /* @__PURE__ */ jsx4(Box4, { marginBottom: 1, children: /* @__PURE__ */ jsx4(Text4, { color: "white", bold: true, children: "Select a local or 3rd-party platform to set up:" }) }),
         THIRDPARTY_PLATFORMS.map((plat, i) => /* @__PURE__ */ jsx4(Box4, { flexDirection: "column", marginBottom: 1, children: /* @__PURE__ */ jsxs4(Text4, { children: [
           i === tpSelected ? /* @__PURE__ */ jsx4(Text4, { color: "#D97757", children: "\u203A " }) : /* @__PURE__ */ jsx4(Text4, { color: "gray", children: "  " }),
           /* @__PURE__ */ jsxs4(Text4, { color: i === tpSelected ? "white" : "gray", bold: i === tpSelected, children: [
@@ -6723,8 +7703,8 @@ var Settings = ({ onClose }) => {
 };
 
 // src/components/ModelPicker.tsx
-import { useState as useState5 } from "react";
-import { Box as Box7, Text as Text7, useInput as useInput4, useStdout as useStdout3 } from "ink";
+import { useEffect as useEffect3, useMemo, useRef as useRef2, useState as useState5 } from "react";
+import { Box as Box7, Text as Text7, useInput as useInput4, useStdin, useStdout as useStdout3 } from "ink";
 import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var SUPREME_MODELS = [
   { id: "auto", name: "Auto (recommended)", tier: "all", desc: "Routes to the best available persona for the task" },
@@ -6733,68 +7713,205 @@ var SUPREME_MODELS = [
   { id: "abhimanyu", name: "Abhimanyu (Basic \u2014 Deep Context)", tier: "basic", desc: "Deep-dive local reasoning for breaking complex logic traps" },
   { id: "trinity", name: "Trinity (Free \u2014 The Powerhouse)", tier: "free", desc: "Fast, logic-perfect execution for free tier users" }
 ];
-var ModelPicker = ({ currentModel, onSelect, onClose }) => {
-  const t = useTheme();
+function modelInfosFromIds(ids, providerName) {
+  return [...new Set(ids.map((id) => id.trim()).filter(Boolean))].map((id) => ({
+    id,
+    name: id,
+    tier: "available",
+    desc: `Available from ${providerName}`
+  }));
+}
+function filterModelOptions(models, query) {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return [...models];
+  return models.filter(
+    (model) => `${model.name} ${model.id} ${model.tier} ${model.desc}`.toLocaleLowerCase().includes(normalized)
+  );
+}
+function getModelPickerViewport(total, selectedIndex, visibleCount) {
+  if (total <= 0) return { start: 0, end: 0 };
+  const count = Math.max(1, Math.min(total, Math.floor(visibleCount)));
+  const selected = Math.max(0, Math.min(total - 1, Math.floor(selectedIndex)));
+  const start = Math.max(0, Math.min(selected - count + 1, total - count));
+  return { start, end: start + count };
+}
+function moveModelPickerSelection(selectedIndex, action, total, pageSize) {
+  if (total <= 0) return 0;
+  const current = Math.max(0, Math.min(total - 1, selectedIndex));
+  const page = Math.max(1, pageSize);
+  switch (action) {
+    case "up":
+      return Math.max(0, current - 1);
+    case "down":
+      return Math.min(total - 1, current + 1);
+    case "page-up":
+      return Math.max(0, current - page);
+    case "page-down":
+      return Math.min(total - 1, current + page);
+    case "first":
+      return 0;
+    case "last":
+      return total - 1;
+  }
+}
+function parseModelPickerWheelReports(input, pending = "") {
+  let data = pending + input;
+  const directions = [];
+  const prefix = "\x1B[<";
+  while (data) {
+    const start = data.indexOf(prefix);
+    if (start < 0) {
+      const trailingPrefix = [prefix, prefix.slice(0, 2), prefix.slice(0, 1)].find((candidate) => data.endsWith(candidate));
+      return { directions, pending: trailingPrefix ?? "" };
+    }
+    data = data.slice(start);
+    const end = data.search(/[Mm]/);
+    if (end < 0) return { directions, pending: data.slice(0, 128) };
+    const report = data.slice(0, end + 1);
+    const match = /^\u001b\[<(\d+);\d+;\d+[Mm]$/.exec(report);
+    if (match) {
+      const button = Number(match[1]);
+      if ((button & 64) === 64) directions.push((button & 1) === 1 ? "down" : "up");
+    }
+    data = data.slice(end + 1);
+  }
+  return { directions, pending: "" };
+}
+var ModelPicker = ({
+  currentModel,
+  onSelect,
+  onClose,
+  models = SUPREME_MODELS,
+  loading = false,
+  loadError
+}) => {
+  const theme = useTheme();
+  const { stdin, isRawModeSupported } = useStdin();
   const { stdout } = useStdout3();
-  const termWidth = stdout?.columns ?? 80;
-  const contentWidth = Math.max(termWidth - 6, 50);
-  const initialIdx = SUPREME_MODELS.findIndex((m) => m.id === currentModel);
-  const [selectedIdx, setSelectedIdx] = useState5(initialIdx >= 0 ? initialIdx : 0);
-  useInput4((_, key) => {
+  const terminalWidth = Math.max(1, stdout?.columns ?? 80);
+  const terminalRows = Math.max(1, stdout?.rows ?? 24);
+  const contentWidth = Math.max(1, Math.min(88, terminalWidth - 2));
+  const visibleCount = Math.max(1, Math.floor((terminalRows - 8) / 2));
+  const [query, setQuery] = useState5("");
+  const [selectedIndex, setSelectedIndex] = useState5(() => {
+    const current = models.findIndex((model) => model.id === currentModel);
+    return current >= 0 ? current : 0;
+  });
+  useEffect3(() => {
+    const current = models.findIndex((model) => model.id === currentModel);
+    setSelectedIndex(current >= 0 ? current : 0);
+  }, [models, currentModel]);
+  const filteredModels = useMemo(() => filterModelOptions(models, query), [models, query]);
+  const modelCountRef = useRef2(filteredModels.length);
+  const visibleCountRef = useRef2(visibleCount);
+  const mousePendingRef = useRef2("");
+  modelCountRef.current = filteredModels.length;
+  visibleCountRef.current = visibleCount;
+  const safeSelectedIndex = filteredModels.length ? Math.max(0, Math.min(filteredModels.length - 1, selectedIndex)) : 0;
+  const viewport = getModelPickerViewport(filteredModels.length, safeSelectedIndex, visibleCount);
+  const visibleModels = filteredModels.slice(viewport.start, viewport.end);
+  useEffect3(() => {
+    if (!isRawModeSupported || !stdin?.isTTY || !stdout?.isTTY) return;
+    const onData = (chunk) => {
+      const parsed = parseModelPickerWheelReports(chunk.toString(), mousePendingRef.current);
+      mousePendingRef.current = parsed.pending;
+      for (const direction of parsed.directions) {
+        setSelectedIndex((index) => moveModelPickerSelection(
+          index,
+          direction,
+          modelCountRef.current,
+          visibleCountRef.current
+        ));
+      }
+    };
+    stdout.write("\x1B[?1000h\x1B[?1006h");
+    stdin.on("data", onData);
+    return () => {
+      stdin.off("data", onData);
+      mousePendingRef.current = "";
+      stdout.write("\x1B[?1006l\x1B[?1000l");
+    };
+  }, [isRawModeSupported, stdin, stdout]);
+  useInput4((input, key) => {
     if (key.escape) {
-      onClose();
+      if (query) {
+        setQuery("");
+        setSelectedIndex(0);
+      } else {
+        onClose();
+      }
       return;
     }
     if (key.upArrow) {
-      setSelectedIdx((i) => Math.max(0, i - 1));
+      setSelectedIndex((index) => moveModelPickerSelection(index, "up", filteredModels.length, visibleCount));
     } else if (key.downArrow) {
-      setSelectedIdx((i) => Math.min(SUPREME_MODELS.length - 1, i + 1));
+      setSelectedIndex((index) => moveModelPickerSelection(index, "down", filteredModels.length, visibleCount));
+    } else if (key.pageUp) {
+      setSelectedIndex((index) => moveModelPickerSelection(index, "page-up", filteredModels.length, visibleCount));
+    } else if (key.pageDown) {
+      setSelectedIndex((index) => moveModelPickerSelection(index, "page-down", filteredModels.length, visibleCount));
     } else if (key.return) {
-      const model = SUPREME_MODELS[selectedIdx];
+      const model = filteredModels[safeSelectedIndex];
       if (model) onSelect(model.id);
+    } else if (key.backspace || key.delete) {
+      setQuery((value) => value.slice(0, -1));
+      setSelectedIndex(0);
+    } else if (!key.ctrl && !key.meta && input && !input.startsWith("\x1B")) {
+      setQuery((value) => value + input);
+      setSelectedIndex(0);
     }
   });
-  const dashLength = Math.max(2, contentWidth - " Model Selection ".length - 2);
-  return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
-    /* @__PURE__ */ jsxs7(Text7, { color: t.accent, children: [
-      "\u256D\u2500 Model Selection ",
-      " \u2500".repeat(1),
-      "\u2500".repeat(dashLength),
-      "\u256E"
+  const tierColor = (tier) => tier === "pro" ? "#FF6B6B" : tier === "standard" ? "#FFD93D" : tier === "basic" ? "#6BCB77" : tier === "free" ? "#4D96FF" : theme.accent;
+  const borderLabel = "\u256D\u2500 Model Selection ";
+  const topBorder = `${borderLabel}${"\u2500".repeat(Math.max(0, contentWidth - borderLabel.length - 1))}\u256E`;
+  const bottomBorder = `\u2570${"\u2500".repeat(Math.max(0, contentWidth - 2))}\u256F`;
+  const descriptionWidth = Math.max(0, contentWidth - 8);
+  const nameWidth = Math.max(1, contentWidth - 12);
+  return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, width: contentWidth, children: [
+    /* @__PURE__ */ jsx7(Text7, { color: theme.accent, children: topBorder }),
+    /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 1, paddingRight: 1, marginTop: 1, children: [
+      /* @__PURE__ */ jsx7(Text7, { bold: true, color: theme.text, children: "CyberCoder Mythological Swarm \u2014 Select model" }),
+      /* @__PURE__ */ jsxs7(Text7, { color: theme.dim, children: [
+        "Search: ",
+        query || "type to filter",
+        query ? "\u258C" : ""
+      ] }),
+      /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginTop: 1, children: [
+        loading && filteredModels.length === 0 && /* @__PURE__ */ jsx7(Text7, { color: theme.muted, children: "Loading models\u2026" }),
+        !loading && loadError && filteredModels.length === 0 && /* @__PURE__ */ jsx7(Text7, { color: theme.warning, children: loadError }),
+        !loading && !loadError && filteredModels.length === 0 && /* @__PURE__ */ jsx7(Text7, { color: theme.muted, children: query ? `No models match \u201C${query}\u201D.` : "No models are available from this provider." }),
+        visibleModels.map((model, rowIndex) => {
+          const index = viewport.start + rowIndex;
+          const isSelected = index === safeSelectedIndex;
+          const isCurrent = model.id === currentModel;
+          const title = model.name.length > nameWidth ? `${model.name.slice(0, Math.max(0, nameWidth - 1))}\u2026` : model.name;
+          const description = model.desc.length > descriptionWidth ? `${model.desc.slice(0, Math.max(0, descriptionWidth - 1))}\u2026` : model.desc;
+          return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", children: [
+            /* @__PURE__ */ jsxs7(Text7, { children: [
+              /* @__PURE__ */ jsx7(Text7, { color: isSelected ? theme.accent : theme.dim, children: isSelected ? "\u203A " : "  " }),
+              /* @__PURE__ */ jsx7(Text7, { color: isSelected ? theme.text : theme.muted, bold: isSelected, children: title }),
+              isCurrent && /* @__PURE__ */ jsx7(Text7, { color: theme.success, children: " (current)" }),
+              /* @__PURE__ */ jsxs7(Text7, { color: tierColor(model.tier), children: [
+                " [",
+                model.tier,
+                "]"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsx7(Text7, { color: theme.dim, children: `   ${description}` })
+          ] }, model.id);
+        })
+      ] }),
+      filteredModels.length > 0 && /* @__PURE__ */ jsxs7(Text7, { color: theme.dim, children: [
+        viewport.start + 1,
+        "\u2013",
+        viewport.end,
+        " of ",
+        filteredModels.length,
+        " models"
+      ] }),
+      /* @__PURE__ */ jsx7(Text7, { color: theme.dim, children: "\u2191\u2193 or wheel move \xB7 PgUp/PgDn scroll \xB7 type to search \xB7 Enter select \xB7 Esc clear/close" })
     ] }),
-    /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", paddingLeft: 2, paddingRight: 2, marginTop: 1, marginBottom: 1, children: [
-      /* @__PURE__ */ jsx7(Text7, { bold: true, color: t.text, children: "CyberCoder Mythological Swarm \u2014 Select model:" }),
-      /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-      SUPREME_MODELS.map((m, i) => {
-        const isSelected = i === selectedIdx;
-        const isCurrent = m.id === currentModel;
-        const tierColor = m.tier === "pro" ? "#FF6B6B" : m.tier === "standard" ? "#FFD93D" : m.tier === "basic" ? "#6BCB77" : m.tier === "free" ? "#4D96FF" : t.accent;
-        return /* @__PURE__ */ jsxs7(Box7, { flexDirection: "column", marginBottom: 1, children: [
-          /* @__PURE__ */ jsx7(Box7, { flexDirection: "row", children: /* @__PURE__ */ jsxs7(Text7, { children: [
-            isSelected ? /* @__PURE__ */ jsx7(Text7, { color: t.accent, children: "\u203A " }) : /* @__PURE__ */ jsx7(Text7, { color: t.dim, children: "  " }),
-            /* @__PURE__ */ jsx7(Text7, { color: isSelected ? t.text : t.muted, bold: isSelected, children: m.name }),
-            isCurrent && /* @__PURE__ */ jsx7(Text7, { color: t.success, children: " (current)" }),
-            " ",
-            /* @__PURE__ */ jsxs7(Text7, { color: tierColor, children: [
-              "[",
-              m.tier,
-              "]"
-            ] })
-          ] }) }),
-          /* @__PURE__ */ jsxs7(Text7, { color: t.dim, children: [
-            "     ",
-            m.desc
-          ] })
-        ] }, m.id);
-      }),
-      /* @__PURE__ */ jsx7(Box7, { marginTop: 1 }),
-      /* @__PURE__ */ jsx7(Text7, { color: t.dim, children: "\u2191\u2193 navigate \xB7 Enter select \xB7 ESC close" })
-    ] }),
-    /* @__PURE__ */ jsxs7(Text7, { color: t.accent, children: [
-      "\u2570",
-      "\u2500".repeat(contentWidth),
-      "\u256F"
-    ] })
+    /* @__PURE__ */ jsx7(Text7, { color: theme.accent, children: bottomBorder })
   ] });
 };
 
@@ -7103,7 +8220,7 @@ var MessageList = ({ messages }) => {
 };
 
 // src/components/StatusBar.tsx
-import { Box as Box11, Text as Text11, useStdout as useStdout4 } from "ink";
+import { Box as Box11, Text as Text11 } from "ink";
 import { jsx as jsx11, jsxs as jsxs11 } from "react/jsx-runtime";
 var STATUS_LABEL = {
   idle: "ready",
@@ -7113,8 +8230,6 @@ var STATUS_LABEL = {
 };
 var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
   const t = useTheme();
-  const { stdout } = useStdout4();
-  const termWidth = stdout?.columns ?? 80;
   const statusColor = {
     idle: t.success,
     thinking: t.warning,
@@ -7127,10 +8242,20 @@ var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
     }
     return num.toString();
   };
-  const leftPart = `[${STATUS_LABEL[status]}]  ${model} \xB7 ${provider} | tokens: ${formatTokens2(tokens)} | cost: $${cost.toFixed(2)} | ? shortcuts`;
   return /* @__PURE__ */ jsxs11(Box11, { width: "100%", justifyContent: "flex-end", paddingRight: 1, marginTop: 0, children: [
-    /* @__PURE__ */ jsx11(Text11, { color: statusColor[status], children: "\u2699 " }),
+    /* @__PURE__ */ jsxs11(Text11, { color: statusColor[status], children: [
+      "[",
+      STATUS_LABEL[status],
+      "] "
+    ] }),
     /* @__PURE__ */ jsx11(Text11, { color: t.text, bold: true, children: model }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.success, children: provider }),
+    /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
+    /* @__PURE__ */ jsxs11(Text11, { color: t.text, children: [
+      formatTokens2(tokens),
+      " tokens"
+    ] }),
     /* @__PURE__ */ jsx11(Text11, { color: t.dim, children: " \xB7 " }),
     /* @__PURE__ */ jsxs11(Text11, { color: t.success, children: [
       "$",
@@ -7140,7 +8265,7 @@ var StatusBar = ({ status, model, provider, tokens = 0, cost = 0 }) => {
 };
 
 // src/components/ThinkingIndicator.tsx
-import { useEffect as useEffect3, useState as useState8 } from "react";
+import { useEffect as useEffect4, useState as useState8 } from "react";
 import { Box as Box12, Text as Text12 } from "ink";
 import { jsx as jsx12, jsxs as jsxs12 } from "react/jsx-runtime";
 var WORDS = [
@@ -7169,7 +8294,7 @@ var ThinkingIndicator = ({ tokens = 0, label }) => {
   const [frame, setFrame] = useState8(0);
   const [wordIdx, setWordIdx] = useState8(() => Math.floor(Math.random() * WORDS.length));
   const [elapsed, setElapsed] = useState8(0);
-  useEffect3(() => {
+  useEffect4(() => {
     const f = setInterval(() => setFrame((x) => (x + 1) % FRAMES.length), 80);
     const w = setInterval(() => setWordIdx((x) => (x + 1) % WORDS.length), 3200);
     const e = setInterval(() => setElapsed((x) => x + 1), 1e3);
@@ -7285,13 +8410,10 @@ var ApprovalDialog = ({ pending }) => {
 };
 
 // src/components/HintBar.tsx
-import { Box as Box16, Text as Text16, useStdout as useStdout5 } from "ink";
+import { Box as Box16, Text as Text16 } from "ink";
 import { jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
 var HintBar = ({ status = "idle" }) => {
-  const { stdout } = useStdout5();
   const t = useTheme();
-  const termWidth = stdout.columns ?? 80;
-  const contentWidth = Math.min(termWidth - 4, 76);
   const getHints = () => {
     switch (status) {
       case "thinking":
@@ -7739,6 +8861,17 @@ function buildSecretCommand(ctx) {
 // src/commands/model-provider.ts
 init_chat();
 init_config();
+
+// src/utils/model-access.ts
+function getModelPlanRestrictionMessage(modelId) {
+  return [
+    `Access denied: \u201C${modelId}\u201D is not included in your current Codeva plan.`,
+    "Review available plans at https://www.cybermindcli.info/pricing.",
+    "Free accounts can use Trinity or Kali."
+  ].join("\n");
+}
+
+// src/commands/model-provider.ts
 function buildModelCommand(ctx) {
   return {
     name: "model",
@@ -7766,9 +8899,7 @@ Use /model <name> to switch.`);
         const profile = getUserProfile();
         const plan = (profile?.plan || "free").toLowerCase();
         if (plan === "free") {
-          reply(`\u274C Access Denied: The '${name}' model is only available on PRO tiers.
-Please upgrade your plan at https://opencode.ai/zen to use this model.
-You can use 'trinity' or 'kali' on the free tier.`);
+          reply(getModelPlanRestrictionMessage(name));
           return;
         }
       }
@@ -8014,7 +9145,7 @@ Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, session
 
 // src/commands/workflow.ts
 import { existsSync as existsSync19, readFileSync as readFileSync23, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
-import { join as join20, resolve as resolve11 } from "path";
+import { join as join20, resolve as resolve13 } from "path";
 import { parse as parseYaml2 } from "yaml";
 import { z as z10 } from "zod";
 var WORKFLOW_DIR = ".cybercoder/workflows";
@@ -8037,7 +9168,7 @@ function buildWorkflowCommand(ctx) {
     run: async (args) => {
       const trimmed = args.trim();
       const reply = (content) => ctx.appendMessage({ id: `wf-${Date.now()}`, role: "system", content, createdAt: Date.now() });
-      const workflowsDir = resolve11(process.cwd(), WORKFLOW_DIR);
+      const workflowsDir = resolve13(process.cwd(), WORKFLOW_DIR);
       if (!trimmed || trimmed === "list") {
         if (!existsSync19(workflowsDir)) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
@@ -8570,7 +9701,8 @@ Note: Full participant removal would require tracking current agent ID.`);
             }
             reply(`Closed collaboration session "${closeSessionId}" and stopped any associated mirrors.`);
           } else {
-            reply(`Failed to close session "${closeSessionId}". Does it exist?`);
+            const remaining = collabManager.getSession(closeSessionId)?.worktrees ?? {};
+            reply(Object.keys(remaining).length ? `Session "${closeSessionId}" still has managed worktrees. Remove them with /worktree close ${closeSessionId} <agent-id> before closing the session.` : `Failed to close session "${closeSessionId}". Does it exist?`);
           }
           break;
         default:
@@ -8585,8 +9717,8 @@ function buildWorktreeCommand(ctx) {
     name: "worktree",
     description: "Manage git worktrees for parallel agent work.",
     category: "collab",
-    usage: "/worktree <create|list|sync> <session-id> [branch]",
-    run: (args) => {
+    usage: "/worktree <create|list|sync|close> <session-id> [base-ref|agent-id]",
+    run: async (args) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       const reply = (content) => ctx.appendMessage({
         id: `worktree-${Date.now()}`,
@@ -8606,20 +9738,27 @@ function buildWorktreeCommand(ctx) {
       }
       const collabManager = new CollaborationManager();
       switch (command) {
-        case "create":
-          const branch = parts[2] || "main";
-          const worktreePath = collabManager.createWorktree(sessionId, "current-agent", branch);
-          if (worktreePath) {
-            reply(`Created worktree for session "${sessionId}":
+        case "create": {
+          const baseRef = parts[2] || "HEAD";
+          try {
+            const worktreePath = await collabManager.createWorktree(sessionId, "current-agent", baseRef);
+            if (!worktreePath) {
+              reply(`Session "${sessionId}" not found. Create it first with /collab create <name>.`);
+              return;
+            }
+            const branch = await collabManager.getWorktreeBranch(sessionId, "current-agent");
+            reply(`Created isolated Git worktree.
   Path: ${worktreePath}
   Branch: ${branch}
+  Based on: ${baseRef}
 
-Note: Actual git worktree creation would run \`git worktree add ${worktreePath} ${branch}\``);
-          } else {
-            reply(`Failed to create worktree. Does session "${sessionId}" exist?`);
+The selected repository must be clean before creation. Changes remain in this worktree until you commit and run /worktree sync ${sessionId}.`);
+          } catch (error) {
+            reply(`Could not create worktree: ${error instanceof Error ? error.message : String(error)}`);
           }
           break;
-        case "list":
+        }
+        case "list": {
           const session = collabManager.getSession(sessionId);
           if (!session) {
             reply(`Session "${sessionId}" not found.`);
@@ -8635,11 +9774,29 @@ Note: Actual git worktree creation would run \`git worktree add ${worktreePath} 
           }
           reply(worktreeLines.join("\n"));
           break;
-        case "sync":
-          reply(`Sync feature not yet implemented. Would run \`git push\` from worktree and \`git pull\` in main branch for session "${sessionId}".`);
+        }
+        case "sync": {
+          const agentId = parts[2] || "current-agent";
+          try {
+            const branch = await collabManager.mergeWorktree(sessionId, agentId);
+            reply(`Merged local worktree branch "${branch}" into the selected repository. No remote push was made.`);
+          } catch (error) {
+            reply(`Could not merge worktree: ${error instanceof Error ? error.message : String(error)}`);
+          }
           break;
+        }
+        case "close": {
+          const agentId = parts[2] || "current-agent";
+          try {
+            const removed = await collabManager.removeWorktree(sessionId, agentId);
+            reply(removed ? `Removed the clean worktree for agent "${agentId}". Its branch is still available in Git.` : `No worktree found for agent "${agentId}" in session "${sessionId}".`);
+          } catch (error) {
+            reply(`Could not close worktree: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          break;
+        }
         default:
-          reply(`Unknown command "${command}". Use: create, list, sync`);
+          reply(`Unknown command "${command}". Use: create, list, sync, close.`);
           break;
       }
     }
@@ -8930,30 +10087,11 @@ File size: ${html.length} characters`);
 
 // src/commands/ecosystem.ts
 init_src();
-import { existsSync as existsSync20, readFileSync as readFileSync24, writeFileSync as writeFileSync16, mkdirSync as mkdirSync15 } from "fs";
-import { homedir as homedir7 } from "os";
-import { join as join21, dirname as dirname5 } from "path";
-function mcpConfigPath() {
-  return join21(process.cwd(), ".codeva", "mcp.json");
-}
-function readMcp() {
-  for (const p2 of [mcpConfigPath(), join21(homedir7(), ".codeva", "mcp.json")]) {
-    try {
-      if (existsSync20(p2)) return JSON.parse(readFileSync24(p2, "utf8"));
-    } catch {
-    }
-  }
-  return { mcpServers: {} };
-}
-function writeMcp(cfg) {
-  const p2 = mcpConfigPath();
-  mkdirSync15(dirname5(p2), { recursive: true });
-  writeFileSync16(p2, JSON.stringify(cfg, null, 2), "utf8");
-}
+init_src4();
 function buildMCPCommand(ctx) {
   return {
     name: "mcp",
-    description: "Manage MCP servers (.codeva/mcp.json). Tools appear as mcp__<server>__<tool>.",
+    description: "Manage MCP servers (.cyber/mcp.json). Tools appear as mcp__<server>__<tool>.",
     category: "utility",
     usage: "/mcp [add <name> <command...> | remove <name>]",
     run: async (args) => {
@@ -8961,24 +10099,25 @@ function buildMCPCommand(ctx) {
       const reply = (content) => ctx.appendMessage({ id: `mcp-${Date.now()}`, role: "system", content, createdAt: Date.now() });
       const sub = parts[0];
       if (!sub) {
-        const cfg = readMcp();
+        const cfg = readMcpConfig();
         const names = Object.keys(cfg.mcpServers ?? {});
         if (names.length === 0) {
           reply(
             `No MCP servers configured.
 
 Add one: /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem .
-Config file: ${mcpConfigPath()}
+Config file: ${projectMcpConfigPath()}
 Connected servers expose their tools to the agent as mcp__<server>__<tool>. Restart the session after changes.`
           );
           return;
         }
         const lines = ["Configured MCP servers:"];
         for (const n of names) {
-          const s = cfg.mcpServers[n];
+          const s = cfg.mcpServers?.[n];
+          if (!s) continue;
           lines.push(`  \u2022 ${n}: ${s.command} ${(s.args ?? []).join(" ")}`);
         }
-        lines.push("", `Config: ${mcpConfigPath()} \u2014 restart session to apply changes.`);
+        lines.push("", `Config: ${projectMcpConfigPath()} \u2014 restart session to apply changes.`);
         reply(lines.join("\n"));
         return;
       }
@@ -8990,10 +10129,10 @@ Connected servers expose their tools to the agent as mcp__<server>__<tool>. Rest
           reply("Usage: /mcp add <name> <command> [args...]\nExample: /mcp add github npx -y @modelcontextprotocol/server-github");
           return;
         }
-        const cfg = readMcp();
+        const cfg = readMcpConfig();
         cfg.mcpServers = cfg.mcpServers ?? {};
         cfg.mcpServers[name] = { command, args: cmdArgs };
-        writeMcp(cfg);
+        writeProjectMcpConfig(cfg);
         reply(`Added MCP server '${name}'. Restart the session to connect it.`);
         return;
       }
@@ -9003,10 +10142,12 @@ Connected servers expose their tools to the agent as mcp__<server>__<tool>. Rest
           reply("Usage: /mcp remove <name>");
           return;
         }
-        const cfg = readMcp();
-        if (cfg.mcpServers?.[name]) {
-          delete cfg.mcpServers[name];
-          writeMcp(cfg);
+        const cfg = readMcpConfig();
+        const servers = cfg.mcpServers ?? {};
+        if (servers[name]) {
+          delete servers[name];
+          cfg.mcpServers = servers;
+          writeProjectMcpConfig(cfg);
           reply(`Removed MCP server '${name}'. Restart the session to apply.`);
         } else {
           reply(`No MCP server named '${name}'.`);
@@ -9038,8 +10179,8 @@ function buildSkillsMarketplaceCommand(ctx) {
       const ecosystem = new EcosystemManager();
       switch (command) {
         case "list": {
-          const { getSkillRegistry: getSkillRegistry3 } = (init_chat(), __toCommonJS(chat_exports));
-          const registry = getSkillRegistry3();
+          const { getSkillRegistry: getSkillRegistry2 } = (init_chat(), __toCommonJS(chat_exports));
+          const registry = getSkillRegistry2();
           const skills = registry.list();
           const categoryLines = ["\u{1F3AF} Available Skills:", ""];
           if (skills.length === 0) {
@@ -9898,7 +11039,6 @@ function buildCyberCoderCommand(ctx) {
         return;
       }
       const command = parts[0];
-      const customServer = new CustomServerManager();
       switch (command) {
         case "models":
           const cybercoderModels = [
@@ -9928,7 +11068,6 @@ function buildCyberCoderCommand(ctx) {
             return;
           }
           const cybercoderModelId = `codeva-${command}`;
-          const cybercoderModel = customServer.getModel(cybercoderModelId);
           const cybercoderPrompt = parts.slice(1).join(" ");
           if (!cybercoderPrompt) {
             reply("Prompt is required");
@@ -9950,16 +11089,14 @@ function buildCyberCoderCommand(ctx) {
 }
 
 // src/commands/auth.ts
-init_src();
-import { exec as exec2 } from "child_process";
+import { exec as exec3 } from "child_process";
 init_chat();
 init_config();
-var log20 = createLogger("auth");
 var openUrl = (url) => {
   const platform = process.platform;
-  if (platform === "win32") exec2(`start ${url}`);
-  else if (platform === "darwin") exec2(`open ${url}`);
-  else exec2(`xdg-open ${url}`);
+  if (platform === "win32") exec3(`start ${url}`);
+  else if (platform === "darwin") exec3(`open ${url}`);
+  else exec3(`xdg-open ${url}`);
 };
 function buildLoginCommand(ctx) {
   return {
@@ -10233,7 +11370,29 @@ ${guidelines}
 
 // src/commands/compact.ts
 init_chat();
-function buildCompactCommand(ctx) {
+async function summarizeHistory(history, focus, model) {
+  const chatText = history.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
+  const systemPrompt = `You are a conversation compaction assistant. Summarize the chat log into one dense, bulleted handoff that preserves user goals, decisions, files read or edited, commands and checks run, unresolved errors, and next steps.
+${focus ? `Pay particular attention to: ${focus}` : ""}
+Keep the summary under 200 words. Do not introduce yourself or add pleasantries. Start immediately with the bulleted list.`;
+  let summary = "";
+  for await (const chunk of getRouter().chat({
+    model,
+    messages: [{ role: "user", content: chatText }],
+    systemPrompt,
+    temperature: 0.3,
+    maxTokens: 512
+  })) {
+    if (chunk.type === "text") summary += chunk.text;
+    else if (chunk.type === "done" && chunk.reason === "error") {
+      throw new Error(chunk.error ?? "The provider could not summarize this conversation.");
+    }
+  }
+  const result = summary.trim();
+  if (!result) throw new Error("The provider returned an empty summary.");
+  return result;
+}
+function buildCompactCommand(ctx, summarize = summarizeHistory) {
   return {
     name: "compact",
     description: "Compress conversation history to free context window.",
@@ -10261,38 +11420,17 @@ function buildCompactCommand(ctx) {
         reply("\u2139\uFE0F Message history is too brief to require compaction.");
         return;
       }
-      reply("\u28FE Compressing conversation history via active provider...");
-      const chatText = chatHistory.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
-      const systemPrompt = `You are a conversation compaction assistant. Your task is to summarize the preceding developer-assistant chat log into a single, dense, bulleted summary.
-Specify what files have been read/edited, what build/test commands were run, and what tasks remain.
-${focus ? `Focus particularly on: ${focus}` : ""}
-Keep the summary under 200 words. Do not introduce yourself or add pleasantries. Start immediately with the bulleted list.`;
+      reply("\u28FE Compressing conversation history with the active model...");
       try {
-        const router = getRouter();
-        let summary = "";
-        const chunks = router.chat({
-          model: "auto",
-          messages: [{ role: "user", content: chatText }],
-          systemPrompt,
-          temperature: 0.3
-        });
-        for await (const chunk of chunks) {
-          if (chunk.type === "text") {
-            summary += chunk.text;
-          } else if (chunk.type === "done" && chunk.reason === "error") {
-            throw new Error(chunk.error ?? "Unknown model error");
-          }
-        }
-        if (!summary) {
-          throw new Error("Empty summary returned");
-        }
+        const summary = (await summarize(chatHistory, focus, ctx.getModel?.() || "auto")).trim();
+        if (!summary) throw new Error("The provider returned an empty summary.");
         const compactedMessage = {
           id: `compact-summary-${Date.now()}`,
           role: "system",
           content: `[Conversation compacted to free context window]
 
 **Progress summary so far**:
-${summary.trim()}`,
+${summary}`,
           createdAt: Date.now()
         };
         setMessages([compactedMessage]);
@@ -10357,14 +11495,20 @@ function buildTestCommand(ctx) {
     run: (args) => {
       const cmd = args.trim();
       if (!cmd) {
-        ctx.appendMessage({ role: "assistant", type: "text", text: "Usage: /test <command> (e.g. /test npm run test)" });
+        ctx.appendMessage({
+          id: `test-usage-${Date.now()}`,
+          role: "system",
+          content: "Usage: /test <command> (e.g. /test npm run test)",
+          createdAt: Date.now()
+        });
         return;
       }
       const prompt = `Run the following test command: \`${cmd}\`. If it fails with a non-zero exit code, analyze the stderr/stdout, determine why it failed, apply the necessary code fixes using your tools, and then run the test again. Repeat this loop autonomously until the test passes with exit code 0 or you hit a limit of 3 attempts.`;
       ctx.appendMessage({
+        id: `test-prompt-${Date.now()}`,
         role: "user",
-        type: "text",
-        text: prompt
+        content: prompt,
+        createdAt: Date.now()
       });
       ctx.submitUserPrompt?.(prompt);
     }
@@ -10384,9 +11528,10 @@ function buildPRCommand(ctx) {
 3. Push the branch to origin.
 4. Use the \`run_command\` tool with \`gh pr create --title "..." --body "..."\` to open a GitHub Pull Request. You MUST generate a beautiful Markdown body describing the changes, testing steps, and architectural decisions.`;
       ctx.appendMessage({
+        id: `pr-prompt-${Date.now()}`,
         role: "user",
-        type: "text",
-        text: prompt
+        content: prompt,
+        createdAt: Date.now()
       });
       ctx.submitUserPrompt?.(prompt);
     }
@@ -10472,6 +11617,7 @@ function buildCommandRegistry(ctx) {
 
 // src/app.tsx
 init_chat();
+init_chat();
 init_hooks();
 init_config();
 
@@ -10548,6 +11694,9 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [totalCost, setTotalCost] = useState10(0);
   const [status, setStatus] = useState10("idle");
   const [model, setModel] = useState10(initialModel ?? "auto");
+  const [modelOptions, setModelOptions] = useState10([]);
+  const [modelsLoading, setModelsLoading] = useState10(false);
+  const [modelLoadError, setModelLoadError] = useState10();
   const [provider, setProvider] = useState10(initialProvider ?? "auto");
   const [statusMessage, setStatusMessage] = useState10(void 0);
   const [, setPromptColor] = useState10("cyan");
@@ -10556,34 +11705,60 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
   const [pendingApproval, setPendingApproval] = useState10(null);
   const [updateNotice, setUpdateNotice] = useState10("");
   const [terminalHeight, setTerminalHeight] = useState10(process.stdout.rows || 24);
-  useEffect4(() => {
+  useEffect5(() => {
     const handleResize = () => setTerminalHeight(process.stdout.rows || 24);
     process.stdout.on("resize", handleResize);
     return () => {
       process.stdout.off("resize", handleResize);
     };
   }, []);
-  useEffect4(() => {
+  useEffect5(() => {
+    if (screen !== "model") return;
+    let current = true;
+    setModelsLoading(true);
+    setModelLoadError(void 0);
+    setModelOptions([]);
+    void (async () => {
+      try {
+        const provider2 = getRouter().activeProvider(model);
+        const ids = await provider2.listModels();
+        if (!current) return;
+        const options = modelInfosFromIds(ids, provider2.info.displayName);
+        setModelOptions(options);
+        if (options.length === 0) setModelLoadError(`${provider2.info.displayName} did not return any available models.`);
+      } catch (error) {
+        if (!current) return;
+        const detail = error instanceof Error ? error.message : String(error);
+        setModelLoadError(`Could not load models: ${detail}`);
+      } finally {
+        if (current) setModelsLoading(false);
+      }
+    })();
+    return () => {
+      current = false;
+    };
+  }, [screen, model]);
+  useEffect5(() => {
     if (screen === "chat" || screen === "welcome") {
       void getUpdateMessage().then((msg) => {
         if (msg) setUpdateNotice(msg);
       });
     }
   }, [screen]);
-  const streamingIdRef = useRef2(null);
-  const driveChatRef = useRef2(async () => {
+  const streamingIdRef = useRef3(null);
+  const driveChatRef = useRef3(async () => {
   });
-  const approvalUI = useMemo(
+  const approvalUI = useMemo2(
     () => ({
       ask(prompt) {
-        return new Promise((resolve13) => {
+        return new Promise((resolve15) => {
           setPendingApproval({
             toolName: prompt.toolName,
             summary: prompt.summary,
             destructive: prompt.destructive,
             resolve: (decision) => {
               setPendingApproval(null);
-              resolve13(decision);
+              resolve15(decision);
             }
           });
         });
@@ -10598,7 +11773,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
     setMessages([]);
     setWelcomeVisible(true);
   }, []);
-  const commandRegistry = useMemo(
+  const commandRegistry = useMemo2(
     () => buildCommandRegistry({
       clear: clearMessages,
       exit: () => exit(),
@@ -10684,11 +11859,16 @@ ${trimmed}
 `);
             } else if (evt.type === "usage") {
               setTotalTokens((prev) => prev + evt.inputTokens + evt.outputTokens);
-              const costAmt = evt.inputTokens * 3e-6 + evt.outputTokens * 15e-6;
+              const costAmt = evt.cost ?? evt.inputTokens * 3e-6 + evt.outputTokens * 15e-6;
               setTotalCost((prev) => prev + costAmt);
             } else if (evt.type === "context") {
               appendDelta(`
 [\xB7 ${evt.note} \xB7]
+`);
+            } else if (evt.type === "subagent_progress") {
+              const detail = evt.message ? ` \u2014 ${evt.message}` : "";
+              appendDelta(`
+[agent ${evt.agentId} \xB7 ${evt.skill} \xB7 ${evt.status}${detail}]
 `);
             } else if (evt.type === "done") {
               if (evt.reason === "error") {
@@ -10705,7 +11885,7 @@ ${trimmed}
         streamingIdRef.current = null;
         setStatus("idle");
         try {
-          const h = runHooks("postTask", userText);
+          const h = await runHooks("postTask", userText, process.cwd(), approvalUI);
           if (h.output) {
             appendMessage({ id: cryptoRandomId(), role: "system", content: h.output, createdAt: Date.now() });
           }
@@ -10799,9 +11979,7 @@ ${trimmed}
         appendMessage({
           id: cryptoRandomId(),
           role: "system",
-          content: `\u274C Access Denied: The '${modelId}' model is only available on PRO tiers.
-Please upgrade your plan at https://opencode.ai/zen to use this model.
-You can use 'trinity' or 'kali' on the free tier.`,
+          content: getModelPlanRestrictionMessage(modelId),
           createdAt: Date.now()
         });
         setScreen("chat");
@@ -10826,7 +12004,17 @@ You can use 'trinity' or 'kali' on the free tier.`,
       case "settings":
         return /* @__PURE__ */ jsx17(Settings, { onClose: handleSettingsClose });
       case "model":
-        return /* @__PURE__ */ jsx17(ModelPicker, { currentModel: model, onSelect: handleModelSelect, onClose: handleModelClose });
+        return /* @__PURE__ */ jsx17(
+          ModelPicker,
+          {
+            currentModel: model,
+            onSelect: handleModelSelect,
+            onClose: handleModelClose,
+            models: modelOptions,
+            loading: modelsLoading,
+            loadError: modelLoadError
+          }
+        );
       case "release-notes":
         return /* @__PURE__ */ jsx17(ReleaseNotes, { onClose: handleReleaseNotesClose });
       case "trust-workspace":
