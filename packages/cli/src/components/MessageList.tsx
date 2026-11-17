@@ -7,7 +7,7 @@ interface Props {
   messages: SessionMessage[];
 }
 
-function renderFormattedText(text: string, key: any) {
+function renderFormattedText(text: string, key: React.Key) {
   const parts: React.ReactNode[] = [];
   let currentText = '';
   let i = 0;

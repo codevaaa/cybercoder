@@ -92,7 +92,6 @@ export class CodicSubagentCoordinator {
   }
 
   private createTool(): AgentTool {
-    const coordinator = this
     return {
       schema: {
         name: 'spawn_subagents',
@@ -120,11 +119,14 @@ export class CodicSubagentCoordinator {
         },
       },
       execute: async (input: Record<string, unknown>, context: ToolContext): Promise<string> => {
-        const tasks = parseRequestedTasks(input.tasks, coordinator.maxSubagents)
+        const tasks = parseRequestedTasks(input.tasks, this.maxSubagents)
         if (!tasks.ok) return `Error: ${tasks.error}`
-        if (!coordinator.readOnlyTools.length) return 'Error: no read-only project tools are available for specialist agents.'
-        const runId = coordinator.options.getRunId()
+        if (!this.readOnlyTools.length) return 'Error: no read-only project tools are available for specialist agents.'
+        const runId = this.options.getRunId()
         if (!runId) return 'Error: the parent task is no longer active.'
+        if (this.active.size + tasks.tasks.length > this.maxSubagents) {
+          return `Error: starting ${tasks.tasks.length} more specialists would exceed the limit of ${this.maxSubagents} active specialists. Wait for a helper to finish or stop one before starting another team.`
+        }
 
         const results = await Promise.all(tasks.tasks.map(async (task, index) => {
           const agentId = `${runId}-subagent-${index + 1}-${randomUUID().slice(0, 8)}`
@@ -133,10 +135,10 @@ export class CodicSubagentCoordinator {
           const abortFromParent = () => controller.abort()
           if (parentSignal?.aborted) controller.abort()
           else parentSignal?.addEventListener('abort', abortFromParent, { once: true })
-          coordinator.active.set(agentId, controller)
+          this.active.set(agentId, controller)
           const start = Date.now()
-          const model = coordinator.options.model || 'auto'
-          coordinator.options.onProgress({
+          const model = this.options.model || 'auto'
+          this.options.onProgress({
             type: 'subagent_progress', runId, agentId, label: task.label, skill: task.skill,
             status: 'running', model,
           })
@@ -145,18 +147,18 @@ export class CodicSubagentCoordinator {
             const result = await spawnSubagent({
               skill: BUILT_IN_SKILLS[task.skill],
               prompt: `Project-scoped read-only task: ${task.prompt}`,
-              provider: coordinator.options.provider,
-              toolPool: coordinator.readOnlyTools,
+              provider: this.options.provider,
+              toolPool: this.readOnlyTools,
               cwd: context.cwd,
               model,
-              reasoningEffort: coordinator.options.reasoningEffort,
+              reasoningEffort: this.options.reasoningEffort,
               maxIterations: 6,
               agentId,
               signal: controller.signal,
             })
             const summary = truncate(result.summary || (result.reason === 'cancelled' ? 'Stopped by you.' : '(No findings returned.)'), MAX_SUMMARY_LENGTH)
             const status: SubagentProgressStatus = result.reason === 'cancelled' ? 'cancelled' : result.reason === 'error' ? 'error' : 'done'
-            coordinator.options.onProgress({
+            this.options.onProgress({
               type: 'subagent_progress', runId, agentId, label: task.label, skill: task.skill,
               status, model, summary,
               durationMs: Date.now() - start,
@@ -169,7 +171,7 @@ export class CodicSubagentCoordinator {
           } catch (error) {
             const cancelled = controller.signal.aborted
             const message = error instanceof Error ? error.message : 'The specialist agent failed.'
-            coordinator.options.onProgress({
+            this.options.onProgress({
               type: 'subagent_progress', runId, agentId, label: task.label, skill: task.skill,
               status: cancelled ? 'cancelled' : 'error', model,
               durationMs: Date.now() - start,
@@ -178,7 +180,7 @@ export class CodicSubagentCoordinator {
             return { task, summary: '', status: cancelled ? 'cancelled' as const : 'error' as const, error: message }
           } finally {
             parentSignal?.removeEventListener('abort', abortFromParent)
-            coordinator.active.delete(agentId)
+            this.active.delete(agentId)
           }
         }))
 

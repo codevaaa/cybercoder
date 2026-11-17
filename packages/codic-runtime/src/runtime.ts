@@ -94,7 +94,7 @@ export class CodicRuntime {
     );
     this.subagentCoordinator = new CodicSubagentCoordinator({
         provider: this.provider,
-        toolPool: workspaceTools,
+        toolPool: createReadOnlyHelperTools(workspaceTools, this.workspaceRoot),
         getRunId: () => this.currentRunId,
         onProgress: (event) => this.emit(event),
         model: options.model ?? 'auto',
@@ -385,6 +385,56 @@ function createWorkspaceTools(
     execute: (input, context) => runCommand(input, context.signal),
   });
   return fileTools;
+}
+
+/**
+ * Read-only helpers must stay strictly inside the selected project even when
+ * the parent task has Full access. Reuse the registered readers, but apply a
+ * non-interactive path gate before their normal approval-aware wrappers run.
+ */
+function createReadOnlyHelperTools(tools: AgentTool[], workspaceRoot: string): AgentTool[] {
+  const readOnlyNames = new Set(['read_file', 'read_many', 'list_dir', 'grep', 'repo_map']);
+  return tools.filter((tool) => readOnlyNames.has(tool.schema.name)).map((tool) => ({
+    ...tool,
+    destructive: false,
+    async execute(input: Record<string, unknown>, context: ToolContext): Promise<string> {
+      // Resolve existing inputs to their canonical in-project path before the
+      // reader opens them. Passing the checked alias path leaves a symlink
+      // replacement window between validation and readFileSync/readdirSync.
+      const safeInput = constrainReadOnlyToolPaths(workspaceRoot, input);
+      return tool.execute(safeInput, { ...context, cwd: workspaceRoot });
+    },
+    async verify(input: Record<string, unknown>, output: string, context: ToolContext): Promise<string | null> {
+      if (!tool.verify) return null;
+      const safeInput = constrainReadOnlyToolPaths(workspaceRoot, input);
+      return tool.verify(safeInput, output, { ...context, cwd: workspaceRoot });
+    },
+  }));
+}
+
+/** Resolve helper read paths once and pass only the verified target to readers. */
+export function constrainReadOnlyToolPaths(root: string, input: Record<string, unknown>): Record<string, unknown> {
+  const canonicalRoot = realpathSync(root);
+  const result = { ...input };
+  if (Array.isArray(result.paths)) {
+    result.paths = result.paths.map((path) => resolveReadOnlyPath(canonicalRoot, String(path)));
+  }
+  if (typeof result.path === 'string') result.path = resolveReadOnlyPath(canonicalRoot, result.path);
+  return result;
+}
+
+function resolveReadOnlyPath(root: string, requestedPath: string): string {
+  if (!requestedPath || requestedPath.includes('\0')) throw new Error('The requested path is invalid.');
+  const absolute = resolve(root, requestedPath);
+  if (!isWithin(root, absolute)) throw new Error('This action is limited to the selected workspace.');
+  let real: string;
+  try {
+    real = realpathSync(absolute);
+  } catch {
+    throw new Error('The requested path could not be verified safely.');
+  }
+  if (!isWithin(root, real)) throw new Error('This action is limited to the selected workspace.');
+  return real;
 }
 
 function constrainToolPaths(root: string, input: Record<string, unknown>, allowOutside = false): Record<string, unknown> {

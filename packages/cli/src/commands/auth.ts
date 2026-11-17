@@ -11,6 +11,10 @@ import {
   getUserProfile,
 } from '../utils/config.js';
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 const openUrl = (url: string) => {
   const platform = process.platform;
   if (platform === 'win32') exec(`start ${url}`);
@@ -63,8 +67,8 @@ export function buildLoginCommand(ctx: CommandContext): SlashCommandHandler {
           `Session ID: ${authInfo.session_id}\n\n` +
           `🚀 CyberCoder is now online and connected to the cloud!`
         );
-      } catch (err: any) {
-        reply(`✕ Authentication failed: ${err.message || String(err)}`);
+      } catch (err) {
+        reply(`✕ Authentication failed: ${errorMessage(err)}`);
       }
     },
   };
@@ -153,8 +157,8 @@ export function buildProfileCommand(ctx: CommandContext): SlashCommandHandler {
         ];
 
         reply(profileLines.join('\n'));
-      } catch (err: any) {
-        reply(`✕ Failed to load profile: ${err.message || String(err)}`);
+      } catch (err) {
+        reply(`✕ Failed to load profile: ${errorMessage(err)}`);
       }
     },
   };
@@ -185,23 +189,24 @@ export function buildKnowledgeCommand(ctx: CommandContext): SlashCommandHandler 
 
       try {
         const context = await apiClient.getContext(args.trim());
+        const skills = context.knowledge?.skills ?? [];
         const lines = [
           '🧠 Your Knowledge Graph Context',
           '──────────────────────────────────',
           '📊 Learned Skills:',
-          context.knowledge?.skills?.length > 0
-            ? context.knowledge.skills.map((s: any) => `  • ${s.technology} (Level ${s.level})`).join('\n')
+          skills.length > 0
+            ? skills.map((skill) => `  • ${skill.technology} (Level ${skill.level})`).join('\n')
             : '  • No skills recorded yet.',
           '',
           '🏗️ Project Directories:',
-          `  • Current Directory: ${context.current_session.working_directory}`,
+          `  • Current Directory: ${context.current_session?.working_directory ?? 'Unavailable'}`,
           `  • Recent Active Directories:`,
-          ...(context.recent_sessions?.map((s: any) => `    - ${s.directory} (${s.commands} cmds)`) || ['    - None']),
+          ...(context.recent_sessions?.map((session) => `    - ${session.directory} (${session.commands} cmds)`) || ['    - None']),
         ];
 
         reply(lines.join('\n'));
-      } catch (err: any) {
-        reply(`✕ Failed to load knowledge: ${err.message || String(err)}`);
+      } catch (err) {
+        reply(`✕ Failed to load knowledge: ${errorMessage(err)}`);
       }
     },
   };

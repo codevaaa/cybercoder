@@ -20,7 +20,7 @@ export class CyberCoderCodeLensProvider implements vscode.CodeLensProvider {
     this.onDidChangeCodeLensesEmitter.fire()
   }
 
-  provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | null {
+  provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] | null {
     const ranges = this.activeDiffs.get(document.uri.toString())
     if (!ranges || ranges.length === 0) return null
 

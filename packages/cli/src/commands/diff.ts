@@ -1,4 +1,5 @@
 import { CheckpointManager } from '@cybermind/shared';
+import type { Checkpoint, SessionMessage } from '@cybermind/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
@@ -87,26 +88,25 @@ export function buildDiffCommand(ctx: CommandContext): SlashCommandHandler {
   };
 }
 
-function diffCheckpoints(from: any, to: any): {
-  added: any[];
-  removed: any[];
-  modified: any[];
+function diffCheckpoints(from: Checkpoint, to: Checkpoint): {
+  added: SessionMessage[];
+  removed: SessionMessage[];
+  modified: Array<{ id: string; from: SessionMessage; to: SessionMessage }>;
 } {
-  const fromMap = new Map(from.messages.map((m: any) => [m.id, m]));
-  const toMap = new Map(to.messages.map((m: any) => [m.id, m]));
+  const fromMap = new Map(from.messages.map((message) => [message.id, message] as const));
+  const toMap = new Map(to.messages.map((message) => [message.id, message] as const));
 
-  const added: any[] = [];
-  const removed: any[] = [];
-  const modified: any[] = [];
+  const added: SessionMessage[] = [];
+  const removed: SessionMessage[] = [];
+  const modified: Array<{ id: string; from: SessionMessage; to: SessionMessage }> = [];
 
   for (const [id, msg] of toMap) {
     if (!fromMap.has(id)) {
       added.push(msg);
     } else {
-      const fromMsg = fromMap.get(id) as any;
-      const toMsg = msg as any;
-      if (fromMsg && fromMsg.content !== toMsg.content) {
-        modified.push({ id, from: fromMsg, to: toMsg });
+      const fromMsg = fromMap.get(id);
+      if (fromMsg && fromMsg.content !== msg.content) {
+        modified.push({ id, from: fromMsg, to: msg });
       }
     }
   }

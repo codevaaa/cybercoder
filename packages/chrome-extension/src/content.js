@@ -144,7 +144,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     try {
       const getUniqueSelector = (el, index) => {
         // 1. Unambiguous IDs
-        if (el.id && !/^\d|[\-_\d]{5,}/.test(el.id)) {
+        if (el.id && !/^\d|[-_\d]{5,}/.test(el.id)) {
           const sel = `#${CSS.escape(el.id)}`;
           if (document.querySelectorAll(sel).length === 1) return sel;
         }
@@ -193,7 +193,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             }
           }
           const tagName = parent.tagName.toLowerCase();
-          if (parent.id && !/^\d|[\-_\d]{5,}/.test(parent.id)) {
+          if (parent.id && !/^\d|[-_\d]{5,}/.test(parent.id)) {
             path.unshift(`#${CSS.escape(parent.id)}`);
             break;
           } else if (sibCount > 1) {
@@ -228,11 +228,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     try {
       // Use the native browser API to capture the visible area
       // We create a canvas and draw the page content
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-
       // For a proper screenshot, we use the background script's chrome.tabs.captureVisibleTab
       // From content script, we can only provide page metadata + a DOM snapshot
       const info = {

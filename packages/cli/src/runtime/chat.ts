@@ -1,4 +1,4 @@
-import { runAgentLoop, type AgentEvent, type ToolContext } from '@cybermind/core';
+import { runAgentLoop, type AgentEvent, type AgentTool, type ToolContext } from '@cybermind/core';
 import { runGoal, runPlan } from '@cybermind/core';
 import { ProviderRouter, type ProviderId } from '@cybermind/providers';
 import type { ProviderMessage } from '@cybermind/providers';
@@ -15,7 +15,7 @@ import {
 import { SkillRegistry, buildSpawnSubagentTool, buildSpawnTeamTool } from '@cybermind/skills';
 import { CollaborationManager } from '@cybermind/shared';
 import type { SessionMessage } from '../state/session.js';
-import { loadConfig } from '../utils/config.js';
+import { loadConfig, type UserConfig } from '../utils/config.js';
 import { getGitContext, gitContextPrompt } from '../utils/git-context.js';
 import { projectMemoryPrompt } from '../utils/project-memory.js';
 import { runHooks } from './hooks.js';
@@ -68,7 +68,7 @@ export function getSkillRegistry(): SkillRegistry {
   return singletonRegistry;
 }
 
-function defaultProviderOrder(config: any, configKeys: Record<string, string>): ProviderId[] {
+function defaultProviderOrder(config: UserConfig, configKeys: Record<string, string>): ProviderId[] {
   const order: ProviderId[] = [];
   const cloudApiKey = process.env.CYBERMIND_API_KEY ?? config.authToken ?? configKeys.cybercoder ?? configKeys.cybercoder_cloud;
   
@@ -166,7 +166,7 @@ async function buildAgentTools(
   approvalUI?: ApprovalUI,
   additionalSystemPrompt = '',
   onProgress?: (event: Extract<AgentEvent, { type: 'subagent_progress' }>) => void,
-): Promise<{ tools: any[]; systemPrompt: string }> {
+): Promise<{ tools: AgentTool[]; systemPrompt: string }> {
   const router = getRouter();
   const registry = getSkillRegistry();
   const hookApprovalUI = approvalUI ?? new HeadlessApprovalUI();
@@ -242,7 +242,7 @@ async function buildAgentTools(
       .map(s => `\n--- SKILL INJECTED: ${s.frontmatter?.name} ---\n${s.body}`);
       
     dynamicSkillsBlock = [skillList, ...injected].filter(Boolean).join('\n\n');
-  } catch(e) {}
+  } catch {}
 
   const systemPrompt = [SYSTEM_PROMPT, additionalSystemPrompt, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join('\n\n');
 

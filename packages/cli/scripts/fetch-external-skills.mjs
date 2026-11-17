@@ -79,7 +79,7 @@ ${readme}
     writeFileSync(join(destFolder, 'SKILL.md'), skillContent);
     console.log(`✅ Installed skill: ${skillName}`);
     
-  } catch (err) {
+  } catch {
     console.log(`❌ Failed to fetch ${repoName}`);
   }
 }

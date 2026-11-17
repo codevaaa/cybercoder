@@ -87,7 +87,7 @@ export async function spawnSubagent(opts: SpawnSubagentOptions): Promise<Subagen
 
   let summary = '';
   let toolCalls = 0;
-  let usage = { inputTokens: 0, outputTokens: 0 };
+  const usage = { inputTokens: 0, outputTokens: 0 };
   let reason: SubagentResult['reason'] = 'end_turn';
   let error: string | undefined;
 

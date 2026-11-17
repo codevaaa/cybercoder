@@ -38,8 +38,8 @@ export const runCommandTool: AgentTool = {
         if (secrets.length > 0) {
           throw new Error(`[SECURITY ALERT] Blocked git commit. Detected secrets: ${secrets.join(', ')}`);
         }
-      } catch (err: any) {
-        if (err.message.includes('SECURITY ALERT')) throw err;
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('SECURITY ALERT')) throw error;
       }
     }
 

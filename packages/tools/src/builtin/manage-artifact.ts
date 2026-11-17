@@ -37,8 +37,8 @@ export const manageArtifactTool: AgentTool = {
       if (!existsSync(filePath)) return `Artifact ${filename} does not exist.`;
       try {
         return readFileSync(filePath, 'utf8');
-      } catch (e: any) {
-        return `Failed to read artifact: ${e.message}`;
+      } catch (error) {
+        return `Failed to read artifact: ${error instanceof Error ? error.message : String(error)}`;
       }
     }
 
@@ -47,8 +47,8 @@ export const manageArtifactTool: AgentTool = {
       try {
         writeFileSync(filePath, content, 'utf8');
         return `Artifact ${filename} saved successfully to ${ARTIFACT_DIR}/${filename}`;
-      } catch (e: any) {
-        return `Failed to write artifact: ${e.message}`;
+      } catch (error) {
+        return `Failed to write artifact: ${error instanceof Error ? error.message : String(error)}`;
       }
     }
 

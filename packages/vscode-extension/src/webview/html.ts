@@ -18,7 +18,7 @@ function nonce(): string {
  * - CLI bridge status indicator
  * - Smooth animations
  */
-export function getChatHtml(webview: vscode.Webview, _extUri: vscode.Uri): string {
+export function getChatHtml(webview: vscode.Webview): string {
   const n = nonce()
   const csp = [
     `default-src 'none'`,

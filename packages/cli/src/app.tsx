@@ -233,9 +233,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
           model,
           approvalUI,
           onEvent: (evt) => {
-            if ((evt as any).type === 'status') {
-              setStatusMessage((evt as any).text || (evt as any).content || (evt as any).message);
-            } else if (evt.type === 'text') {
+            if (evt.type === 'text') {
               if (statusMessage) setStatusMessage(undefined);
               appendDelta(evt.text);
             } else if (evt.type === 'tool_call') {

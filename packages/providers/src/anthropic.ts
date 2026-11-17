@@ -90,30 +90,39 @@ export class AnthropicProvider implements LLMProvider {
 
       const handleEvent = (raw: string): { text?: string } | undefined => {
         if (!raw.trim()) return undefined;
-        let data: Record<string, any>;
+        let data: Record<string, unknown>;
         try {
-          data = JSON.parse(raw) as Record<string, any>;
+          const parsed: unknown = JSON.parse(raw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+          data = parsed as Record<string, unknown>;
         } catch {
           return undefined;
         }
 
         const type = eventType || String(data.type ?? '');
-        if (type === 'message_start') inputTokens = data.message?.usage?.input_tokens;
-        if (type === 'message_delta') {
-          outputTokens = data.usage?.output_tokens ?? outputTokens;
-          stopReason = data.delta?.stop_reason ?? stopReason;
+        if (type === 'message_start') {
+          const message = asRecord(data.message);
+          const usage = asRecord(message?.usage);
+          if (typeof usage?.input_tokens === 'number') inputTokens = usage.input_tokens;
         }
-        if (type === 'content_block_start' && data.content_block?.type === 'tool_use') {
+        if (type === 'message_delta') {
+          const usage = asRecord(data.usage);
+          const delta = asRecord(data.delta);
+          if (typeof usage?.output_tokens === 'number') outputTokens = usage.output_tokens;
+          if (typeof delta?.stop_reason === 'string') stopReason = delta.stop_reason;
+        }
+        const contentBlock = asRecord(data.content_block);
+        if (type === 'content_block_start' && contentBlock?.type === 'tool_use') {
           toolBlocks.set(Number(data.index), {
-            id: String(data.content_block.id ?? `tool-${data.index}`),
-            name: String(data.content_block.name ?? ''),
-            json: Object.keys(data.content_block.input ?? {}).length
-              ? JSON.stringify(data.content_block.input)
+            id: String(contentBlock.id ?? `tool-${data.index}`),
+            name: String(contentBlock.name ?? ''),
+            json: Object.keys(asRecord(contentBlock.input) ?? {}).length
+              ? JSON.stringify(contentBlock.input)
               : '',
           });
         }
         if (type === 'content_block_delta') {
-          const delta = data.delta;
+          const delta = asRecord(data.delta);
           if (delta?.type === 'text_delta' && typeof delta.text === 'string') return { text: delta.text };
           if (delta?.type === 'input_json_delta') {
             const block = toolBlocks.get(Number(data.index));
@@ -199,4 +208,10 @@ function toAnthropicMessages(messages: ProviderMessage[]): Array<{ role: 'user' 
     result.push({ role: message.role, content: content.length ? content : [{ type: 'text', text: '' }] });
   }
   return result;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }

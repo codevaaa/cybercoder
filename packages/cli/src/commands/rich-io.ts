@@ -84,8 +84,9 @@ export function buildMermaidCommand(ctx: CommandContext): SlashCommandHandler {
       const richIO = new RichIOManager();
 
       if (parts[0] === 'theme' && parts[1]) {
-        const theme = parts[1] as any;
-        if (!['default', 'dark', 'forest', 'neutral'].includes(theme)) {
+        const themes = ['default', 'dark', 'forest', 'neutral'] as const;
+        const theme = themes.find((candidate) => candidate === parts[1]);
+        if (!theme) {
           reply('Invalid theme. Use: default, dark, forest, neutral');
           return;
         }

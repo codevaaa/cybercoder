@@ -24,14 +24,16 @@ export interface MirrorClient {
   type: 'cli' | 'web';
   connectedAt: number;
   lastActivity: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
+
+export type MirrorMessage = Record<string, unknown>;
 
 export interface MirrorState {
   /** Current messages in the session */
-  messages: any[];
+  messages: MirrorMessage[];
   /** Active agents and their status */
-  agents: Record<string, any>;
+  agents: Record<string, unknown>;
   /** Shared cursor positions */
   cursors: Record<string, { line: number; column: number; file: string }>;
   /** UI state sync */
@@ -53,12 +55,12 @@ const MirrorSessionSchema = z.object({
     type: z.enum(['cli', 'web']),
     connectedAt: z.number(),
     lastActivity: z.number(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })),
   state: z.object({
-    messages: z.array(z.unknown()),
-    agents: z.record(z.unknown()),
-    cursors: z.record(z.object({
+    messages: z.array(z.record(z.string(), z.unknown())),
+    agents: z.record(z.string(), z.unknown()),
+    cursors: z.record(z.string(), z.object({
       line: z.number(),
       column: z.number(),
       file: z.string(),
@@ -125,7 +127,7 @@ export class WebMirrorManager {
   }
 
   /** Add a client to a mirror session */
-  addClient(mirrorId: string, clientType: 'cli' | 'web', metadata?: Record<string, any>): string | null {
+  addClient(mirrorId: string, clientType: 'cli' | 'web', metadata?: Record<string, unknown>): string | null {
     const mirror = this.sessions.get(mirrorId);
     if (!mirror) return null;
 
@@ -190,7 +192,7 @@ export class WebMirrorManager {
   }
 
   /** Add a message to the mirror */
-  addMessage(mirrorId: string, message: any): boolean {
+  addMessage(mirrorId: string, message: MirrorMessage): boolean {
     const mirror = this.sessions.get(mirrorId);
     if (!mirror) return false;
 
@@ -329,12 +331,12 @@ export class WebMirrorManager {
     log.debug('Broadcasting state update', { mirrorId: mirror.id });
   }
 
-  private broadcastCursorUpdate(mirror: MirrorSession, agentId: string, position: any): void {
+  private broadcastCursorUpdate(mirror: MirrorSession, agentId: string, position: MirrorState['cursors'][string]): void {
     // In a real implementation, this would broadcast via WebSocket
     log.debug('Broadcasting cursor update', { mirrorId: mirror.id, agentId, position });
   }
 
-  private broadcastMessage(mirror: MirrorSession, message: any): void {
+  private broadcastMessage(mirror: MirrorSession, message: MirrorMessage): void {
     // In a real implementation, this would broadcast via WebSocket
     log.debug('Broadcasting message', { mirrorId: mirror.id, messageRole: message.role });
   }

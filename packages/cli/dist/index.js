@@ -1,30 +1,18 @@
 #!/usr/bin/env node
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
 };
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // ../shared/src/types.ts
 import { z } from "zod";
@@ -43,7 +31,7 @@ var init_types = __esm({
         z.object({
           id: z.string(),
           name: z.string(),
-          input: z.record(z.unknown())
+          input: z.record(z.string(), z.unknown())
         })
       ).optional(),
       /** Optional reference back to a tool call when role === 'tool'. */
@@ -459,7 +447,14 @@ var init_profiles = __esm({
           log2.warn("Cannot reset unknown profile", { name });
           return false;
         }
-        const { name: _, ...configWithoutName } = defaultConfig;
+        const configWithoutName = {
+          model: defaultConfig.model,
+          provider: defaultConfig.provider,
+          approvalMode: defaultConfig.approvalMode,
+          telemetryEnabled: defaultConfig.telemetryEnabled,
+          autoCheckpoint: defaultConfig.autoCheckpoint,
+          accentColor: defaultConfig.accentColor
+        };
         return this.updateProfile(name, configWithoutName);
       }
       loadSettings() {
@@ -555,7 +550,7 @@ var init_collaboration = __esm({
       createdAt: z4.number(),
       participants: z4.array(z4.string()),
       worktrees: z4.record(z4.string(), z4.string()),
-      sharedContext: z4.record(z4.unknown()),
+      sharedContext: z4.record(z4.string(), z4.unknown()),
       status: z4.enum(["active", "paused", "completed"])
     });
     CollaborationManager = class {
@@ -789,12 +784,12 @@ var init_web_mirror = __esm({
         type: z5.enum(["cli", "web"]),
         connectedAt: z5.number(),
         lastActivity: z5.number(),
-        metadata: z5.record(z5.unknown()).optional()
+        metadata: z5.record(z5.string(), z5.unknown()).optional()
       })),
       state: z5.object({
-        messages: z5.array(z5.unknown()),
-        agents: z5.record(z5.unknown()),
-        cursors: z5.record(z5.object({
+        messages: z5.array(z5.record(z5.string(), z5.unknown())),
+        agents: z5.record(z5.string(), z5.unknown()),
+        cursors: z5.record(z5.string(), z5.object({
           line: z5.number(),
           column: z5.number(),
           file: z5.string()
@@ -1065,7 +1060,7 @@ var init_rich_io = __esm({
     CostMetricsSchema = z6.object({
       totalTokens: z6.number(),
       totalCost: z6.number(),
-      modelBreakdown: z6.record(z6.object({
+      modelBreakdown: z6.record(z6.string(), z6.object({
         tokens: z6.number(),
         cost: z6.number()
       })),
@@ -1357,7 +1352,7 @@ var init_rich_io = __esm({
 });
 
 // ../shared/src/ecosystem.ts
-import { existsSync as existsSync7, mkdirSync as mkdirSync6, readFileSync as readFileSync6, writeFileSync as writeFileSync6 } from "fs";
+import { existsSync as existsSync7, mkdirSync as mkdirSync6, readFileSync as readFileSync6, readdirSync as readdirSync4, writeFileSync as writeFileSync6 } from "fs";
 import { join as join7 } from "path";
 import { z as z7 } from "zod";
 var log6, TelemetrySettingsSchema, EcosystemManager;
@@ -1497,8 +1492,9 @@ var init_ecosystem = __esm({
       isTelemetryEnabled() {
         return this.telemetrySettings.enabled;
       }
-      recordUsage(event2, _data) {
+      recordUsage(event2, data) {
         if (!this.telemetrySettings.enabled) return;
+        void data;
         log6.debug("Usage recorded", { event: event2, level: this.telemetrySettings.level });
       }
       // Private helper methods
@@ -1602,8 +1598,7 @@ var init_ecosystem = __esm({
       getInstalledSkills() {
         try {
           if (!existsSync7(this.skillsDir)) return [];
-          const { readdirSync: readdirSync11 } = __require("fs");
-          const files = readdirSync11(this.skillsDir).filter((f) => f.endsWith(".json"));
+          const files = readdirSync4(this.skillsDir).filter((file) => file.endsWith(".json"));
           const skills = [];
           for (const file of files) {
             try {
@@ -2441,24 +2436,6 @@ var init_consensus = __esm({
 });
 
 // ../core/src/plan-act.ts
-async function runPlan(messages, opts) {
-  const readonly = opts.tools.filter((t) => !t.destructive);
-  let text = "";
-  for await (const evt of runAgentLoop(messages, {
-    provider: opts.provider,
-    systemPrompt: PLAN_SYSTEM,
-    model: opts.model ?? "auto",
-    tools: readonly,
-    cwd: opts.cwd,
-    maxIterations: 6,
-    signal: opts.signal
-  })) {
-    opts.onEvent?.(evt);
-    if (evt.type === "text") text += evt.text;
-  }
-  const steps = text.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("STEP:")).map((l) => l.replace(/^STEP:\s*/, ""));
-  return { plan: text.trim(), steps };
-}
 async function* runGoal(initialMessages, opts) {
   const maxRounds = opts.maxRounds ?? 8;
   const system = `${opts.systemPrompt ?? ""}${GOAL_SYSTEM_SUFFIX}`;
@@ -2498,16 +2475,11 @@ async function* runGoal(initialMessages, opts) {
   }
   yield { type: "done", reason: "max_iterations" };
 }
-var PLAN_SYSTEM, GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
+var GOAL_SENTINEL, GOAL_SYSTEM_SUFFIX;
 var init_plan_act = __esm({
   "../core/src/plan-act.ts"() {
     "use strict";
     init_agent_loop();
-    PLAN_SYSTEM = `You are in PLANNING mode. Produce a concise, ordered implementation
-plan for the user's goal. Use read-only tools (read_file, read_many, list_dir,
-grep, web_search) to ground the plan in the actual codebase. DO NOT modify any
-files or run mutating commands. End with a numbered task list, one task per line,
-prefixed "STEP:".`;
     GOAL_SENTINEL = "GOAL_COMPLETE";
     GOAL_SYSTEM_SUFFIX = `
 
@@ -2656,9 +2628,10 @@ var init_cybermind_cloud = __esm({
             }
           }
           yield { type: "done", reason: "stop" };
-        } catch (err) {
-          log11.error("Codeva Cloud chat failed", err);
-          yield { type: "done", reason: "error", error: err.message || String(err) };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log11.error("Codeva Cloud chat failed", message);
+          yield { type: "done", reason: "error", error: message };
         }
       }
     };
@@ -2687,6 +2660,9 @@ function toAnthropicMessages(messages) {
     result.push({ role: message.role, content: content.length ? content : [{ type: "text", text: "" }] });
   }
   return result;
+}
+function asRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : void 0;
 }
 var log12, AnthropicProvider;
 var init_anthropic = __esm({
@@ -2766,25 +2742,34 @@ var init_anthropic = __esm({
             if (!raw.trim()) return void 0;
             let data;
             try {
-              data = JSON.parse(raw);
+              const parsed = JSON.parse(raw);
+              if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return void 0;
+              data = parsed;
             } catch {
               return void 0;
             }
             const type = eventType || String(data.type ?? "");
-            if (type === "message_start") inputTokens = data.message?.usage?.input_tokens;
-            if (type === "message_delta") {
-              outputTokens = data.usage?.output_tokens ?? outputTokens;
-              stopReason = data.delta?.stop_reason ?? stopReason;
+            if (type === "message_start") {
+              const message = asRecord(data.message);
+              const usage = asRecord(message?.usage);
+              if (typeof usage?.input_tokens === "number") inputTokens = usage.input_tokens;
             }
-            if (type === "content_block_start" && data.content_block?.type === "tool_use") {
+            if (type === "message_delta") {
+              const usage = asRecord(data.usage);
+              const delta = asRecord(data.delta);
+              if (typeof usage?.output_tokens === "number") outputTokens = usage.output_tokens;
+              if (typeof delta?.stop_reason === "string") stopReason = delta.stop_reason;
+            }
+            const contentBlock = asRecord(data.content_block);
+            if (type === "content_block_start" && contentBlock?.type === "tool_use") {
               toolBlocks.set(Number(data.index), {
-                id: String(data.content_block.id ?? `tool-${data.index}`),
-                name: String(data.content_block.name ?? ""),
-                json: Object.keys(data.content_block.input ?? {}).length ? JSON.stringify(data.content_block.input) : ""
+                id: String(contentBlock.id ?? `tool-${data.index}`),
+                name: String(contentBlock.name ?? ""),
+                json: Object.keys(asRecord(contentBlock.input) ?? {}).length ? JSON.stringify(contentBlock.input) : ""
               });
             }
             if (type === "content_block_delta") {
-              const delta = data.delta;
+              const delta = asRecord(data.delta);
               if (delta?.type === "text_delta" && typeof delta.text === "string") return { text: delta.text };
               if (delta?.type === "input_json_delta") {
                 const block = toolBlocks.get(Number(data.index));
@@ -2994,7 +2979,7 @@ var init_openai = __esm({
                         if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
                       }
                     }
-                  } catch (err) {
+                  } catch {
                   }
                 }
               }
@@ -3006,7 +2991,7 @@ var init_openai = __esm({
               let parsedArgs = {};
               try {
                 parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
-              } catch (e) {
+              } catch {
                 log13.warn("Failed to parse tool arguments JSON", tc.arguments);
               }
               yield {
@@ -3613,7 +3598,7 @@ var init_secrets = __esm({
 });
 
 // ../tools/src/workspace-checkpoint.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync4, rmSync as rmSync2 } from "fs";
+import { existsSync as existsSync11, mkdirSync as mkdirSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync10, readdirSync as readdirSync5, rmSync as rmSync2 } from "fs";
 import { homedir as homedir3 } from "os";
 import { join as join9, resolve as resolve4, relative as relative2, dirname as dirname2 } from "path";
 import { createHash as createHash2 } from "crypto";
@@ -3668,7 +3653,7 @@ var init_workspace_checkpoint = __esm({
       list() {
         if (!existsSync11(this.dir)) return [];
         const out = [];
-        for (const name of readdirSync4(this.dir)) {
+        for (const name of readdirSync5(this.dir)) {
           const manifest = join9(this.dir, name, "manifest.json");
           if (existsSync11(manifest)) {
             try {
@@ -3878,7 +3863,6 @@ var init_mcp_client = __esm({
         if (!proc || !proc.pid || proc.exitCode !== null || proc.signalCode !== null) return;
         try {
           await new Promise((resolve15) => {
-            let gracefulTimer;
             let forceTimer;
             let settled = false;
             const finish = () => {
@@ -3890,8 +3874,7 @@ var init_mcp_client = __esm({
               resolve15();
             };
             proc.once("exit", finish);
-            if (proc.exitCode !== null || proc.signalCode !== null) return finish();
-            gracefulTimer = setTimeout(() => {
+            const gracefulTimer = setTimeout(() => {
               if (proc.exitCode !== null || proc.signalCode !== null) return finish();
               try {
                 proc.kill("SIGTERM");
@@ -3907,6 +3890,7 @@ var init_mcp_client = __esm({
                 finish();
               }, timeoutMs);
             }, timeoutMs);
+            if (proc.exitCode !== null || proc.signalCode !== null) return finish();
             try {
               proc.stdin.end();
             } catch {
@@ -4237,7 +4221,7 @@ var init_edit = __esm({
 });
 
 // ../tools/src/builtin/list-dir.ts
-import { readdirSync as readdirSync5, statSync as statSync2 } from "fs";
+import { readdirSync as readdirSync6, statSync as statSync2 } from "fs";
 import { join as join11, resolve as resolve9 } from "path";
 var MAX_ENTRIES, listDirTool;
 var init_list_dir = __esm({
@@ -4260,7 +4244,7 @@ var init_list_dir = __esm({
       async execute(input, ctx) {
         const path3 = String(input.path ?? ".");
         const abs = resolve9(ctx.cwd, path3);
-        const entries = readdirSync5(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
+        const entries = readdirSync6(abs, { withFileTypes: true }).slice(0, MAX_ENTRIES);
         const lines = [];
         for (const e of entries) {
           const full = join11(abs, e.name);
@@ -4281,11 +4265,72 @@ var init_list_dir = __esm({
 });
 
 // ../tools/src/builtin/grep.ts
-import { readdirSync as readdirSync6, readFileSync as readFileSync16, statSync as statSync3 } from "fs";
+import { lstatSync, readdirSync as readdirSync7, readFileSync as readFileSync16 } from "fs";
 import { join as join12, resolve as resolve10 } from "path";
-function extToRegex(glob) {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return new RegExp(`${escaped}$`, "i");
+function grepWorkspace(pattern, root, options = {}) {
+  if (!pattern) throw new Error("grep requires a pattern");
+  if (pattern.length > MAX_PATTERN_CHARS) throw new Error(`grep patterns are limited to ${MAX_PATTERN_CHARS} characters.`);
+  const normalizedInclude = options.include?.replace(/\\/g, "/");
+  if (normalizedInclude && normalizedInclude.length > MAX_INCLUDE_CHARS) {
+    throw new Error(`grep include filters are limited to ${MAX_INCLUDE_CHARS} characters.`);
+  }
+  const flags = options.caseSensitive ? "" : "i";
+  const re = new RegExp(pattern, flags);
+  const includePattern = normalizedInclude && !normalizedInclude.includes("/") ? `**/${normalizedInclude}` : normalizedInclude;
+  const include = includePattern ? globToRegex(includePattern) : null;
+  const matches = [];
+  walk(root, (file) => {
+    if (matches.length >= MAX_MATCHES) return false;
+    if (include && !include.test(file.replace(/\\/g, "/"))) return true;
+    try {
+      const stat = lstatSync(file);
+      if (stat.isSymbolicLink() || !stat.isFile() || stat.size > MAX_FILE_BYTES) return true;
+      const text = readFileSync16(file, "utf8");
+      const lines = text.split("\n");
+      for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
+        const line = lines[i] ?? "";
+        if (re.test(line)) {
+          matches.push(`${file}:${i + 1}: ${line}`);
+        }
+      }
+    } catch {
+    }
+    return true;
+  });
+  if (matches.length === 0) return `(no matches for /${pattern}/${flags})`;
+  return matches.join("\n");
+}
+function globToRegex(glob) {
+  let pattern = "";
+  let braceDepth = 0;
+  for (let index = 0; index < glob.length; index++) {
+    const char = glob[index];
+    if (!char) continue;
+    if (char === "*" && glob[index + 1] === "*") {
+      index++;
+      if (glob[index + 1] === "/") {
+        pattern += "(?:.*/)?";
+        index++;
+      } else {
+        pattern += ".*";
+      }
+    } else if (char === "*") {
+      pattern += "[^/]*";
+    } else if (char === "?") {
+      pattern += "[^/]";
+    } else if (char === "{") {
+      braceDepth++;
+      pattern += "(?:";
+    } else if (char === "}" && braceDepth > 0) {
+      braceDepth--;
+      pattern += ")";
+    } else if (char === "," && braceDepth > 0) {
+      pattern += "|";
+    } else {
+      pattern += /[.+^$()|[\]\\]/.test(char) ? `\\${char}` : char;
+    }
+  }
+  return new RegExp(`${pattern}$`, "i");
 }
 function walk(root, visit) {
   const stack = [root];
@@ -4293,10 +4338,11 @@ function walk(root, visit) {
     const cur = stack.pop();
     let stat;
     try {
-      stat = statSync3(cur);
+      stat = lstatSync(cur);
     } catch {
       continue;
     }
+    if (stat.isSymbolicLink()) continue;
     if (stat.isFile()) {
       if (!visit(cur)) return;
       continue;
@@ -4304,22 +4350,25 @@ function walk(root, visit) {
     if (!stat.isDirectory()) continue;
     let entries;
     try {
-      entries = readdirSync6(cur, { withFileTypes: true });
+      entries = readdirSync7(cur, { withFileTypes: true });
     } catch {
       continue;
     }
     for (const e of entries) {
+      if (e.isSymbolicLink()) continue;
       if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
-      stack.push(join12(cur, e.name));
+      if (e.isDirectory() || e.isFile()) stack.push(join12(cur, e.name));
     }
   }
 }
-var MAX_MATCHES, MAX_FILE_BYTES, SKIP_DIRS, grepTool;
+var MAX_MATCHES, MAX_FILE_BYTES, MAX_PATTERN_CHARS, MAX_INCLUDE_CHARS, SKIP_DIRS, grepTool;
 var init_grep = __esm({
   "../tools/src/builtin/grep.ts"() {
     "use strict";
     MAX_MATCHES = 200;
     MAX_FILE_BYTES = 2e6;
+    MAX_PATTERN_CHARS = 512;
+    MAX_INCLUDE_CHARS = 256;
     SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".turbo", ".next", ".cache"]);
     grepTool = {
       schema: {
@@ -4340,43 +4389,24 @@ var init_grep = __esm({
       async execute(input, ctx) {
         const pattern = String(input.pattern ?? "");
         if (!pattern) throw new Error("grep requires a pattern");
-        const flags = input.case_sensitive ? "g" : "gi";
-        const re = new RegExp(pattern, flags);
         const root = resolve10(ctx.cwd, String(input.path ?? "."));
-        const include = typeof input.include === "string" ? extToRegex(input.include) : null;
-        const matches = [];
-        walk(root, (file) => {
-          if (matches.length >= MAX_MATCHES) return false;
-          if (include && !include.test(file)) return true;
-          try {
-            const stat = statSync3(file);
-            if (stat.size > MAX_FILE_BYTES) return true;
-            const text = readFileSync16(file, "utf8");
-            const lines = text.split("\n");
-            for (let i = 0; i < lines.length && matches.length < MAX_MATCHES; i++) {
-              const line = lines[i] ?? "";
-              if (re.test(line)) {
-                matches.push(`${file}:${i + 1}: ${line}`);
-              }
-            }
-          } catch {
-          }
-          return true;
+        const include = typeof input.include === "string" && input.include ? input.include : void 0;
+        return grepWorkspace(pattern, root, {
+          ...include ? { include } : {},
+          caseSensitive: Boolean(input.case_sensitive)
         });
-        if (matches.length === 0) return `(no matches for /${pattern}/${flags})`;
-        return matches.join("\n");
       }
     };
   }
 });
 
 // ../tools/src/builtin/repo-map.ts
-import { readdirSync as readdirSync7, readFileSync as readFileSync17, statSync as statSync4 } from "fs";
+import { readdirSync as readdirSync8, readFileSync as readFileSync17, statSync as statSync3 } from "fs";
 import { join as join13, resolve as resolve11, relative as relative3, extname } from "path";
 function extractSymbols(file) {
   let text;
   try {
-    const st = statSync4(file);
+    const st = statSync3(file);
     if (st.size > 4e5) return [];
     text = readFileSync17(file, "utf8");
   } catch {
@@ -4466,7 +4496,7 @@ var init_repo_map = __esm({
           if (depth > maxDepth || files.length >= MAX_FILES2) return;
           let entries;
           try {
-            entries = readdirSync7(dir, { withFileTypes: true });
+            entries = readdirSync8(dir, { withFileTypes: true });
           } catch {
             return;
           }
@@ -4511,7 +4541,7 @@ var init_repo_map = __esm({
 });
 
 // ../tools/src/builtin/project-memory-tool.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync13, readFileSync as readFileSync18, writeFileSync as writeFileSync14, statSync as statSync5 } from "fs";
+import { existsSync as existsSync14, mkdirSync as mkdirSync13, readFileSync as readFileSync18, writeFileSync as writeFileSync14, statSync as statSync4 } from "fs";
 import { join as join14 } from "path";
 function p(cwd2, ...parts) {
   return join14(cwd2, CYBER_DIR, ...parts);
@@ -4676,8 +4706,8 @@ var init_run_command = __esm({
             if (secrets.length > 0) {
               throw new Error(`[SECURITY ALERT] Blocked git commit. Detected secrets: ${secrets.join(", ")}`);
             }
-          } catch (err) {
-            if (err.message.includes("SECURITY ALERT")) throw err;
+          } catch (error) {
+            if (error instanceof Error && error.message.includes("SECURITY ALERT")) throw error;
           }
         }
         let finalCommand = command;
@@ -4930,8 +4960,8 @@ var init_manage_artifact = __esm({
           if (!existsSync15(filePath)) return `Artifact ${filename} does not exist.`;
           try {
             return readFileSync19(filePath, "utf8");
-          } catch (e) {
-            return `Failed to read artifact: ${e.message}`;
+          } catch (error) {
+            return `Failed to read artifact: ${error instanceof Error ? error.message : String(error)}`;
           }
         }
         if (action === "write") {
@@ -4939,8 +4969,8 @@ var init_manage_artifact = __esm({
           try {
             writeFileSync15(filePath, content, "utf8");
             return `Artifact ${filename} saved successfully to ${ARTIFACT_DIR}/${filename}`;
-          } catch (e) {
-            return `Failed to write artifact: ${e.message}`;
+          } catch (error) {
+            return `Failed to write artifact: ${error instanceof Error ? error.message : String(error)}`;
           }
         }
         return "Invalid action";
@@ -4967,7 +4997,7 @@ var init_semantic_search = __esm({
         }
       },
       destructive: false,
-      async execute(input, _ctx) {
+      async execute(input) {
         const query = String(input.query ?? "");
         if (!query) throw new Error("semantic_search requires a query");
         return `[SEMANTIC SEARCH RESULTS FOR: "${query}"]
@@ -5110,7 +5140,7 @@ var init_parser = __esm({
 });
 
 // ../skills/src/loader.ts
-import { existsSync as existsSync16, readFileSync as readFileSync20, readdirSync as readdirSync8, statSync as statSync6 } from "fs";
+import { existsSync as existsSync16, readFileSync as readFileSync20, readdirSync as readdirSync9, statSync as statSync5 } from "fs";
 import { dirname as dirname5, join as join16, resolve as resolve12 } from "path";
 import { fileURLToPath } from "url";
 function getBundledDir() {
@@ -5130,7 +5160,7 @@ function scanDir(root, source) {
   const out = [];
   let entries;
   try {
-    entries = readdirSync8(root);
+    entries = readdirSync9(root);
   } catch (err) {
     log18.warn("failed to read skills dir", { root, err: String(err) });
     return [];
@@ -5139,7 +5169,7 @@ function scanDir(root, source) {
     const folder = join16(root, name);
     let stat;
     try {
-      stat = statSync6(folder);
+      stat = statSync5(folder);
     } catch {
       continue;
     }
@@ -5256,7 +5286,7 @@ async function spawnSubagent(opts) {
   const messages = [{ role: "user", content: prompt }];
   let summary = "";
   let toolCalls = 0;
-  let usage = { inputTokens: 0, outputTokens: 0 };
+  const usage = { inputTokens: 0, outputTokens: 0 };
   let reason = "end_turn";
   let error;
   log19.debug("spawning subagent", {
@@ -5766,14 +5796,14 @@ var init_git_context = __esm({
 });
 
 // src/utils/project-memory.ts
-import { existsSync as existsSync17, mkdirSync as mkdirSync15, readFileSync as readFileSync21, writeFileSync as writeFileSync16, statSync as statSync7 } from "fs";
+import { existsSync as existsSync17, mkdirSync as mkdirSync15, readFileSync as readFileSync21, writeFileSync as writeFileSync16, statSync as statSync6 } from "fs";
 import { join as join17 } from "path";
 function cyberPath(cwd2, ...parts) {
   return join17(cwd2, CYBER_DIR2, ...parts);
 }
 function cyberDirExists(cwd2 = process.cwd()) {
   try {
-    return statSync7(join17(cwd2, CYBER_DIR2)).isDirectory();
+    return statSync6(join17(cwd2, CYBER_DIR2)).isDirectory();
   } catch {
     return false;
   }
@@ -6000,17 +6030,6 @@ var init_hooks = __esm({
 });
 
 // src/runtime/chat.ts
-var chat_exports = {};
-__export(chat_exports, {
-  getCheckpoints: () => getCheckpoints,
-  getRouter: () => getRouter,
-  getSkillRegistry: () => getSkillRegistry,
-  resetRouter: () => resetRouter,
-  runChat: () => runChat,
-  runGoalChat: () => runGoalChat,
-  runPlanChat: () => runPlanChat,
-  toProviderMessages: () => toProviderMessages
-});
 function getCheckpoints() {
   if (!singletonCheckpoints) singletonCheckpoints = new WorkspaceCheckpoints(SESSION_ID);
   return singletonCheckpoints;
@@ -6142,7 +6161,7 @@ ${h.output}`;
 --- SKILL INJECTED: ${s.frontmatter?.name} ---
 ${s.body}`);
     dynamicSkillsBlock = [skillList, ...injected].filter(Boolean).join("\n\n");
-  } catch (e) {
+  } catch {
   }
   const systemPrompt = [SYSTEM_PROMPT, additionalSystemPrompt, memoryBlock, gitBlock, dynamicSkillsBlock].filter(Boolean).join("\n\n");
   return { tools: [...wrappedBuiltins, spawnTool, teamTool, ...mcpWrapped], systemPrompt };
@@ -6176,18 +6195,6 @@ async function runGoalChat(history, opts) {
   })) {
     opts.onEvent(evt);
   }
-}
-async function runPlanChat(history, opts) {
-  const router = getRouter();
-  const providerMessages = toProviderMessages(history);
-  const { tools } = await buildAgentTools(opts.approvalUI, "", (evt) => opts.onEvent(evt));
-  return runPlan(providerMessages, {
-    provider: router,
-    model: opts.model ?? "auto",
-    tools,
-    signal: opts.signal,
-    onEvent: opts.onEvent
-  });
 }
 function summarizeCall(name, input) {
   if (name === "run_command") return `Run: ${String(input.command ?? "")}`;
@@ -6253,12 +6260,14 @@ several independent parts, prefer spawn_team to do them concurrently.`;
 // src/rpc-server.ts
 var rpc_server_exports = {};
 __export(rpc_server_exports, {
+  gitRpcArguments: () => gitRpcArguments,
+  grepRpcWorkspace: () => grepRpcWorkspace,
   startRpcServer: () => startRpcServer
 });
 import { createInterface } from "readline";
-import { readFileSync as readFileSync24, writeFileSync as writeFileSync18, readdirSync as readdirSync10, existsSync as existsSync21, mkdirSync as mkdirSync16 } from "fs";
+import { readFileSync as readFileSync24, writeFileSync as writeFileSync18, readdirSync as readdirSync11, existsSync as existsSync21, mkdirSync as mkdirSync16 } from "fs";
 import { join as join22, resolve as resolve14 } from "path";
-import { execSync as execSync3 } from "child_process";
+import { execFileSync, execSync as execSync3 } from "child_process";
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
 }
@@ -6270,6 +6279,25 @@ function respond(id, result) {
 }
 function respondError(id, message) {
   send({ id, error: { message } });
+}
+function grepRpcWorkspace(pattern, include, root) {
+  return grepWorkspace(pattern, root, {
+    ...include ? { include } : {},
+    caseSensitive: true
+  }).slice(0, 16e3);
+}
+function gitRpcArguments(operation) {
+  const args = gitRpcOperations.get(operation.trim());
+  return args ? [...args] : null;
+}
+function executionErrorDetails(error) {
+  const details = typeof error === "object" && error !== null ? error : {};
+  const output = [details.stdout, details.stderr].map((stream) => typeof stream === "string" ? stream : stream?.toString("utf8") ?? "").join("");
+  return {
+    message: error instanceof Error ? error.message : String(error),
+    output,
+    status: typeof details.status === "number" ? details.status : 1
+  };
 }
 async function handleMethod(id, method, params = {}) {
   try {
@@ -6294,18 +6322,18 @@ async function handleMethod(id, method, params = {}) {
       }
       case "list_dir": {
         const path3 = resolve14(cwd, String(params.path || "."));
-        const entries = readdirSync10(path3, { withFileTypes: true });
+        const entries = readdirSync11(path3, { withFileTypes: true });
         respond(id, { entries: entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "dir" : "file" })) });
         break;
       }
       case "grep": {
-        const pattern = String(params.pattern || "");
-        const include = String(params.include || ".");
+        const pattern = String(params.pattern ?? "");
+        const include = typeof params.include === "string" && params.include ? params.include : void 0;
         try {
-          const out = execSync3(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: "utf8", timeout: 1e4, windowsHide: true }).slice(0, 16e3);
+          const out = grepRpcWorkspace(pattern, include, cwd);
           respond(id, { matches: out });
-        } catch (e) {
-          respond(id, { matches: e.stdout?.slice(0, 16e3) || "" });
+        } catch (error) {
+          respond(id, { matches: executionErrorDetails(error).output.slice(0, 16e3) });
         }
         break;
       }
@@ -6316,19 +6344,26 @@ async function handleMethod(id, method, params = {}) {
           const out = execSync3(command, { cwd, encoding: "utf8", timeout: 12e4, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
           event("tool_end", { name: "run_command", ok: true });
           respond(id, { output: out.slice(0, 2e4), exitCode: 0 });
-        } catch (e) {
+        } catch (error) {
+          const details = executionErrorDetails(error);
           event("tool_end", { name: "run_command", ok: false });
-          respond(id, { output: (e.stdout || "") + (e.stderr || ""), exitCode: e.status || 1 });
+          respond(id, { output: details.output, exitCode: details.status });
         }
         break;
       }
       case "git": {
         const op = String(params.operation || "status");
+        const args = gitRpcArguments(op);
+        if (!args) {
+          respondError(id, "Unsupported git operation.");
+          break;
+        }
         try {
-          const out = execSync3(`git ${op}`, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
+          const out = execFileSync("git", args, { cwd, encoding: "utf8", timeout: 3e4, windowsHide: true });
           respond(id, { output: out.slice(0, 12e3) });
-        } catch (e) {
-          respond(id, { output: (e.stdout || "") + (e.stderr || ""), error: e.message });
+        } catch (error) {
+          const details = executionErrorDetails(error);
+          respond(id, { output: details.output, error: details.message });
         }
         break;
       }
@@ -6377,8 +6412,9 @@ async function handleMethod(id, method, params = {}) {
       default:
         respondError(id, `Unknown method: ${method}`);
     }
-  } catch (err) {
-    respondError(id, err.message || "Internal error");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    respondError(id, message || "Internal error");
   }
 }
 function startRpcServer() {
@@ -6397,7 +6433,7 @@ function startRpcServer() {
   });
   rl.on("close", () => process.exit(0));
 }
-var cwd;
+var cwd, gitRpcOperations;
 var init_rpc_server = __esm({
   "src/rpc-server.ts"() {
     "use strict";
@@ -6407,6 +6443,14 @@ var init_rpc_server = __esm({
     init_project_memory();
     init_src();
     cwd = process.cwd();
+    gitRpcOperations = /* @__PURE__ */ new Map([
+      ["status", ["status"]],
+      ["diff", ["diff"]],
+      ["diff --cached", ["diff", "--cached"]],
+      ["diff --stat", ["diff", "--stat"]],
+      ["branch --show-current", ["branch", "--show-current"]],
+      ["log -1 --oneline", ["log", "-1", "--oneline"]]
+    ]);
   }
 });
 
@@ -6643,7 +6687,7 @@ async function checkForUpdates() {
     if (fs.existsSync(CACHE_FILE)) {
       try {
         cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
-      } catch (e) {
+      } catch {
       }
     }
     if (Date.now() - cache.lastCheck < CHECK_INTERVAL && cache.latestVersion) {
@@ -6667,7 +6711,7 @@ async function checkForUpdates() {
       const isNewer = compareVersions(latestVersion, CYBERCODER_VERSION) > 0;
       return { updateAvailable: isNewer, latestVersion };
     }
-  } catch (err) {
+  } catch {
   }
   return { updateAvailable: false, latestVersion: null };
 }
@@ -6806,6 +6850,13 @@ init_config();
 import { hostname } from "os";
 var BASE_URL = process.env.CYBERMIND_CLOUD_URL || "https://cybercli-api.onrender.com";
 var BACKEND_URL = BASE_URL.endsWith("/api/v1") ? BASE_URL : `${BASE_URL.replace(/\/+$/, "")}/api/v1`;
+function responseErrorMessage(value, fallback) {
+  if (typeof value === "object" && value !== null && "error" in value) {
+    const error = value.error;
+    if (typeof error === "string" && error.length > 0) return error;
+  }
+  return fallback;
+}
 var ApiClient = class {
   getHeaders() {
     const token = getAuthToken();
@@ -6841,8 +6892,8 @@ var ApiClient = class {
       })
     });
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: "Authentication failed" }));
-      throw new Error(err.error || "Authentication failed");
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(responseErrorMessage(errorBody, "Authentication failed"));
     }
     return response.json();
   }
@@ -7627,7 +7678,7 @@ var Settings = ({ onClose }) => {
       case "default_model":
         return config.lastModel ?? "auto";
       default:
-        return config[key] ?? false;
+        return false;
     }
   };
   const toggleSetting = (key) => {
@@ -7639,11 +7690,13 @@ var Settings = ({ onClose }) => {
       updatedPartial = { telemetry: !currentValue };
     } else if (key === "theme") {
       const modes = ["dark", "light", "auto", "dark-ansi", "light-ansi"];
-      const nextMode = modes[(modes.indexOf(currentValue) + 1) % modes.length];
+      const currentMode = config.theme?.mode ?? "dark";
+      const nextMode = modes[(modes.indexOf(currentMode) + 1) % modes.length] ?? "dark";
       updatedPartial = { theme: { ...config.theme, mode: nextMode, syntaxTheme: config.theme?.syntaxTheme || "Monokai Extended" } };
     } else if (key === "default_provider") {
       const providers = ["auto", "cybermind", "openai", "anthropic", "groq", "google", "openrouter", "ollama"];
-      const nextProvider = providers[(providers.indexOf(currentValue) + 1) % providers.length];
+      const currentProvider = config.lastProvider ?? "auto";
+      const nextProvider = providers[(providers.indexOf(currentProvider) + 1) % providers.length];
       updatedPartial = { lastProvider: nextProvider };
     }
     const newConfig = updateConfig(updatedPartial);
@@ -9144,7 +9197,7 @@ Events: preEdit, postEdit, postWrite, preCommand, postCommand, postTask, session
 }
 
 // src/commands/workflow.ts
-import { existsSync as existsSync19, readFileSync as readFileSync23, readdirSync as readdirSync9, statSync as statSync8 } from "fs";
+import { existsSync as existsSync19, readFileSync as readFileSync23, readdirSync as readdirSync10, statSync as statSync7 } from "fs";
 import { join as join20, resolve as resolve13 } from "path";
 import { parse as parseYaml2 } from "yaml";
 import { z as z10 } from "zod";
@@ -9174,7 +9227,7 @@ function buildWorkflowCommand(ctx) {
           reply(`No workflows directory at ${workflowsDir}. Create one and add <name>.yml files.`);
           return;
         }
-        const files = readdirSync9(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
+        const files = readdirSync10(workflowsDir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
         if (files.length === 0) {
           reply(`No workflows in ${workflowsDir}.`);
           return;
@@ -9193,7 +9246,7 @@ function buildWorkflowCommand(ctx) {
       let path3 = "";
       for (const ext of [".yml", ".yaml"]) {
         const candidate = join20(workflowsDir, name + ext);
-        if (existsSync19(candidate) && statSync8(candidate).isFile()) {
+        if (existsSync19(candidate) && statSync7(candidate).isFile()) {
           path3 = candidate;
           break;
         }
@@ -9347,8 +9400,8 @@ function buildDiffCommand(ctx) {
   };
 }
 function diffCheckpoints(from, to) {
-  const fromMap = new Map(from.messages.map((m) => [m.id, m]));
-  const toMap = new Map(to.messages.map((m) => [m.id, m]));
+  const fromMap = new Map(from.messages.map((message) => [message.id, message]));
+  const toMap = new Map(to.messages.map((message) => [message.id, message]));
   const added = [];
   const removed = [];
   const modified = [];
@@ -9357,9 +9410,8 @@ function diffCheckpoints(from, to) {
       added.push(msg);
     } else {
       const fromMsg = fromMap.get(id);
-      const toMsg = msg;
-      if (fromMsg && fromMsg.content !== toMsg.content) {
-        modified.push({ id, from: fromMsg, to: toMsg });
+      if (fromMsg && fromMsg.content !== msg.content) {
+        modified.push({ id, from: fromMsg, to: msg });
       }
     }
   }
@@ -9494,11 +9546,13 @@ Provider: ${profile.provider}`);
       if (key === "model" || key === "provider" || key === "accentColor") {
         updates[key] = value;
       } else if (key === "approvalMode") {
-        if (!["always-ask", "session-bypass", "persistent-bypass"].includes(value)) {
+        const approvalModes = ["always-ask", "session-bypass", "persistent-bypass"];
+        const approvalMode = approvalModes.find((mode) => mode === value);
+        if (!approvalMode) {
           reply("Invalid approvalMode. Use: always-ask, session-bypass, or persistent-bypass");
           return;
         }
-        updates[key] = value;
+        updates.approvalMode = approvalMode;
       } else if (key === "telemetryEnabled" || key === "autoCheckpoint") {
         updates[key] = value === "true" || value === "1";
       } else {
@@ -9867,8 +9921,9 @@ function buildMermaidCommand(ctx) {
       }
       const richIO = new RichIOManager();
       if (parts[0] === "theme" && parts[1]) {
-        const theme = parts[1];
-        if (!["default", "dark", "forest", "neutral"].includes(theme)) {
+        const themes = ["default", "dark", "forest", "neutral"];
+        const theme = themes.find((candidate) => candidate === parts[1]);
+        if (!theme) {
           reply("Invalid theme. Use: default, dark, forest, neutral");
           return;
         }
@@ -10088,6 +10143,7 @@ File size: ${html.length} characters`);
 // src/commands/ecosystem.ts
 init_src();
 init_src4();
+init_chat();
 function buildMCPCommand(ctx) {
   return {
     name: "mcp",
@@ -10179,8 +10235,7 @@ function buildSkillsMarketplaceCommand(ctx) {
       const ecosystem = new EcosystemManager();
       switch (command) {
         case "list": {
-          const { getSkillRegistry: getSkillRegistry2 } = (init_chat(), __toCommonJS(chat_exports));
-          const registry = getSkillRegistry2();
+          const registry = getSkillRegistry();
           const skills = registry.list();
           const categoryLines = ["\u{1F3AF} Available Skills:", ""];
           if (skills.length === 0) {
@@ -10225,13 +10280,9 @@ function buildSkillsMarketplaceCommand(ctx) {
             reply("Categories: development, design, testing, deployment, monitoring, security, data, ai");
             return;
           }
-          const categoryName = parts[1];
-          if (!categoryName) {
-            reply("Category is required.");
-            return;
-          }
           const validCategories = ["development", "design", "testing", "deployment", "monitoring", "security", "data", "ai"];
-          if (!validCategories.includes(categoryName)) {
+          const categoryName = validCategories.find((category) => category === parts[1]);
+          if (!categoryName) {
             reply(`Invalid category. Use: ${validCategories.join(", ")}`);
             return;
           }
@@ -10375,12 +10426,9 @@ function buildTelemetryCommand(ctx) {
             reply("Usage: /telemetry level <minimal|basic|detailed>");
             return;
           }
-          const level = parts[1];
+          const validLevels = ["minimal", "basic", "detailed"];
+          const level = validLevels.find((candidate) => candidate === parts[1]);
           if (!level) {
-            reply("Level is required.");
-            return;
-          }
-          if (!["minimal", "basic", "detailed"].includes(level)) {
             reply("Invalid level. Use: minimal, basic, detailed");
             return;
           }
@@ -10910,7 +10958,7 @@ Status: Active
             reply("No custom models available. Please connect to a server first.");
             return;
           }
-          let modelList = ["\u{1F4CB} Available Custom Models:", ""];
+          const modelList = ["\u{1F4CB} Available Custom Models:", ""];
           models.forEach((model2, index) => {
             const status = model2.isActive ? "\u{1F7E2}" : "\u{1F534}";
             modelList.push(`${status} ${index + 1}. ${model2.name}`);
@@ -11048,7 +11096,7 @@ function buildCyberCoderCommand(ctx) {
             { id: "codeva-code", name: "Codeva Code", desc: "Specialized for coding", cost: "$1.50/$4.50 per 1M" },
             { id: "codeva-creative", name: "Codeva Creative", desc: "Creative and design tasks", cost: "$1/$3 per 1M" }
           ];
-          let modelInfo = ["\u{1F9E0} Codeva Exclusive Models:", ""];
+          const modelInfo = ["\u{1F9E0} Codeva Exclusive Models:", ""];
           cybercoderModels.forEach((model, index) => {
             modelInfo.push(`${index + 1}. \u{1F916} ${model.name}`);
             modelInfo.push(`   ${model.desc}`);
@@ -11092,6 +11140,9 @@ function buildCyberCoderCommand(ctx) {
 import { exec as exec3 } from "child_process";
 init_chat();
 init_config();
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 var openUrl = (url) => {
   const platform = process.platform;
   if (platform === "win32") exec3(`start ${url}`);
@@ -11142,7 +11193,7 @@ Session ID: ${authInfo.session_id}
 \u{1F680} CyberCoder is now online and connected to the cloud!`
         );
       } catch (err) {
-        reply(`\u2715 Authentication failed: ${err.message || String(err)}`);
+        reply(`\u2715 Authentication failed: ${errorMessage(err)}`);
       }
     }
   };
@@ -11220,7 +11271,7 @@ function buildProfileCommand2(ctx) {
         ];
         reply(profileLines.join("\n"));
       } catch (err) {
-        reply(`\u2715 Failed to load profile: ${err.message || String(err)}`);
+        reply(`\u2715 Failed to load profile: ${errorMessage(err)}`);
       }
     }
   };
@@ -11246,20 +11297,21 @@ function buildKnowledgeCommand(ctx) {
       reply("\u{1F9E0} Fetching knowledge graph context...");
       try {
         const context = await apiClient.getContext(args.trim());
+        const skills = context.knowledge?.skills ?? [];
         const lines = [
           "\u{1F9E0} Your Knowledge Graph Context",
           "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
           "\u{1F4CA} Learned Skills:",
-          context.knowledge?.skills?.length > 0 ? context.knowledge.skills.map((s) => `  \u2022 ${s.technology} (Level ${s.level})`).join("\n") : "  \u2022 No skills recorded yet.",
+          skills.length > 0 ? skills.map((skill) => `  \u2022 ${skill.technology} (Level ${skill.level})`).join("\n") : "  \u2022 No skills recorded yet.",
           "",
           "\u{1F3D7}\uFE0F Project Directories:",
-          `  \u2022 Current Directory: ${context.current_session.working_directory}`,
+          `  \u2022 Current Directory: ${context.current_session?.working_directory ?? "Unavailable"}`,
           `  \u2022 Recent Active Directories:`,
-          ...context.recent_sessions?.map((s) => `    - ${s.directory} (${s.commands} cmds)`) || ["    - None"]
+          ...context.recent_sessions?.map((session) => `    - ${session.directory} (${session.commands} cmds)`) || ["    - None"]
         ];
         reply(lines.join("\n"));
       } catch (err) {
-        reply(`\u2715 Failed to load knowledge: ${err.message || String(err)}`);
+        reply(`\u2715 Failed to load knowledge: ${errorMessage(err)}`);
       }
     }
   };
@@ -11840,9 +11892,7 @@ var App = ({ showWelcome, initialModel, initialProvider }) => {
           model,
           approvalUI,
           onEvent: (evt) => {
-            if (evt.type === "status") {
-              setStatusMessage(evt.text || evt.content || evt.message);
-            } else if (evt.type === "text") {
+            if (evt.type === "text") {
               if (statusMessage) setStatusMessage(void 0);
               appendDelta(evt.text);
             } else if (evt.type === "tool_call") {

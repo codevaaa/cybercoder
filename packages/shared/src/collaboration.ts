@@ -56,7 +56,7 @@ export interface CollaborationSession {
   /** Current worktree paths for each participant */
   worktrees: Record<string, string>;
   /** Shared context/state */
-  sharedContext: Record<string, any>;
+  sharedContext: Record<string, unknown>;
   /** Session status */
   status: 'active' | 'paused' | 'completed';
 }
@@ -75,7 +75,7 @@ const CollaborationSessionSchema = z.object({
   createdAt: z.number(),
   participants: z.array(z.string()),
   worktrees: z.record(z.string(), z.string()),
-  sharedContext: z.record(z.unknown()),
+  sharedContext: z.record(z.string(), z.unknown()),
   status: z.enum(['active', 'paused', 'completed']),
 });
 
@@ -268,7 +268,7 @@ export class CollaborationManager {
   }
 
   /** Update shared context for a session */
-  updateSharedContext(sessionId: string, updates: Record<string, any>): boolean {
+  updateSharedContext(sessionId: string, updates: Record<string, unknown>): boolean {
     const session = this.getSession(sessionId);
     if (!session) return false;
 
@@ -278,7 +278,7 @@ export class CollaborationManager {
   }
 
   /** Get shared context for a session */
-  getSharedContext(sessionId: string): Record<string, any> {
+  getSharedContext(sessionId: string): Record<string, unknown> {
     const session = this.getSession(sessionId);
     return session?.sharedContext || {};
   }

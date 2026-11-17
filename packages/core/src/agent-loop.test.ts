@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runAgentLoop, providerRetryDelayMs, type AgentEvent } from './agent-loop.js';
-import type { ChatRequest, LLMProvider, ProviderInfo } from '@cybermind/providers';
+import type { LLMProvider, ProviderInfo } from '@cybermind/providers';
 
 const providerInfo: ProviderInfo = {
   id: 'openai',
@@ -23,7 +23,7 @@ test('agent loop waits and retries a provider 429 before returning the response'
   const provider: LLMProvider = {
     info: providerInfo,
     async listModels() { return ['test']; },
-    async *chat(_req: ChatRequest) {
+    async *chat() {
       calls++;
       if (calls === 1) {
         yield { type: 'done', reason: 'error', error: '429 rate limit; retry-after: 0.01s' };
@@ -51,7 +51,7 @@ test('agent loop cancels a pending provider retry promptly', async () => {
   const provider: LLMProvider = {
     info: providerInfo,
     async listModels() { return ['test']; },
-    async *chat(_req: ChatRequest) {
+    async *chat() {
       calls++;
       yield { type: 'done', reason: 'error', error: '429 rate limit; retry-after: 30s' };
     },

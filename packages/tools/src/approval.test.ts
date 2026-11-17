@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ApprovalGate, type ApprovalDecision, type ApprovalPrompt, type ApprovalUI } from './approval.js';
+import { ApprovalGate, type ApprovalDecision, type ApprovalUI } from './approval.js';
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -9,7 +9,7 @@ test('ApprovalGate serializes approval and destructive execution across agents',
   let maxActiveActions = 0;
   let prompts = 0;
   const ui: ApprovalUI = {
-    async ask(_prompt: ApprovalPrompt): Promise<ApprovalDecision> {
+    async ask(): Promise<ApprovalDecision> {
       prompts++;
       await pause(1);
       return 'allow';

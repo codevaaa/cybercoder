@@ -113,7 +113,6 @@ class McpServer {
 
     try {
       await new Promise<void>((resolve) => {
-        let gracefulTimer: ReturnType<typeof setTimeout> | undefined;
         let forceTimer: ReturnType<typeof setTimeout> | undefined;
         let settled = false;
         const finish = () => {
@@ -125,8 +124,7 @@ class McpServer {
           resolve();
         };
         proc.once('exit', finish);
-        if (proc.exitCode !== null || proc.signalCode !== null) return finish();
-        gracefulTimer = setTimeout(() => {
+        const gracefulTimer = setTimeout(() => {
           if (proc.exitCode !== null || proc.signalCode !== null) return finish();
           try { proc.kill('SIGTERM'); } catch { /* already exited */ }
           forceTimer = setTimeout(() => {
@@ -136,6 +134,7 @@ class McpServer {
             finish();
           }, timeoutMs);
         }, timeoutMs);
+        if (proc.exitCode !== null || proc.signalCode !== null) return finish();
         try { proc.stdin.end(); } catch {
           try { proc.kill('SIGTERM'); } catch { finish(); }
         }
@@ -257,7 +256,6 @@ export async function loadMcpTools(
       } catch (err) {
         await server.stop();
         // Surface as a no-op; the session continues without this server.
-        // eslint-disable-next-line no-console
         console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
       }
     }),

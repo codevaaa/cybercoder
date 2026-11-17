@@ -34,19 +34,19 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar)
 
   const panel = () => ChatPanel.show(context, api, store, scanner)
-  const register = (id: string, fn: (...a: any[]) => any) =>
-    context.subscriptions.push(vscode.commands.registerCommand(id, fn))
+  const register = <Args extends unknown[]>(id: string, fn: (...args: Args) => unknown) =>
+    context.subscriptions.push(vscode.commands.registerCommand(id, (...args: unknown[]) => fn(...args as Args)))
 
   register('cybercoder.openChat', () => panel())
   register('cybercoder.newChat', () => { store.create(true); panel().newSession() })
   register('cybercoder.openSession', (id: string) => panel().openSession(id))
-  register('cybercoder.renameSession', async (item: any) => {
-    const id = item?.id || store.getActiveId()
+  register('cybercoder.renameSession', async (item: unknown) => {
+    const id = getItemId(item) || store.getActiveId()
     if (!id) return
     const t = await vscode.window.showInputBox({ prompt: 'Rename session', value: store.get(id)?.title })
     if (t) store.rename(id, t)
   })
-  register('cybercoder.deleteSession', (item: any) => { const id = item?.id || store.getActiveId(); if (id) store.remove(id) })
+  register('cybercoder.deleteSession', (item: unknown) => { const id = getItemId(item) || store.getActiveId(); if (id) store.remove(id) })
   register('cybercoder.signIn', () => signIn())
   register('cybercoder.signOut', () => signOut())
   register('cybercoder.connectProvider', () => connectProvider())
@@ -143,28 +143,20 @@ async function signOut(): Promise<void> {
   await updateStatus()
 }
 
-const PROVIDER_MODELS = [
-  'auto',
-  'anthropic/claude-3-5-sonnet-20241022', 'anthropic/claude-3-5-haiku-20241022',
-  'openai/gpt-4o', 'openai/gpt-4o-mini',
-  'groq/llama-3.3-70b-versatile', 'groq/llama-3.1-8b-instant',
-  'gemini/gemini-2.0-flash', 'gemini/gemini-2.5-pro',
-  'ollama/gemma4:31b-cloud', 'ollama/llama3.3:70b-cloud', 'ollama/qwen2.5-coder:32b', 'ollama/llama3.2',
-]
 async function selectModel(): Promise<void> {
   // Grouped picker (Codeva names, BYOK providers, Ollama cloud + local).
-  const items = pickerItems().map((it) =>
+  const items = pickerItems().map((it): vscode.QuickPickItem & { modelId?: string } =>
     it.kind === -1
       ? { label: it.label, kind: vscode.QuickPickItemKind.Separator }
-      : { label: it.label, description: it.description, detail: it.detail },
+      : { label: it.label, description: it.description, detail: it.detail, modelId: it.id },
   )
   const current = vscode.workspace.getConfiguration('cybercoder').get<string>('defaultModel', 'auto')
-  const pick = await vscode.window.showQuickPick(items as vscode.QuickPickItem[], {
+  const pick = await vscode.window.showQuickPick(items, {
     placeHolder: `Select default model (current: ${current})`,
     matchOnDescription: true, matchOnDetail: true,
   })
-  if (pick && (pick as any).description) {
-    const id = (pick as any).description as string
+  const id = pick?.modelId
+  if (id) {
     await vscode.workspace.getConfiguration('cybercoder').update('defaultModel', id, vscode.ConfigurationTarget.Global)
     void vscode.window.showInformationMessage(`CyberCoder model: ${id}`)
     ChatPanel.instance?.notifyModel(id)
@@ -174,4 +166,9 @@ async function selectModel(): Promise<void> {
 async function updateStatus(): Promise<void> {
   const ready = await api.isSignedIn()
   statusBar.text = ready ? '$(sparkle) CyberCoder' : '$(sparkle) CyberCoder: Connect'
+}
+
+function getItemId(item: unknown): string | undefined {
+  if (item === null || typeof item !== 'object' || !('id' in item)) return undefined
+  return typeof item.id === 'string' ? item.id : undefined
 }

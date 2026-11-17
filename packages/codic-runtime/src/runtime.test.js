@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { CodicRuntime, isSafeReadOnlyCommand } from './runtime.ts'
+import { CodicRuntime, constrainReadOnlyToolPaths, isSafeReadOnlyCommand } from './runtime.ts'
+import { grepTool } from '../../tools/src/builtin/grep.ts'
+import { readFileTool } from '../../tools/src/builtin/read-file.ts'
 
 const stream = (events) => new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), {
   status: 200,
@@ -23,6 +25,64 @@ test('safe-read approval policy only auto-approves exact read-only commands', ()
   for (const command of ['pwd', 'Get-Location', 'git status --short', 'git diff --stat', 'git branch --show-current', 'Get-ChildItem -Name']) assert.equal(isSafeReadOnlyCommand(command), true)
   for (const command of ['git push', 'git status; whoami', 'git diff > patch.txt', 'npm install', 'curl https://example.test', 'Remove-Item file.txt', '']) assert.equal(isSafeReadOnlyCommand(command), false)
   assert.equal(isSafeReadOnlyCommand({ command: 'git status' }), false)
+})
+
+test('read-only helper paths use the checked canonical target if a symlink is replaced before open', async () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'codic-runtime-read-path-'))
+  const project = path.join(base, 'workspace')
+  const outside = path.join(base, 'outside')
+  const internal = path.join(project, 'internal')
+  const link = path.join(project, 'linked')
+  mkdirSync(internal, { recursive: true })
+  mkdirSync(outside, { recursive: true })
+  writeFileSync(path.join(internal, 'notes.txt'), 'in-project content')
+  writeFileSync(path.join(outside, 'notes.txt'), 'outside secret')
+
+  const linkType = process.platform === 'win32' ? 'junction' : 'dir'
+  try {
+    symlinkSync(internal, link, linkType)
+    const safeInput = constrainReadOnlyToolPaths(project, { path: path.join('linked', 'notes.txt') })
+
+    assert.equal(safeInput.path, path.join(internal, 'notes.txt'))
+    unlinkSync(link)
+    symlinkSync(outside, link, linkType)
+
+    const output = await readFileTool.execute(safeInput, { cwd: project })
+    assert.match(output, /in-project content/)
+    assert.doesNotMatch(output, /outside secret/)
+    assert.throws(
+      () => constrainReadOnlyToolPaths(project, { path: path.join('linked', 'notes.txt') }),
+      /limited to the selected workspace/,
+    )
+  } finally {
+    rmSync(base, { recursive: true, force: true })
+  }
+})
+
+test('read-only helper grep skips symlinked directories that point outside the selected workspace', async () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'codic-runtime-grep-boundary-'))
+  const project = path.join(base, 'workspace')
+  const outside = path.join(base, 'outside')
+  const link = path.join(project, 'linked-outside')
+  mkdirSync(project, { recursive: true })
+  mkdirSync(outside, { recursive: true })
+  writeFileSync(path.join(project, 'inside.txt'), 'CODEC_BOUNDARY_SENTINEL inside project')
+  writeFileSync(path.join(outside, 'secret.txt'), 'CODEC_BOUNDARY_SENTINEL outside secret')
+
+  try {
+    symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir')
+    const safeInput = constrainReadOnlyToolPaths(project, { path: '.' })
+    const output = await grepTool.execute(
+      { ...safeInput, pattern: 'CODEC_BOUNDARY_SENTINEL', include: '*.txt' },
+      { cwd: project },
+    )
+
+    assert.match(output, /inside project/)
+    assert.doesNotMatch(output, /outside secret/)
+    assert.doesNotMatch(output, /linked-outside/)
+  } finally {
+    rmSync(base, { recursive: true, force: true })
+  }
 })
 
 test('Codic runtime edits only the selected project and can restore its checkpoint', async () => {
@@ -272,6 +332,73 @@ test('Codic can stop one helper without cancelling its parent or sibling', async
     runtime.cancel()
     rmSync(checkpointDirectory, { recursive: true, force: true })
     rmSync(project, { recursive: true, force: true })
+  }
+})
+
+test('Codic read-only specialists cannot inspect paths outside the selected project, even with Full access', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'codic-runtime-helper-boundary-'))
+  const project = path.join(temp, 'project')
+  mkdirSync(project)
+  const outsideFile = path.join(temp, 'private.txt')
+  writeFileSync(outsideFile, 'outside project secret', 'utf8')
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let parentCalls = 0
+  let helperCalls = 0
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    approvalPolicy: 'full-access',
+    model: 'codeva/ravan',
+    maxParallelSubagents: 1,
+    fetchImpl: async (_url, init) => {
+      const request = JSON.parse(init.body)
+      const toolNames = (request.tools ?? []).map((tool) => tool.function.name)
+      if (toolNames.includes('spawn_subagents')) {
+        parentCalls += 1
+        if (parentCalls === 1) return stream([
+          { type: 'tool_call', toolCall: { id: 'boundary-team', name: 'spawn_subagents', input: { tasks: [
+            { skill: 'research', label: 'Boundary check', prompt: 'Try the requested external file path.' },
+          ] } } },
+          { type: 'done', reason: 'tool_calls' },
+        ])
+        const result = request.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'boundary-team')
+        assert.match(result.content, /Boundary check/)
+        return stream([{ type: 'text', text: 'The helper stayed inside the selected project.' }, { type: 'done', reason: 'end_turn' }])
+      }
+
+      helperCalls += 1
+      assert.ok(toolNames.includes('read_file'))
+      assert.equal(toolNames.some((name) => ['write_file', 'edit_file', 'run_command', 'spawn_subagents'].includes(name)), false)
+      if (helperCalls === 1) return stream([
+        { type: 'tool_call', toolCall: { id: 'outside-read', name: 'read_file', input: { path: outsideFile } } },
+        { type: 'done', reason: 'tool_calls' },
+      ])
+      const readResult = request.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'outside-read')
+      assert.match(readResult.content, /limited to the selected workspace/)
+      assert.doesNotMatch(readResult.content, /outside project secret/)
+      return stream([{ type: 'text', text: 'The requested path was outside the selected workspace and was blocked.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Have a helper inspect a path.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn', JSON.stringify(events, null, 2))
+    assert.equal(parentCalls, 2)
+    assert.equal(helperCalls, 2)
+    assert.equal(events.some((event) => event.type === 'approval_required'), false)
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(temp, { recursive: true, force: true })
   }
 })
 

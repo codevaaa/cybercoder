@@ -1,6 +1,7 @@
-import { EcosystemManager } from '@cybermind/shared';
+import { EcosystemManager, type SkillPackage } from '@cybermind/shared';
 import { projectMcpConfigPath, readMcpConfig, writeProjectMcpConfig } from '@cybermind/tools';
 import type { CommandContext, SlashCommandHandler } from './index.js';
+import { getSkillRegistry } from '../runtime/chat.js';
 
 /**
  * `/mcp` — manage MCP (Model Context Protocol) servers for real.
@@ -125,7 +126,6 @@ export function buildSkillsMarketplaceCommand(ctx: CommandContext): SlashCommand
 
       switch (command) {
         case 'list': {
-          const { getSkillRegistry } = require('../runtime/chat.js');
           const registry = getSkillRegistry();
           const skills = registry.list();
           const categoryLines = ['🎯 Available Skills:', ''];
@@ -174,13 +174,9 @@ export function buildSkillsMarketplaceCommand(ctx: CommandContext): SlashCommand
             reply('Categories: development, design, testing, deployment, monitoring, security, data, ai');
             return;
           }
-          const categoryName = parts[1] as any;
+          const validCategories = ['development', 'design', 'testing', 'deployment', 'monitoring', 'security', 'data', 'ai'] as const satisfies readonly SkillPackage['category'][];
+          const categoryName = validCategories.find((category) => category === parts[1]);
           if (!categoryName) {
-            reply('Category is required.');
-            return;
-          }
-          const validCategories = ['development', 'design', 'testing', 'deployment', 'monitoring', 'security', 'data', 'ai'];
-          if (!validCategories.includes(categoryName)) {
             reply(`Invalid category. Use: ${validCategories.join(', ')}`);
             return;
           }
@@ -346,12 +342,9 @@ export function buildTelemetryCommand(ctx: CommandContext): SlashCommandHandler 
             reply('Usage: /telemetry level <minimal|basic|detailed>');
             return;
           }
-          const level = parts[1] as any;
+          const validLevels = ['minimal', 'basic', 'detailed'] as const;
+          const level = validLevels.find((candidate) => candidate === parts[1]);
           if (!level) {
-            reply('Level is required.');
-            return;
-          }
-          if (!['minimal', 'basic', 'detailed'].includes(level)) {
             reply('Invalid level. Use: minimal, basic, detailed');
             return;
           }

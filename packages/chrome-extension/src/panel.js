@@ -261,8 +261,7 @@ async function getPageElements() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (!tab?.id) return [];
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' }).catch(err => {
-      chrome.runtime.lastError; // Clear the error
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'get-elements' }).catch(() => {
       return null;
     });
     return res?.elements || [];
@@ -273,8 +272,7 @@ async function executeAutomation(action) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (!tab?.id) return { ok: false, error: 'No active tab' };
-    const res = await chrome.tabs.sendMessage(tab.id, action).catch(err => {
-      chrome.runtime.lastError;
+    const res = await chrome.tabs.sendMessage(tab.id, action).catch(() => {
       return null;
     });
     return res || { ok: false, error: 'No response' };

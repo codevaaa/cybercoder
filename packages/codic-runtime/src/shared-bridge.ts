@@ -9,7 +9,7 @@ type Logger = {
 };
 
 /** Keep the shared CLI logger out of the desktop bundle and avoid writing project data to CLI logs. */
-export function createLogger(_scope: string): Logger {
+export function createLogger(scope: string): Logger {
   const noop = () => undefined;
-  return { debug: noop, info: noop, warn: noop, error: noop, child: (scope) => createLogger(scope) };
+  return { debug: noop, info: noop, warn: noop, error: noop, child: (childScope) => createLogger(`${scope}:${childScope}`) };
 }

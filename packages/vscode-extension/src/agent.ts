@@ -1,4 +1,3 @@
-import * as vscode from 'vscode'
 import { CyberCoderApi } from './api.js'
 import { ToolDef, ToolCtx, toolsForMode, findTool, Mode } from './tools.js'
 
@@ -12,6 +11,9 @@ import { ToolDef, ToolCtx, toolsForMode, findTool, Mode } from './tools.js'
  */
 
 export interface AgentMsg { role: string; content: string }
+
+type JsonRecord = Record<string, unknown>
+type ProviderMessage = { role: string; content: unknown; [key: string]: unknown }
 
 export interface AgentEvents {
   onText: (t: string) => void
@@ -86,9 +88,9 @@ export class Agent {
     opts: { messages: AgentMsg[]; temperature?: number; system?: string },
     tools: ToolDef[], toolCtx: ToolCtx, ev: AgentEvents,
   ): Promise<string> {
-    const msgs: any[] = []
+    const msgs: ProviderMessage[] = []
     if (opts.system) msgs.push({ role: 'system', content: opts.system })
-    msgs.push(...opts.messages)
+    msgs.push(...opts.messages.map((message) => ({ role: message.role, content: message.content })))
     const toolSpec = this.openaiToolSpec(tools)
     let finalText = ''
 
@@ -100,23 +102,26 @@ export class Agent {
         body: JSON.stringify({ model, messages: msgs, temperature: opts.temperature ?? 0.4, tools: toolSpec, tool_choice: 'auto' }),
       })
       if (!res.ok) throw new Error(`${base.includes('groq') ? 'Groq' : base.includes('11434') ? 'Ollama' : 'OpenAI'} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
-      const data = await res.json() as any
-      const choice = data.choices?.[0]
-      const m = choice?.message
+      const data = asRecord(await res.json())
+      const choices = Array.isArray(data?.choices) ? data.choices : []
+      const choice = asRecord(choices[0])
+      const m = asRecord(choice?.message)
       if (!m) break
 
-      if (m.content) { ev.onText(m.content); finalText += m.content }
+      const content = typeof m.content === 'string' ? m.content : ''
+      if (content) { ev.onText(content); finalText += content }
 
-      const calls = m.tool_calls
+      const calls = Array.isArray(m.tool_calls) ? m.tool_calls.map(asRecord).filter((call): call is JsonRecord => call !== undefined) : []
       if (!calls || calls.length === 0) break // model is done
 
-      msgs.push({ role: 'assistant', content: m.content || '', tool_calls: calls })
+      msgs.push({ role: 'assistant', content, tool_calls: calls })
       for (const call of calls) {
-        const name = call.function?.name
-        let args: Record<string, any> = {}
-        try { args = JSON.parse(call.function?.arguments || '{}') } catch { /* ignore */ }
+        const fn = asRecord(call.function)
+        const name = typeof fn?.name === 'string' ? fn.name : ''
+        if (!name) continue
+        const args = parseJsonRecord(fn?.arguments)
         const result = await this.runTool(name, args, toolCtx, ev)
-        msgs.push({ role: 'tool', tool_call_id: call.id, content: result.slice(0, 24000) })
+        msgs.push({ role: 'tool', tool_call_id: typeof call.id === 'string' ? call.id : '', content: result.slice(0, 24000) })
       }
     }
     return finalText
@@ -132,7 +137,7 @@ export class Agent {
     opts: { messages: AgentMsg[]; temperature?: number; system?: string },
     tools: ToolDef[], toolCtx: ToolCtx, ev: AgentEvents, key: string,
   ): Promise<string> {
-    const msgs: any[] = opts.messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+    const msgs: ProviderMessage[] = opts.messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
     const toolSpec = this.anthropicToolSpec(tools)
     let finalText = ''
 
@@ -144,25 +149,31 @@ export class Agent {
         body: JSON.stringify({ model, max_tokens: 4096, temperature: opts.temperature ?? 0.4, ...(opts.system ? { system: opts.system } : {}), tools: toolSpec, messages: msgs }),
       })
       if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
-      const data = await res.json() as any
-      const blocks = data.content || []
-      const toolUses = blocks.filter((b: any) => b.type === 'tool_use')
-      for (const b of blocks) if (b.type === 'text' && b.text) { ev.onText(b.text); finalText += b.text }
+      const data = asRecord(await res.json())
+      const blocks = Array.isArray(data?.content) ? data.content.map(asRecord).filter((block): block is JsonRecord => block !== undefined) : []
+      const toolUses = blocks.filter((block) => block.type === 'tool_use')
+      for (const block of blocks) {
+        if (block.type === 'text' && typeof block.text === 'string' && block.text) {
+          ev.onText(block.text)
+          finalText += block.text
+        }
+      }
 
       if (toolUses.length === 0) break
 
       msgs.push({ role: 'assistant', content: blocks })
-      const results: any[] = []
+      const results: JsonRecord[] = []
       for (const tu of toolUses) {
-        const result = await this.runTool(tu.name, tu.input || {}, toolCtx, ev)
-        results.push({ type: 'tool_result', tool_use_id: tu.id, content: result.slice(0, 24000) })
+        if (typeof tu.name !== 'string' || !tu.name) continue
+        const result = await this.runTool(tu.name, asRecord(tu.input) ?? {}, toolCtx, ev)
+        results.push({ type: 'tool_result', tool_use_id: typeof tu.id === 'string' ? tu.id : '', content: result.slice(0, 24000) })
       }
       msgs.push({ role: 'user', content: results })
     }
     return finalText
   }
 
-  private async runTool(name: string, args: Record<string, any>, ctx: ToolCtx, ev: AgentEvents): Promise<string> {
+  private async runTool(name: string, args: JsonRecord, ctx: ToolCtx, ev: AgentEvents): Promise<string> {
     const tool = findTool(name)
     if (!tool) return `Unknown tool: ${name}`
     ev.onToolStart(name, summarize(name, args))
@@ -199,14 +210,29 @@ export class Agent {
   }
 }
 
-function summarize(name: string, args: Record<string, any>): string {
-  if (name === 'run_command') return `Run: ${args.command}`
-  if (name === 'write_file') return `Write ${args.path}`
-  if (name === 'edit_file') return `Edit ${args.path}`
-  if (name === 'read_file') return `Read ${args.path}`
-  if (name === 'grep') return `Search "${args.pattern}"`
-  if (name === 'list_dir') return `List ${args.path || '.'}`
+function summarize(name: string, args: JsonRecord): string {
+  if (name === 'run_command') return `Run: ${String(args.command ?? '')}`
+  if (name === 'write_file') return `Write ${String(args.path ?? '')}`
+  if (name === 'edit_file') return `Edit ${String(args.path ?? '')}`
+  if (name === 'read_file') return `Read ${String(args.path ?? '')}`
+  if (name === 'grep') return `Search "${String(args.pattern ?? '')}"`
+  if (name === 'list_dir') return `List ${String(args.path || '.')}`
   return name
+}
+
+function asRecord(value: unknown): JsonRecord | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as JsonRecord
+    : undefined
+}
+
+function parseJsonRecord(value: unknown): JsonRecord {
+  if (typeof value !== 'string') return {}
+  try {
+    return asRecord(JSON.parse(value)) ?? {}
+  } catch {
+    return {}
+  }
 }
 
 async function* sse(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
