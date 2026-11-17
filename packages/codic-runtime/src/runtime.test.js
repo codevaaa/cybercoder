@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -18,6 +19,132 @@ const waitForFinish = (events, timeoutMs = 10_000) => new Promise((resolve, reje
   events.finish = (event) => {
     clearTimeout(timeout)
     resolve(event)
+  }
+})
+
+const shellQuote = value => process.platform === 'win32'
+  ? `'${String(value).replace(/'/g, "''")}'`
+  : `'${String(value).replace(/'/g, `'"'"'`)}'`
+
+const commandForNode = scriptPath => process.platform === 'win32'
+  ? `& ${shellQuote(process.execPath)} ${shellQuote(scriptPath)}`
+  : `${shellQuote(process.execPath)} ${shellQuote(scriptPath)}`
+
+const waitForProcessTreePids = async pidFile => {
+  const deadline = Date.now() + 8_000
+  while (Date.now() < deadline) {
+    if (existsSync(pidFile)) return JSON.parse(readFileSync(pidFile, 'utf8'))
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  throw new Error(`The command did not write its process IDs to ${pidFile}.`)
+}
+
+const isProcessAlive = pid => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code !== 'ESRCH'
+  }
+}
+
+const waitForProcessesToExit = async pids => {
+  const deadline = Date.now() + 8_000
+  while (Date.now() < deadline) {
+    if (pids.every(pid => !isProcessAlive(pid))) return
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  assert.fail(`Command descendants are still running: ${pids.filter(isProcessAlive).join(', ')}`)
+}
+
+const forceKillTestProcesses = pids => {
+  for (const pid of pids) {
+    if (!Number.isInteger(pid) || pid <= 0) continue
+    if (process.platform === 'win32') {
+      spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+    } else {
+      try { process.kill(pid, 'SIGKILL') } catch { /* The test process already exited. */ }
+    }
+  }
+}
+
+const createProcessTreeCommand = (pidFile, outputBytes = 0) => {
+  const scriptFile = path.join(path.dirname(pidFile), 'spawn-tree.js')
+  const output = outputBytes ? `process.stdout.write('x'.repeat(${outputBytes}));` : ''
+  const source = [
+    "const { spawn } = require('node:child_process');",
+    "const fs = require('node:fs');",
+    "const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });",
+    `fs.writeFileSync(${JSON.stringify(pidFile)}, JSON.stringify([process.pid, child.pid]));`,
+    output,
+    'setInterval(() => {}, 1000);',
+  ].join('')
+  writeFileSync(scriptFile, source)
+  return commandForNode(scriptFile)
+}
+
+const runCommandProcessTree = async ({ timeoutMs, outputBytes = 0 }) => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-command-tree-'))
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const pidFile = path.join(project, 'processes.json')
+  const controller = new AbortController()
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    onEvent: () => undefined,
+  })
+  const result = runtime.runCommand({ command: createProcessTreeCommand(pidFile, outputBytes), timeout_ms: timeoutMs }, controller.signal)
+  try {
+    const pids = await Promise.race([
+      waitForProcessTreePids(pidFile),
+      result.then(output => { throw new Error(`The command exited before writing its process IDs: ${output}`) }),
+    ])
+    return { project, checkpointDirectory, pids, result, cancel: () => controller.abort() }
+  } catch (error) {
+    controller.abort()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+    throw error
+  }
+}
+
+const cleanProcessTreeRun = run => {
+  forceKillTestProcesses(run.pids)
+  rmSync(run.checkpointDirectory, { recursive: true, force: true })
+  rmSync(run.project, { recursive: true, force: true })
+}
+
+test('cancellation terminates the command and its descendants', async () => {
+  const run = await runCommandProcessTree({ timeoutMs: 10_000 })
+  try {
+    run.cancel()
+    assert.match(await run.result, /\[command cancelled\]/)
+    await waitForProcessesToExit(run.pids)
+  } finally {
+    cleanProcessTreeRun(run)
+  }
+})
+
+test('timeout terminates the command and its descendants', async () => {
+  const run = await runCommandProcessTree({ timeoutMs: 1_000 })
+  try {
+    assert.match(await run.result, /\[output capped or process stopped at timeout\]/)
+    await waitForProcessesToExit(run.pids)
+  } finally {
+    cleanProcessTreeRun(run)
+  }
+})
+
+test('output limit terminates the command and its descendants', async () => {
+  const run = await runCommandProcessTree({ timeoutMs: 10_000, outputBytes: 250_000 })
+  try {
+    assert.match(await run.result, /\[output capped or process stopped at timeout\]/)
+    await waitForProcessesToExit(run.pids)
+  } finally {
+    cleanProcessTreeRun(run)
   }
 })
 

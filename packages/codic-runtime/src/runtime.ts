@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { runAgentLoop, type AgentEvent, type AgentTool, type ToolContext } from '../../core/src/agent-loop.js';
 import type { ProviderMessage } from '../../providers/src/types.js';
 import { readFileTool } from '../../tools/src/builtin/read-file.js';
@@ -17,6 +17,7 @@ import { CodicSubagentCoordinator, type SubagentProgressEvent } from './subagent
 
 const MAX_COMMAND_OUTPUT_BYTES = 200_000;
 const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+const COMMAND_PROCESS_KILL_GRACE_MS = 750;
 const WORKSPACE_TOOLS = [readFileTool, readManyTool, writeFileTool, editTool, listDirTool, grepTool, repoMapTool];
 
 export type CodicRuntimeEvent =
@@ -266,23 +267,38 @@ export class CodicRuntime {
     const env = allowlistedEnvironment(process.env, windows);
 
     return await new Promise<string>((resolveOutput, reject) => {
-      const child = spawn(executable, args, { cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(executable, args, {
+        cwd,
+        env,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        // On POSIX this gives the command its own process group so canceling
+        // the shell also reaches commands it started. Windows uses taskkill
+        // with /T below because negative process-group signals are unsupported.
+        detached: !windows,
+      });
       const output: Buffer[] = [];
       let outputSize = 0;
       let wasTruncated = false;
+      let terminationRequested = false;
       let settled = false;
+      const terminate = (): void => {
+        if (terminationRequested || settled) return;
+        terminationRequested = true;
+        terminateProcessTree(child);
+      };
       const append = (chunk: Buffer): void => {
-        if (outputSize >= MAX_COMMAND_OUTPUT_BYTES) { wasTruncated = true; child.kill(); return; }
+        if (outputSize >= MAX_COMMAND_OUTPUT_BYTES) { wasTruncated = true; terminate(); return; }
         const remaining = MAX_COMMAND_OUTPUT_BYTES - outputSize;
         const accepted = chunk.byteLength > remaining ? chunk.subarray(0, remaining) : chunk;
         output.push(accepted);
         outputSize += accepted.byteLength;
-        if (accepted.byteLength !== chunk.byteLength) { wasTruncated = true; child.kill(); }
+        if (accepted.byteLength !== chunk.byteLength) { wasTruncated = true; terminate(); }
       };
       child.stdout.on('data', append);
       child.stderr.on('data', append);
-      const timer = setTimeout(() => { wasTruncated = true; child.kill(); }, timeoutMs);
-      const abort = (): void => { child.kill(); };
+      const timer = setTimeout(() => { wasTruncated = true; terminate(); }, timeoutMs);
+      const abort = (): void => { terminate(); };
       signal?.addEventListener('abort', abort, { once: true });
       if (signal?.aborted) abort();
       child.once('error', (error) => {
@@ -311,6 +327,53 @@ export class CodicRuntime {
       // A closed renderer must not interrupt a local task.
     }
   }
+}
+
+/** Stop a shell command and the processes it started. */
+function terminateProcessTree(child: ChildProcess): void {
+  const pid = child.pid;
+  if (!pid) {
+    child.kill();
+    return;
+  }
+
+  if (process.platform === 'win32') {
+    // `cmd.exe` starts PowerShell, which may start the actual command. Killing
+    // only cmd.exe leaves that descendant running. taskkill /T follows the
+    // Windows process tree; /F keeps cancellation deterministic on app exit.
+    let killer: ChildProcess;
+    try {
+      killer = spawn('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+    } catch {
+      child.kill();
+      return;
+    }
+    killer.once('error', () => child.kill());
+    killer.once('close', (code) => { if (code !== 0) child.kill(); });
+    return;
+  }
+
+  try {
+    // The shell was spawned detached, making its PID the process-group ID.
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    child.kill('SIGTERM');
+    return;
+  }
+
+  setTimeout(() => {
+    try {
+      // Escalate only while that process group still exists. This also stops
+      // descendants that ignore SIGTERM after the shell itself has exited.
+      process.kill(-pid, 0);
+      process.kill(-pid, 'SIGKILL');
+    } catch {
+      // The complete process group has already exited.
+    }
+  }, COMMAND_PROCESS_KILL_GRACE_MS);
 }
 
 export function isSafeReadOnlyCommand(value: unknown): boolean {
