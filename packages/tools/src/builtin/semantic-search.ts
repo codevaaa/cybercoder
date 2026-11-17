@@ -14,7 +14,7 @@ export const semanticSearchTool: AgentTool = {
     },
   },
   destructive: false,
-  async execute(input, _ctx) {
+  async execute(input) {
     const query = String(input.query ?? '');
     if (!query) throw new Error('semantic_search requires a query');
 

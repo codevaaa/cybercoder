@@ -1,12 +1,17 @@
-import { execSync } from 'node:child_process';
+import { exec as execCallback } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { promisify } from 'node:util';
+import { createHash } from 'node:crypto';
+import { ApprovalGate, type ApprovalUI } from '@cybermind/tools';
+
+const exec = promisify(execCallback);
 
 /**
- * Hooks — event-driven automation, like Claude Code. Run shell commands
- * automatically when the agent edits a file, finishes a task, or before a tool
- * runs. Config is JSON at .codeva/hooks.json (project) or ~/.codeva/hooks.json
+ * Hooks — event-driven automation, like Claude Code. Approved shell commands
+ * can run when the agent edits a file, finishes a task, or before a tool runs.
+ * Config is JSON at .codeva/hooks.json (project) or ~/.codeva/hooks.json
  * (global); project overrides global per event.
  *
  * Example .codeva/hooks.json:
@@ -41,6 +46,21 @@ function readHooksFile(path: string): HooksConfig {
 }
 
 let cached: HooksConfig | null = null;
+const approvalGates = new WeakMap<ApprovalUI, ApprovalGate>();
+
+function getHookApprovalGate(ui: ApprovalUI): ApprovalGate {
+  let gate = approvalGates.get(ui);
+  if (!gate) {
+    gate = new ApprovalGate(ui);
+    approvalGates.set(ui, gate);
+  }
+  return gate;
+}
+
+function getHookTrustKey(event: HookEvent, cwd: string, command: string): string {
+  const digest = createHash('sha256').update(`${cwd}\0${command}`).digest('hex').slice(0, 24);
+  return `hook:${event}:${digest}`;
+}
 
 /** Load + merge global and project hook configs (project wins per event). */
 export function loadHooks(cwd: string = process.cwd()): HooksConfig {
@@ -67,16 +87,22 @@ export interface HookResult {
 }
 
 /**
- * Run all hooks for an event. `subject` is the file path (edit/write events) or
- * the command (command events). Returns combined output and whether a `block`
- * rule matched (caller should abort the action when blocked is true).
+ * Run hooks for an event. Hook commands are arbitrary shell code, so each
+ * matching command must be approved in the visible UI before it executes.
+ * Without an interactive approval UI the hook is skipped (fail closed).
  */
-export function runHooks(event: HookEvent, subject = '', cwd: string = process.cwd()): HookResult {
+export async function runHooks(
+  event: HookEvent,
+  subject = '',
+  cwd: string = process.cwd(),
+  approvalUI?: ApprovalUI,
+): Promise<HookResult> {
   const rules = loadHooks(cwd)[event] ?? [];
   if (rules.length === 0) return { ran: false, blocked: false, output: '' };
 
   const outputs: string[] = [];
   let blocked = false;
+  let ran = false;
 
   for (const rule of rules) {
     if (rule.match) {
@@ -84,6 +110,7 @@ export function runHooks(event: HookEvent, subject = '', cwd: string = process.c
       try {
         re = new RegExp(rule.match);
       } catch {
+        outputs.push(`[hook ${event}] skipped: invalid match pattern`);
         continue;
       }
       if (!re.test(subject)) continue;
@@ -93,21 +120,45 @@ export function runHooks(event: HookEvent, subject = '', cwd: string = process.c
       outputs.push(`[hook] blocked by rule (match: ${rule.match ?? '*'})`);
       continue;
     }
+
     const command = rule.command.replace(/\{file\}/g, subject);
+    if (!approvalUI) {
+      outputs.push(`[hook ${event}] skipped: no approval UI is available`);
+      continue;
+    }
+
+    const gate = getHookApprovalGate(approvalUI);
+    let result: { stdout: string; stderr: string };
     try {
-      const out = execSync(command, {
+      const outcome = await gate.withApproval({
+        toolName: getHookTrustKey(event, cwd, command),
+        input: { command, event, subject, cwd },
+        summary: `Run configured ${event} hook: ${command}`,
+        destructive: true,
+      }, async () => exec(command, {
         cwd,
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
         timeout: rule.timeoutMs ?? 30_000,
-      });
-      outputs.push(`[hook ${event}] ${command}\n${out.trim().slice(0, 2000)}`);
-    } catch (err) {
-      const e = err as { stdout?: string; stderr?: string; message?: string };
-      outputs.push(`[hook ${event}] ${command} (failed)\n${(e.stdout || '') + (e.stderr || e.message || '')}`.slice(0, 2000));
+        maxBuffer: 1024 * 1024,
+      }));
+      if (!outcome.allowed) {
+        outputs.push(`[hook ${event}] denied by user: ${command}`);
+        continue;
+      }
+      result = outcome.value;
+    } catch (error) {
+      const e = error as { stdout?: string; stderr?: string; message?: string };
+      const output = [e.stdout, e.stderr, e.message].filter(Boolean).join('\n');
+      outputs.push(`[hook ${event}] ${command} (failed)\n${output}`.slice(0, 2000));
+      ran = true;
+      continue;
     }
+
+    ran = true;
+    const output = [result.stdout.trim(), result.stderr.trim()].filter(Boolean).join('\n');
+    outputs.push(`[hook ${event}] ${command}${output ? `\n${output.slice(0, 2000)}` : ''}`);
   }
 
-  return { ran: outputs.length > 0 || blocked, blocked, output: outputs.join('\n') };
+  return { ran, blocked, output: outputs.join('\n') };
 }

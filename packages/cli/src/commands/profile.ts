@@ -1,4 +1,4 @@
-import { ProfileManager } from '@cybermind/shared';
+import { ProfileManager, type Profile } from '@cybermind/shared';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
 /**
@@ -91,17 +91,19 @@ export function buildProfileCommand(ctx: CommandContext): SlashCommandHandler {
         reply('Both key and value must be provided.');
         return;
       }
-      const updates: Record<string, any> = {};
+      const updates: Partial<Omit<Profile, 'name'>> = {};
 
       // Parse known keys
       if (key === 'model' || key === 'provider' || key === 'accentColor') {
         updates[key] = value;
       } else if (key === 'approvalMode') {
-        if (!['always-ask', 'session-bypass', 'persistent-bypass'].includes(value)) {
+        const approvalModes = ['always-ask', 'session-bypass', 'persistent-bypass'] as const;
+        const approvalMode = approvalModes.find((mode) => mode === value);
+        if (!approvalMode) {
           reply('Invalid approvalMode. Use: always-ask, session-bypass, or persistent-bypass');
           return;
         }
-        updates[key] = value;
+        updates.approvalMode = approvalMode;
       } else if (key === 'telemetryEnabled' || key === 'autoCheckpoint') {
         updates[key] = value === 'true' || value === '1';
       } else {

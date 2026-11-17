@@ -1,7 +1,35 @@
 import { getRouter } from '../runtime/chat.js';
+import type { SessionMessage } from '../state/session.js';
 import type { CommandContext, SlashCommandHandler } from './index.js';
 
-export function buildCompactCommand(ctx: CommandContext): SlashCommandHandler {
+export type CompactSummarizer = (history: SessionMessage[], focus: string, model: string) => Promise<string>;
+
+async function summarizeHistory(history: SessionMessage[], focus: string, model: string): Promise<string> {
+  const chatText = history.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+  const systemPrompt = `You are a conversation compaction assistant. Summarize the chat log into one dense, bulleted handoff that preserves user goals, decisions, files read or edited, commands and checks run, unresolved errors, and next steps.
+${focus ? `Pay particular attention to: ${focus}` : ''}
+Keep the summary under 200 words. Do not introduce yourself or add pleasantries. Start immediately with the bulleted list.`;
+
+  let summary = '';
+  for await (const chunk of getRouter().chat({
+    model,
+    messages: [{ role: 'user', content: chatText }],
+    systemPrompt,
+    temperature: 0.3,
+    maxTokens: 512,
+  })) {
+    if (chunk.type === 'text') summary += chunk.text;
+    else if (chunk.type === 'done' && chunk.reason === 'error') {
+      throw new Error(chunk.error ?? 'The provider could not summarize this conversation.');
+    }
+  }
+
+  const result = summary.trim();
+  if (!result) throw new Error('The provider returned an empty summary.');
+  return result;
+}
+
+export function buildCompactCommand(ctx: CommandContext, summarize: CompactSummarizer = summarizeHistory): SlashCommandHandler {
   return {
     name: 'compact',
     description: 'Compress conversation history to free context window.',
@@ -35,46 +63,17 @@ export function buildCompactCommand(ctx: CommandContext): SlashCommandHandler {
         return;
       }
 
-      reply('⣾ Compressing conversation history via active provider...');
-
-      const chatText = chatHistory
-        .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
-        .join('\n\n');
-
-      const systemPrompt = `You are a conversation compaction assistant. Your task is to summarize the preceding developer-assistant chat log into a single, dense, bulleted summary.
-Specify what files have been read/edited, what build/test commands were run, and what tasks remain.
-${focus ? `Focus particularly on: ${focus}` : ''}
-Keep the summary under 200 words. Do not introduce yourself or add pleasantries. Start immediately with the bulleted list.`;
+      reply('⣾ Compressing conversation history with the active model...');
 
       try {
-        const router = getRouter();
-        let summary = '';
-
-        // Call active provider
-        const chunks = router.chat({
-          model: 'auto',
-          messages: [{ role: 'user', content: chatText }],
-          systemPrompt,
-          temperature: 0.3,
-        });
-
-        for await (const chunk of chunks) {
-          if (chunk.type === 'text') {
-            summary += chunk.text;
-          } else if (chunk.type === 'done' && chunk.reason === 'error') {
-            throw new Error(chunk.error ?? 'Unknown model error');
-          }
-        }
-
-        if (!summary) {
-          throw new Error('Empty summary returned');
-        }
+        const summary = (await summarize(chatHistory, focus, ctx.getModel?.() || 'auto')).trim();
+        if (!summary) throw new Error('The provider returned an empty summary.');
 
         // Replace history with the compacted message
         const compactedMessage = {
           id: `compact-summary-${Date.now()}`,
           role: 'system' as const,
-          content: `[Conversation compacted to free context window]\n\n**Progress summary so far**:\n${summary.trim()}`,
+          content: `[Conversation compacted to free context window]\n\n**Progress summary so far**:\n${summary}`,
           createdAt: Date.now(),
         };
 

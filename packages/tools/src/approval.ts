@@ -13,7 +13,7 @@ export interface ApprovalPrompt {
   input: Record<string, unknown>;
   /** Short description shown to the user; e.g. "Run command: rm -rf …". */
   summary: string;
-  /** True when the tool can mutate user state (write, delete, exec). */
+  /** True for workspace mutations, command execution, or external network access. */
   destructive: boolean;
 }
 
@@ -60,6 +60,7 @@ export class ApprovalGate {
   private readonly persistent: Set<string>;
   private readonly sessionAllow = new Set<string>();
   private mode: ApprovalMode = 'always-ask';
+  private approvalQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly ui: ApprovalUI) {
     this.persistent = new Set(loadTrustStore().tools);
@@ -97,9 +98,27 @@ export class ApprovalGate {
    * may proceed; false when the user denied.
    */
   async request(prompt: ApprovalPrompt): Promise<boolean> {
+    return this.enqueue(() => this.decide(prompt));
+  }
+
+  /** Approve and run a mutating/external action while holding the shared gate. */
+  async withApproval<T>(prompt: ApprovalPrompt, action: () => Promise<T>): Promise<{ allowed: false } | { allowed: true; value: T }> {
+    if (!prompt.destructive) {
+      if (!(await this.request(prompt))) return { allowed: false };
+      return { allowed: true, value: await action() };
+    }
+
+    // Keep the approval and execution in one critical section. Sub-agents
+    // share this gate, so concurrent writes/shell/network calls cannot race.
+    return this.enqueue(async () => {
+      if (!(await this.decide(prompt))) return { allowed: false };
+      return { allowed: true, value: await action() };
+    });
+  }
+
+  private async decide(prompt: ApprovalPrompt): Promise<boolean> {
     // Persistent-bypass mode: allow everything once user accepted blanket trust.
     if (this.mode === 'persistent-bypass') return true;
-
     if (this.isTrusted(prompt.toolName)) return true;
 
     // Session-bypass mode: read-only tools auto-allow; destructive tools still ask.
@@ -118,6 +137,19 @@ export class ApprovalGate {
       case 'deny':
       default:
         return false;
+    }
+  }
+
+  private async enqueue<T>(action: () => Promise<T>): Promise<T> {
+    let release!: () => void;
+    const turn = new Promise<void>((resolve) => { release = resolve; });
+    const previous = this.approvalQueue;
+    this.approvalQueue = turn;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      release();
     }
   }
 }

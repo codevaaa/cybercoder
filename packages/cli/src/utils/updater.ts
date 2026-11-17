@@ -30,7 +30,7 @@ export async function checkForUpdates(): Promise<{ updateAvailable: boolean; lat
     if (fs.existsSync(CACHE_FILE)) {
       try {
         cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
-      } catch (e) {}
+      } catch {}
     }
 
     // If cache is still valid, use it
@@ -62,7 +62,7 @@ export async function checkForUpdates(): Promise<{ updateAvailable: boolean; lat
       const isNewer = compareVersions(latestVersion, CYBERCODER_VERSION) > 0;
       return { updateAvailable: isNewer, latestVersion };
     }
-  } catch (err) {
+  } catch {
     // Silently ignore network errors to not interrupt CLI startup
   }
 

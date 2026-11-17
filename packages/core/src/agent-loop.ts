@@ -1,4 +1,5 @@
 import { createLogger } from '@cybermind/shared';
+import { resolve } from 'node:path';
 import {
   manageContext,
   trimToolOutput,
@@ -20,7 +21,7 @@ export interface AgentTool {
   schema: ToolSchema;
   /** Executor receives the parsed input and returns a string result for the model. */
   execute(input: Record<string, unknown>, ctx: ToolContext): Promise<string>;
-  /** Destructive tools mutate the filesystem/shell and must run sequentially. */
+  /** Mutating or externally connected tools require approval and execute sequentially. */
   destructive?: boolean;
   /**
    * Optional verifier run after a successful execute(). Return an error string
@@ -34,13 +35,20 @@ export interface ToolContext {
   cwd: string;
   /** Caller-provided approval gate. Throw or return false to deny. */
   approve?: (toolName: string, input: Record<string, unknown>) => Promise<boolean>;
+  /** Signal for stopping a long-running tool when the user cancels a task. */
+  signal?: AbortSignal;
 }
 
 export interface AgentLoopOptions {
   provider: LLMProvider;
   systemPrompt?: string;
   model?: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   tools?: AgentTool[];
+  /** Workspace root used by tools. Defaults to the process working directory for existing CLI callers. */
+  cwd?: string;
+  /** Approval callback for tools that request permission before execution. */
+  approve?: ToolContext['approve'];
   /** Hard cap on tool-use iterations to prevent runaway loops. */
   maxIterations?: number;
   /** Cancel the entire loop. */
@@ -54,15 +62,31 @@ export interface AgentLoopOptions {
   contextBudget?: Partial<ContextBudget>;
   /** Max characters to keep from a single tool result. Default 12k. */
   maxToolOutputChars?: number;
+  /** Bounded provider retry policy. Defaults to three exponential retries. */
+  retryPolicy?: Partial<ProviderRetryPolicy>;
 }
+
+export interface ProviderRetryPolicy {
+  /** Retries after the initial request. */
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+}
+
+const DEFAULT_RETRY_POLICY: ProviderRetryPolicy = {
+  maxRetries: 3,
+  baseDelayMs: 1_000,
+  maxDelayMs: 30_000,
+};
 
 export type AgentEvent =
   | { type: 'text'; text: string }
   | { type: 'tool_call'; name: string; input: Record<string, unknown>; id: string }
   | { type: 'tool_result'; name: string; id: string; output: string; ok: boolean }
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
+  | { type: 'usage'; inputTokens: number; outputTokens: number; estimated?: boolean; cost?: number }
   | { type: 'iteration'; index: number; max: number }
   | { type: 'context'; note: string; tokens: number }
+  | { type: 'subagent_progress'; agentId: string; skill: string; status: 'started' | 'working' | 'completed' | 'failed' | 'cancelled'; message?: string }
   | { type: 'done'; reason: 'end_turn' | 'max_iterations' | 'error'; error?: string };
 
 /**
@@ -78,7 +102,11 @@ export async function* runAgentLoop(
   const toolMap = new Map(tools.map((t) => [t.schema.name, t] as const));
   const toolSchemas = tools.map((t) => t.schema);
   const max = opts.maxIterations ?? 10;
-  const ctx: ToolContext = { cwd: process.cwd() };
+  const ctx: ToolContext = {
+    cwd: resolve(opts.cwd ?? process.cwd()),
+    ...(opts.approve ? { approve: opts.approve } : {}),
+    ...(opts.signal ? { signal: opts.signal } : {}),
+  };
   const maxToolChars = opts.maxToolOutputChars ?? 12_000;
 
   // Resolve the context budget from explicit opts or the model family.
@@ -107,6 +135,7 @@ export async function* runAgentLoop(
 
     const req: ChatRequest = {
       model: opts.model ?? 'auto',
+      effort: opts.reasoningEffort ?? 'low',
       messages: buffer,
       systemPrompt: opts.systemPrompt,
       tools: toolSchemas.length > 0 ? toolSchemas : undefined,
@@ -117,8 +146,9 @@ export async function* runAgentLoop(
     let assistantToolCalls: ProviderToolCall[] = [];
     let stopReason: ChatChunk & { type: 'done' } = { type: 'done', reason: 'end_turn' };
 
-    // ── Provider call with one transient-error retry (self-correction) ──
+    // ── Provider call with bounded retry/backoff for rate limits and transient errors ──
     let attempt = 0;
+    const retryPolicy = { ...DEFAULT_RETRY_POLICY, ...opts.retryPolicy };
     while (true) {
       assistantText = '';
       assistantToolCalls = [];
@@ -138,19 +168,30 @@ export async function* runAgentLoop(
             id: chunk.toolCall.id,
           };
         } else if (chunk.type === 'usage') {
-          yield { type: 'usage', inputTokens: chunk.inputTokens, outputTokens: chunk.outputTokens };
+          yield {
+            type: 'usage',
+            inputTokens: chunk.inputTokens,
+            outputTokens: chunk.outputTokens,
+            ...(chunk.estimated ? { estimated: true } : {}),
+            ...(chunk.cost !== undefined ? { cost: chunk.cost } : {}),
+          };
         } else if (chunk.type === 'done') {
           stopReason = chunk;
           if (chunk.reason === 'error') sawError = chunk.error;
         }
       }
 
-      // Retry once on a transient error when the model produced no output yet.
-      if (sawError && attempt === 0 && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
+      // Retry transient failures only before any output has reached the user.
+      if (sawError && attempt < retryPolicy.maxRetries && !assistantText && assistantToolCalls.length === 0 && isTransient(sawError)) {
         attempt++;
-        log.warn('provider transient error; retrying once', { error: sawError });
-        yield { type: 'context', note: `retry after transient error: ${sawError}`, tokens: managed.tokens };
-        await delay(400);
+        const waitMs = providerRetryDelayMs(sawError, attempt, retryPolicy);
+        log.warn('provider transient error; waiting before retry', { attempt, waitMs, error: sawError });
+        yield { type: 'context', note: `provider busy; retry ${attempt}/${retryPolicy.maxRetries} in ${formatWait(waitMs)}: ${sawError}`, tokens: managed.tokens };
+        const completed = await delay(waitMs, opts.signal);
+        if (!completed) {
+          yield { type: 'done', reason: 'error', error: 'aborted while waiting to retry' };
+          return;
+        }
         continue;
       }
       break;
@@ -286,6 +327,40 @@ function isTransient(error: string): boolean {
   );
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function providerRetryDelayMs(
+  error: string,
+  retryNumber: number,
+  policy: ProviderRetryPolicy = DEFAULT_RETRY_POLICY,
+): number {
+  const retryAfter = error.match(/retry[- ]after\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|sec(?:onds?)?)?/i);
+  if (retryAfter) {
+    const amount = Number(retryAfter[1]);
+    const unit = retryAfter[2]?.toLowerCase();
+    const suggested = unit?.startsWith('m') ? amount : amount * 1_000;
+    if (Number.isFinite(suggested) && suggested >= 0) return Math.min(suggested, policy.maxDelayMs);
+  }
+  return Math.min(policy.baseDelayMs * 2 ** Math.max(0, retryNumber - 1), policy.maxDelayMs);
+}
+
+function formatWait(ms: number): string {
+  return ms < 1_000 ? `${Math.ceil(ms)}ms` : `${(ms / 1_000).toFixed(1)}s`;
+}
+
+function delay(ms: number, signal?: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve(true);
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      resolve(false);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }

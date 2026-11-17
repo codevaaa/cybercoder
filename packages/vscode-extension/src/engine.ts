@@ -1,4 +1,3 @@
-import * as vscode from 'vscode'
 import { CyberCoderApi } from './api.js'
 
 /**

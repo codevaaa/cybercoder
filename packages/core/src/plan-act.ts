@@ -32,6 +32,7 @@ export async function runPlan(
     provider: LLMProvider;
     model?: string;
     tools: AgentTool[];
+    cwd?: string;
     signal?: AbortSignal;
     onEvent?: (e: AgentEvent) => void;
   },
@@ -44,6 +45,7 @@ export async function runPlan(
     systemPrompt: PLAN_SYSTEM,
     model: opts.model ?? 'auto',
     tools: readonly,
+    cwd: opts.cwd,
     maxIterations: 6,
     signal: opts.signal,
   })) {
@@ -63,6 +65,8 @@ export interface GoalOptions {
   model?: string;
   tools: AgentTool[];
   systemPrompt?: string;
+  cwd?: string;
+  approve?: (toolName: string, input: Record<string, unknown>) => Promise<boolean>;
   signal?: AbortSignal;
   /** Max ACT rounds before stopping (each round = one full agent loop). */
   maxRounds?: number;
@@ -102,6 +106,8 @@ export async function* runGoal(
       systemPrompt: system,
       model: opts.model ?? 'auto',
       tools: opts.tools,
+      cwd: opts.cwd,
+      approve: opts.approve,
       signal: opts.signal,
     })) {
       if (evt.type === 'text') roundText += evt.text;

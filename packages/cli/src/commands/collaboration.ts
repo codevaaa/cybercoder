@@ -194,7 +194,10 @@ export function buildCollabCommand(ctx: CommandContext): SlashCommandHandler {
             }
             reply(`Closed collaboration session "${closeSessionId}" and stopped any associated mirrors.`);
           } else {
-            reply(`Failed to close session "${closeSessionId}". Does it exist?`);
+            const remaining = collabManager.getSession(closeSessionId)?.worktrees ?? {};
+            reply(Object.keys(remaining).length
+              ? `Session "${closeSessionId}" still has managed worktrees. Remove them with /worktree close ${closeSessionId} <agent-id> before closing the session.`
+              : `Failed to close session "${closeSessionId}". Does it exist?`);
           }
           break;
 
@@ -209,17 +212,18 @@ export function buildCollabCommand(ctx: CommandContext): SlashCommandHandler {
 /**
  * `/worktree` — manage git worktrees for parallel agent work.
  *
- *   /worktree create <session-id> [branch]  — create a worktree for current agent
+ *   /worktree create <session-id> [base-ref] — create an isolated worktree from a clean repo
  *   /worktree list <session-id>             — list worktrees in session
- *   /worktree sync <session-id>             — sync changes back to main branch
+ *   /worktree sync <session-id> [agent-id]  — merge a committed worktree branch locally
+ *   /worktree close <session-id> [agent-id] — remove a clean worktree
  */
 export function buildWorktreeCommand(ctx: CommandContext): SlashCommandHandler {
   return {
     name: 'worktree',
     description: 'Manage git worktrees for parallel agent work.',
     category: 'collab',
-    usage: '/worktree <create|list|sync> <session-id> [branch]',
-    run: (args: string) => {
+    usage: '/worktree <create|list|sync|close> <session-id> [base-ref|agent-id]',
+    run: async (args: string) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       const reply = (content: string) =>
         ctx.appendMessage({
@@ -243,17 +247,23 @@ export function buildWorktreeCommand(ctx: CommandContext): SlashCommandHandler {
       const collabManager = new CollaborationManager();
 
       switch (command) {
-        case 'create':
-          const branch = parts[2] || 'main';
-          const worktreePath = collabManager.createWorktree(sessionId, 'current-agent', branch);
-          if (worktreePath) {
-            reply(`Created worktree for session "${sessionId}":\n  Path: ${worktreePath}\n  Branch: ${branch}\n\nNote: Actual git worktree creation would run \`git worktree add ${worktreePath} ${branch}\``);
-          } else {
-            reply(`Failed to create worktree. Does session "${sessionId}" exist?`);
+        case 'create': {
+          const baseRef = parts[2] || 'HEAD';
+          try {
+            const worktreePath = await collabManager.createWorktree(sessionId, 'current-agent', baseRef);
+            if (!worktreePath) {
+              reply(`Session "${sessionId}" not found. Create it first with /collab create <name>.`);
+              return;
+            }
+            const branch = await collabManager.getWorktreeBranch(sessionId, 'current-agent');
+            reply(`Created isolated Git worktree.\n  Path: ${worktreePath}\n  Branch: ${branch}\n  Based on: ${baseRef}\n\nThe selected repository must be clean before creation. Changes remain in this worktree until you commit and run /worktree sync ${sessionId}.`);
+          } catch (error) {
+            reply(`Could not create worktree: ${error instanceof Error ? error.message : String(error)}`);
           }
           break;
+        }
 
-        case 'list':
+        case 'list': {
           const session = collabManager.getSession(sessionId);
           if (!session) {
             reply(`Session "${sessionId}" not found.`);
@@ -269,13 +279,34 @@ export function buildWorktreeCommand(ctx: CommandContext): SlashCommandHandler {
           }
           reply(worktreeLines.join('\n'));
           break;
+        }
 
-        case 'sync':
-          reply(`Sync feature not yet implemented. Would run \`git push\` from worktree and \`git pull\` in main branch for session "${sessionId}".`);
+        case 'sync': {
+          const agentId = parts[2] || 'current-agent';
+          try {
+            const branch = await collabManager.mergeWorktree(sessionId, agentId);
+            reply(`Merged local worktree branch "${branch}" into the selected repository. No remote push was made.`);
+          } catch (error) {
+            reply(`Could not merge worktree: ${error instanceof Error ? error.message : String(error)}`);
+          }
           break;
+        }
+
+        case 'close': {
+          const agentId = parts[2] || 'current-agent';
+          try {
+            const removed = await collabManager.removeWorktree(sessionId, agentId);
+            reply(removed
+              ? `Removed the clean worktree for agent "${agentId}". Its branch is still available in Git.`
+              : `No worktree found for agent "${agentId}" in session "${sessionId}".`);
+          } catch (error) {
+            reply(`Could not close worktree: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          break;
+        }
 
         default:
-          reply(`Unknown command "${command}". Use: create, list, sync`);
+          reply(`Unknown command "${command}". Use: create, list, sync, close.`);
           break;
       }
     },

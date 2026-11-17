@@ -1,5 +1,6 @@
-import type { AgentTool, ToolContext } from '@cybermind/core';
+import type { AgentEvent, AgentTool, ToolContext } from '@cybermind/core';
 import type { LLMProvider } from '@cybermind/providers';
+import type { CollaborationManager } from '@cybermind/shared';
 import type { SkillRegistry } from './registry.js';
 import { orchestrate, routeTaskToSkill, type OrchestratedTask } from './orchestrator.js';
 
@@ -8,6 +9,9 @@ export interface TeamToolDeps {
   provider: LLMProvider;
   toolPool: AgentTool[];
   concurrency?: number;
+  worktreeManager?: Pick<CollaborationManager,
+    'createSession' | 'addParticipant' | 'createWorktree' | 'getWorktreeBranch' | 'getWorktreeState' | 'removeWorktree' | 'deleteSession'>;
+  onProgress?: (event: Extract<AgentEvent, { type: 'subagent_progress' }>) => void;
 }
 
 /**
@@ -44,7 +48,7 @@ export function buildSpawnTeamTool(deps: TeamToolDeps): AgentTool {
         required: ['tasks'],
       },
     },
-    async execute(input: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+    async execute(input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
       const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
       if (rawTasks.length === 0) return 'Error: spawn_team requires a non-empty "tasks" array.';
 
@@ -64,8 +68,12 @@ export function buildSpawnTeamTool(deps: TeamToolDeps): AgentTool {
       const results = await orchestrate(tasks, {
         registry: deps.registry,
         provider: deps.provider,
+        cwd: ctx.cwd,
+        worktreeManager: deps.worktreeManager,
         toolPool: deps.toolPool,
         concurrency: deps.concurrency ?? 3,
+        signal: ctx.signal,
+        onProgress: deps.onProgress,
       });
 
       const lines: string[] = [`# Team results (${results.length} agents)`];
@@ -74,6 +82,11 @@ export function buildSpawnTeamTool(deps: TeamToolDeps): AgentTool {
         lines.push(`\n## ${i + 1}. ${label} (${r.task.skill}) — ${r.ok ? 'ok' : 'failed'} · ${r.durationMs}ms`);
         if (r.ok) lines.push(r.summary || '(no output)');
         else lines.push(`Error: ${r.error ?? 'unknown'}`);
+        if (r.worktree) {
+          lines.push(`Isolated worktree: ${r.worktree.path} (branch ${r.worktree.branch})`);
+          lines.push(`Review, then commit in that folder and run /worktree sync ${r.worktree.sessionId} ${r.worktree.agentId} to merge locally. Close it after review with /worktree close ${r.worktree.sessionId} ${r.worktree.agentId}. No remote push is made.`);
+        }
+        if (r.executionNote) lines.push(`Execution note: ${r.executionNote}`);
       });
       return lines.join('\n');
     },

@@ -12,12 +12,18 @@ export interface SpawnSubagentOptions {
   prompt: string;
   /** Provider used by the sub-agent. Usually the main session's router. */
   provider: LLMProvider;
+  /** Selected project directory shared with the parent task. */
+  cwd?: string;
   /** Pool of tools available to the sub-agent before filtering by skill.requires.tools. */
   toolPool: AgentTool[];
   /** Optional sub-agent model override. */
   model?: string;
+  /** Inherit the parent task's response budget unless explicitly overridden. */
+  reasoningEffort?: 'low' | 'medium' | 'high';
   /** Forward sub-agent events to the caller (e.g. for UI streaming). */
   onEvent?: (evt: AgentEvent) => void;
+  /** Stable identity surfaced through progress events. */
+  agentId?: string;
   /** Hard cap on iterations the sub-agent may run. */
   maxIterations?: number;
   /** Abort signal for the entire sub-agent run. */
@@ -32,7 +38,7 @@ export interface SubagentResult {
   /** Token usage if any provider reported it. */
   usage: { inputTokens: number; outputTokens: number };
   /** Final loop status. */
-  reason: 'end_turn' | 'max_iterations' | 'error';
+  reason: 'end_turn' | 'max_iterations' | 'error' | 'cancelled';
   error?: string;
 }
 
@@ -74,13 +80,14 @@ function selectTools(skill: Skill, pool: AgentTool[]): AgentTool[] {
 export async function spawnSubagent(opts: SpawnSubagentOptions): Promise<SubagentResult> {
   const { skill, prompt, provider, toolPool } = opts;
   const tools = selectTools(skill, toolPool);
+  const agentId = opts.agentId ?? `agent-${Date.now().toString(36)}`;
   const systemPrompt = buildSubagentSystemPrompt(skill);
 
   const messages: ProviderMessage[] = [{ role: 'user', content: prompt }];
 
   let summary = '';
   let toolCalls = 0;
-  let usage = { inputTokens: 0, outputTokens: 0 };
+  const usage = { inputTokens: 0, outputTokens: 0 };
   let reason: SubagentResult['reason'] = 'end_turn';
   let error: string | undefined;
 
@@ -88,26 +95,53 @@ export async function spawnSubagent(opts: SpawnSubagentOptions): Promise<Subagen
     skill: skill.frontmatter.name,
     tools: tools.map((t) => t.schema.name),
   });
+  opts.onEvent?.({
+    type: 'subagent_progress',
+    agentId,
+    skill: skill.frontmatter.name,
+    status: 'started',
+    message: 'started',
+  });
 
   for await (const evt of runAgentLoop(messages, {
     provider,
     systemPrompt,
     model: opts.model ?? 'auto',
+    reasoningEffort: opts.reasoningEffort ?? 'low',
+    cwd: opts.cwd,
     tools,
     maxIterations: opts.maxIterations ?? 6,
     signal: opts.signal,
   })) {
-    opts.onEvent?.(evt);
+    if (evt.type === 'tool_call') {
+      opts.onEvent?.({
+        type: 'subagent_progress',
+        agentId,
+        skill: skill.frontmatter.name,
+        status: 'working',
+        message: evt.name,
+      });
+    }
     if (evt.type === 'text') summary += evt.text;
     else if (evt.type === 'tool_call') toolCalls++;
     else if (evt.type === 'usage') {
       usage.inputTokens += evt.inputTokens;
       usage.outputTokens += evt.outputTokens;
     } else if (evt.type === 'done') {
-      reason = evt.reason === 'max_iterations' ? 'max_iterations' : evt.reason === 'error' ? 'error' : 'end_turn';
+      reason = opts.signal?.aborted
+        ? 'cancelled'
+        : evt.reason === 'max_iterations' ? 'max_iterations' : evt.reason === 'error' ? 'error' : 'end_turn';
       error = evt.error;
     }
   }
+
+  opts.onEvent?.({
+    type: 'subagent_progress',
+    agentId,
+    skill: skill.frontmatter.name,
+    status: reason === 'cancelled' ? 'cancelled' : reason === 'error' ? 'failed' : 'completed',
+    message: reason === 'cancelled' ? 'cancelled' : reason === 'error' ? error ?? 'failed' : `${toolCalls} tool calls`,
+  });
 
   return { summary: summary.trim(), toolCalls, usage, reason, error };
 }

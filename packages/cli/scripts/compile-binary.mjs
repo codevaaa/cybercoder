@@ -17,7 +17,7 @@
  */
 
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -42,7 +42,7 @@ console.log(`[compile] Entry: ${ENTRY}`)
 console.log(`[compile] Output: ${outPath}`)
 
 if (!existsSync(ENTRY)) {
-  console.error('[compile] ERROR: dist/index.js not found. Run `npm run build` first.')
+  console.error('[compile] ERROR: dist/rpc/rpc-entry.js not found. Run `npm run build:rpc` first.')
   process.exit(1)
 }
 

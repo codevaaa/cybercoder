@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import gradient from 'gradient-string';
-import { loadConfig, updateConfig } from '../utils/config.js';
+import { loadConfig, updateConfig, type UserConfig } from '../utils/config.js';
 
 const cyber = gradient(['#00e5ff', '#7b5cff', '#ff5c8a']);
 
@@ -34,7 +34,11 @@ const SETTINGS_CATEGORIES = [
       { key: 'default_model', label: 'Default model', isBool: false },
     ],
   },
-];
+] as const;
+
+type SettingKey = (typeof SETTINGS_CATEGORIES)[number]['items'][number]['key'];
+type SettingValue = boolean | string;
+type ThemeMode = NonNullable<UserConfig['theme']>['mode'];
 
 export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const [catIdx, setCatIdx] = useState(0);
@@ -43,7 +47,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
   const currentCat = SETTINGS_CATEGORIES[catIdx];
 
-  const getSettingValue = (key: string): any => {
+  const getSettingValue = (key: SettingKey): SettingValue => {
     switch (key) {
       case 'welcome':
         return config.showWelcome ?? true;
@@ -58,25 +62,27 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       case 'default_model':
         return config.lastModel ?? 'auto';
       default:
-        return (config as any)[key] ?? false;
+        return false;
     }
   };
 
-  const toggleSetting = (key: string) => {
+  const toggleSetting = (key: SettingKey) => {
     const currentValue = getSettingValue(key);
-    let updatedPartial: any = {};
+    let updatedPartial: Partial<UserConfig> = {};
 
     if (key === 'welcome') {
       updatedPartial = { showWelcome: !currentValue };
     } else if (key === 'telemetry') {
       updatedPartial = { telemetry: !currentValue };
     } else if (key === 'theme') {
-      const modes = ['dark', 'light', 'auto', 'dark-ansi', 'light-ansi'];
-      const nextMode = modes[(modes.indexOf(currentValue) + 1) % modes.length];
-      updatedPartial = { theme: { ...config.theme, mode: nextMode as any, syntaxTheme: config.theme?.syntaxTheme || 'Monokai Extended' } };
+      const modes: ThemeMode[] = ['dark', 'light', 'auto', 'dark-ansi', 'light-ansi'];
+      const currentMode = config.theme?.mode ?? 'dark';
+      const nextMode = modes[(modes.indexOf(currentMode) + 1) % modes.length] ?? 'dark';
+      updatedPartial = { theme: { ...config.theme, mode: nextMode, syntaxTheme: config.theme?.syntaxTheme || 'Monokai Extended' } };
     } else if (key === 'default_provider') {
       const providers = ['auto', 'cybermind', 'openai', 'anthropic', 'groq', 'google', 'openrouter', 'ollama'];
-      const nextProvider = providers[(providers.indexOf(currentValue) + 1) % providers.length];
+      const currentProvider = config.lastProvider ?? 'auto';
+      const nextProvider = providers[(providers.indexOf(currentProvider) + 1) % providers.length];
       updatedPartial = { lastProvider: nextProvider };
     }
 

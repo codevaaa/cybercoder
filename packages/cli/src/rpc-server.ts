@@ -1,11 +1,12 @@
 import { createInterface } from 'node:readline'
-import { runChat, getRouter, getSkillRegistry, getCheckpoints } from './runtime/chat.js'
-import { builtinTools } from '@cybermind/tools'
-import { getGitContext, gitContextPrompt } from './utils/git-context.js'
+import { runChat } from './runtime/chat.js'
+import { builtinTools, grepWorkspace } from '@cybermind/tools'
+import { getGitContext } from './utils/git-context.js'
 import { projectMemoryPrompt } from './utils/project-memory.js'
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from 'node:fs'
-import { join, resolve, relative } from 'node:path'
-import { execSync } from 'node:child_process'
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { execFileSync, execSync } from 'node:child_process'
+import { CYBERMIND_VERSION } from '@cybermind/shared'
 
 /**
  * RPC Server mode for the CyberCoder CLI.
@@ -39,13 +40,61 @@ function respondError(id: number, message: string): void {
 
 const cwd = process.cwd()
 
+/** Search project files without passing model-controlled text to a shell. */
+export function grepRpcWorkspace(pattern: string, include: string | undefined, root: string): string {
+  return grepWorkspace(pattern, root, {
+    ...(include ? { include } : {}),
+    caseSensitive: true,
+  }).slice(0, 16000)
+}
+
+const gitRpcOperations = new Map<string, string[]>([
+  ['status', ['status']],
+  ['diff', ['diff']],
+  ['diff --cached', ['diff', '--cached']],
+  ['diff --stat', ['diff', '--stat']],
+  ['branch --show-current', ['branch', '--show-current']],
+  ['log -1 --oneline', ['log', '-1', '--oneline']],
+])
+
+/** Keep the RPC read-only git surface to known operations and argument arrays. */
+export function gitRpcArguments(operation: string): string[] | null {
+  const args = gitRpcOperations.get(operation.trim())
+  return args ? [...args] : null
+}
+
+interface ChildProcessExecutionError {
+  message?: string;
+  stdout?: string | Buffer;
+  stderr?: string | Buffer;
+  status?: number | null;
+}
+
+function executionErrorDetails(error: unknown): {
+  message: string;
+  output: string;
+  status: number;
+} {
+  const details: ChildProcessExecutionError =
+    typeof error === 'object' && error !== null ? error : {};
+  const output = [details.stdout, details.stderr]
+    .map((stream) => typeof stream === 'string' ? stream : stream?.toString('utf8') ?? '')
+    .join('');
+
+  return {
+    message: error instanceof Error ? error.message : String(error),
+    output,
+    status: typeof details.status === 'number' ? details.status : 1,
+  };
+}
+
 // ── Method handlers ──
 
 async function handleMethod(id: number, method: string, params: Record<string, unknown> = {}): Promise<void> {
   try {
     switch (method) {
       case 'ping':
-        respond(id, { pong: true, version: '0.1.22', cwd })
+        respond(id, { pong: true, version: CYBERMIND_VERSION, cwd })
         break
 
       case 'read_file': {
@@ -73,13 +122,13 @@ async function handleMethod(id: number, method: string, params: Record<string, u
       }
 
       case 'grep': {
-        const pattern = String(params.pattern || '')
-        const include = String(params.include || '.')
+        const pattern = String(params.pattern ?? '')
+        const include = typeof params.include === 'string' && params.include ? params.include : undefined
         try {
-          const out = execSync(`grep -rn --include="${include}" "${pattern}" .`, { cwd, encoding: 'utf8', timeout: 10000, windowsHide: true }).slice(0, 16000)
+          const out = grepRpcWorkspace(pattern, include, cwd)
           respond(id, { matches: out })
-        } catch (e: any) {
-          respond(id, { matches: e.stdout?.slice(0, 16000) || '' })
+        } catch (error) {
+          respond(id, { matches: executionErrorDetails(error).output.slice(0, 16000) })
         }
         break
       }
@@ -91,20 +140,27 @@ async function handleMethod(id: number, method: string, params: Record<string, u
           const out = execSync(command, { cwd, encoding: 'utf8', timeout: 120000, windowsHide: true, maxBuffer: 10 * 1024 * 1024 })
           event('tool_end', { name: 'run_command', ok: true })
           respond(id, { output: out.slice(0, 20000), exitCode: 0 })
-        } catch (e: any) {
+        } catch (error) {
+          const details = executionErrorDetails(error)
           event('tool_end', { name: 'run_command', ok: false })
-          respond(id, { output: (e.stdout || '') + (e.stderr || ''), exitCode: e.status || 1 })
+          respond(id, { output: details.output, exitCode: details.status })
         }
         break
       }
 
       case 'git': {
         const op = String(params.operation || 'status')
+        const args = gitRpcArguments(op)
+        if (!args) {
+          respondError(id, 'Unsupported git operation.')
+          break
+        }
         try {
-          const out = execSync(`git ${op}`, { cwd, encoding: 'utf8', timeout: 30000, windowsHide: true })
+          const out = execFileSync('git', args, { cwd, encoding: 'utf8', timeout: 30000, windowsHide: true })
           respond(id, { output: out.slice(0, 12000) })
-        } catch (e: any) {
-          respond(id, { output: (e.stdout || '') + (e.stderr || ''), error: e.message })
+        } catch (error) {
+          const details = executionErrorDetails(error)
+          respond(id, { output: details.output, error: details.message })
         }
         break
       }
@@ -125,23 +181,24 @@ async function handleMethod(id: number, method: string, params: Record<string, u
         // Full agentic completion using the CLI's agent loop
         const messages = (params.messages as Array<{ role: string; content: string }>) || []
         const model = String(params.model || 'auto')
-        const system = String(params.system || '')
+        const systemPrompt = String(params.system || '')
 
         let fullText = ''
         await runChat(
           messages.map(m => ({ id: `rpc-${Date.now()}`, role: m.role as 'user' | 'assistant', content: m.content, createdAt: Date.now() })),
           {
             model,
+            systemPrompt,
             onEvent: (evt) => {
               if (evt.type === 'text') {
                 fullText += evt.text
                 event('token', { content: evt.text })
-              } else if (evt.type === 'tool_start') {
+              } else if (evt.type === 'tool_call') {
                 event('tool_start', { name: evt.name, input: evt.input })
-              } else if (evt.type === 'tool_end') {
-                event('tool_end', { name: evt.name, output: evt.output?.slice(0, 4000) })
-              } else if (evt.type === 'error') {
-                event('error', { message: evt.message })
+              } else if (evt.type === 'tool_result') {
+                event('tool_end', { name: evt.name, output: evt.output.slice(0, 4000), ok: evt.ok })
+              } else if (evt.type === 'done' && evt.reason === 'error') {
+                event('error', { message: evt.error ?? 'Agent turn failed' })
               }
             },
           },
@@ -159,8 +216,9 @@ async function handleMethod(id: number, method: string, params: Record<string, u
       default:
         respondError(id, `Unknown method: ${method}`)
     }
-  } catch (err) {
-    respondError(id, (err as Error).message || 'Internal error')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    respondError(id, message || 'Internal error')
   }
 }
 
@@ -168,7 +226,7 @@ async function handleMethod(id: number, method: string, params: Record<string, u
 
 export function startRpcServer(): void {
   // Signal readiness
-  event('ready', { version: '0.1.22', cwd, tools: builtinTools().map(t => t.schema.name) })
+  event('ready', { version: CYBERMIND_VERSION, cwd, tools: builtinTools().map(t => t.schema.name) })
 
   const rl = createInterface({ input: process.stdin, terminal: false })
   rl.on('line', (line) => {

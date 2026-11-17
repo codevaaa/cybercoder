@@ -138,7 +138,7 @@ export class OpenAIProvider implements LLMProvider {
                     if (tcDelta.function?.arguments) tc.arguments += tcDelta.function.arguments;
                   }
                 }
-              } catch (err) {
+              } catch {
                 // Ignore json parsing issues on partial lines
               }
             }
@@ -153,7 +153,7 @@ export class OpenAIProvider implements LLMProvider {
           let parsedArgs = {};
           try {
             parsedArgs = tc.arguments ? JSON.parse(tc.arguments) : {};
-          } catch (e) {
+          } catch {
             log.warn('Failed to parse tool arguments JSON', tc.arguments);
           }
           yield {

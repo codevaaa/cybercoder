@@ -150,9 +150,10 @@ export class CybermindCloudProvider implements LLMProvider {
       
       yield { type: 'done', reason: 'stop' };
 
-    } catch (err: any) {
-      log.error('Codeva Cloud chat failed', err);
-      yield { type: 'done', reason: 'error', error: err.message || String(err) };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('Codeva Cloud chat failed', message);
+      yield { type: 'done', reason: 'error', error: message };
     }
   }
 }

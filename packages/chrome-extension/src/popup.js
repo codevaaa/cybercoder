@@ -66,7 +66,6 @@ document.querySelectorAll('.task-btn').forEach(btn => {
     const prompt = prompts[task] || task
 
     // Visual feedback
-    const origText = btn.querySelector('.txt')?.textContent
     if (btn.querySelector('.txt')) btn.querySelector('.txt').textContent = 'Opening...'
     btn.style.borderColor = '#C96442'
 

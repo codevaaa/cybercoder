@@ -129,7 +129,14 @@ export class ProfileManager {
       return false;
     }
     // Extract all fields except name for updates
-    const { name: _, ...configWithoutName } = defaultConfig;
+    const configWithoutName = {
+      model: defaultConfig.model,
+      provider: defaultConfig.provider,
+      approvalMode: defaultConfig.approvalMode,
+      telemetryEnabled: defaultConfig.telemetryEnabled,
+      autoCheckpoint: defaultConfig.autoCheckpoint,
+      accentColor: defaultConfig.accentColor,
+    };
     return this.updateProfile(name, configWithoutName);
   }
 

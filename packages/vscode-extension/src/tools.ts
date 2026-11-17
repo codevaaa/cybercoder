@@ -19,7 +19,12 @@ export interface ToolDef {
   description: string
   parameters: Record<string, unknown> // JSON schema
   destructive: boolean
-  execute: (args: Record<string, any>, ctx: ToolCtx) => Promise<string>
+  execute: (args: Record<string, unknown>, ctx: ToolCtx) => Promise<string>
+}
+
+export interface CliToolBridge {
+  isRunning(): boolean
+  call(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<unknown>
 }
 
 export interface ToolCtx {
@@ -29,6 +34,7 @@ export interface ToolCtx {
   /** Stream a short status line to the chat (e.g. "Reading src/x.ts"). */
   status: (text: string) => void
   signal?: AbortSignal
+  cliBridge?: CliToolBridge
 }
 
 function root(): vscode.Uri | undefined {
@@ -109,11 +115,11 @@ const grepTool: ToolDef = {
     const include = args.include ? String(args.include) : '**/*.{ts,tsx,js,jsx,py,go,rs,java,c,cpp,cs,rb,php,md,json}'
 
     // Use CLI bridge ripgrep if available (much faster)
-    const bridge = (ctx as any)._cliBridge
+    const bridge = ctx.cliBridge
     if (bridge && bridge.isRunning()) {
       try {
-        const result = await bridge.call('grep', { pattern, include }, 30000) as { matches?: string }
-        return result?.matches || 'No matches.'
+        const result = asRecord(await bridge.call('grep', { pattern, include }, 30000))
+        return typeof result?.matches === 'string' ? result.matches : 'No matches.'
       } catch { /* fall through to VS Code API */ }
     }
 
@@ -210,7 +216,6 @@ const gitTool: ToolDef = {
   destructive: true,
   async execute(args, ctx) {
     const op = String(args.operation || 'status')
-    const command = `git ${op}`
     if (ctx.mode === 'ask' || ctx.mode === 'plan') {
       const ok = await ctx.approve(`Git: ${op}`)
       if (!ok) return `User declined: git ${op}`
@@ -241,11 +246,13 @@ const subAgentTool: ToolDef = {
     const task = String(args.task)
     const skill = String(args.skill || 'general')
     // Attempt to use the CLI bridge if available (injected via context)
-    const bridge = (ctx as any)._cliBridge
+    const bridge = ctx.cliBridge
     if (bridge && bridge.isRunning()) {
       try {
-        const result = await bridge.call('spawn_subagent', { task, skill }, 60000) as { text?: string; result?: string }
-        return result?.text || result?.result || `Sub-agent completed: ${task}`
+        const result = asRecord(await bridge.call('spawn_subagent', { task, skill }, 60000))
+        if (typeof result?.text === 'string') return result.text
+        if (typeof result?.result === 'string') return result.result
+        return `Sub-agent completed: ${task}`
       } catch (e) {
         return `Sub-agent failed: ${(e as Error).message}`
       }
@@ -265,11 +272,13 @@ const scheduleTool: ToolDef = {
     const when = String(args.when)
     ctx.status(`Scheduling: ${task.slice(0, 40)}`)
     // Real scheduling via CLI bridge
-    const bridge = (ctx as any)._cliBridge
+    const bridge = ctx.cliBridge
     if (bridge && bridge.isRunning()) {
       try {
-        const result = await bridge.call('schedule_task', { task, when }, 10000) as { id?: string; message?: string }
-        return result?.message || `Scheduled: "${task}" → ${when} (id: ${result?.id || 'pending'})`
+        const result = asRecord(await bridge.call('schedule_task', { task, when }, 10000))
+        if (typeof result?.message === 'string') return result.message
+        const id = typeof result?.id === 'string' ? result.id : 'pending'
+        return `Scheduled: "${task}" → ${when} (id: ${id})`
       } catch (e) {
         return `Schedule failed: ${(e as Error).message}`
       }
@@ -278,10 +287,11 @@ const scheduleTool: ToolDef = {
     const r = root()
     if (r) {
       const schedFile = vscode.Uri.joinPath(r, '.cyber', 'schedules.json')
-      let schedules: any[] = []
+      let schedules: Array<Record<string, unknown>> = []
       try {
         const existing = await vscode.workspace.fs.readFile(schedFile)
-        schedules = JSON.parse(Buffer.from(existing).toString('utf8'))
+        const parsed: unknown = JSON.parse(Buffer.from(existing).toString('utf8'))
+        if (Array.isArray(parsed)) schedules = parsed.filter(isRecord)
       } catch { /* file doesn't exist yet */ }
       schedules.push({ task, when, createdAt: new Date().toISOString(), status: 'pending' })
       await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(r, '.cyber'))
@@ -302,4 +312,14 @@ export function toolsForMode(mode: Mode): ToolDef[] {
 
 export function findTool(name: string): ToolDef | undefined {
   return ALL_TOOLS.find((t) => t.name === name)
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return asRecord(value) !== undefined
 }

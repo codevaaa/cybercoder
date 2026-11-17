@@ -1,0 +1,684 @@
+import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import path from 'node:path'
+import { test } from 'node:test'
+import { CodicRuntime, constrainReadOnlyToolPaths, isSafeReadOnlyCommand } from './runtime.ts'
+import { grepTool } from '../../tools/src/builtin/grep.ts'
+import { readFileTool } from '../../tools/src/builtin/read-file.ts'
+
+const stream = (events) => new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), {
+  status: 200,
+  headers: { 'content-type': 'text/event-stream' },
+})
+
+const waitForFinish = (events, timeoutMs = 10_000) => new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => reject(new Error('The local runtime did not finish in time.')), timeoutMs)
+  events.finish = (event) => {
+    clearTimeout(timeout)
+    resolve(event)
+  }
+})
+
+const shellQuote = value => process.platform === 'win32'
+  ? `'${String(value).replace(/'/g, "''")}'`
+  : `'${String(value).replace(/'/g, `'"'"'`)}'`
+
+const commandForNode = scriptPath => process.platform === 'win32'
+  ? `& ${shellQuote(process.execPath)} ${shellQuote(scriptPath)}`
+  : `${shellQuote(process.execPath)} ${shellQuote(scriptPath)}`
+
+const waitForProcessTreePids = async pidFile => {
+  const deadline = Date.now() + 8_000
+  while (Date.now() < deadline) {
+    if (existsSync(pidFile)) return JSON.parse(readFileSync(pidFile, 'utf8'))
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  throw new Error(`The command did not write its process IDs to ${pidFile}.`)
+}
+
+const isProcessAlive = pid => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code !== 'ESRCH'
+  }
+}
+
+const waitForProcessesToExit = async pids => {
+  const deadline = Date.now() + 8_000
+  while (Date.now() < deadline) {
+    if (pids.every(pid => !isProcessAlive(pid))) return
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  assert.fail(`Command descendants are still running: ${pids.filter(isProcessAlive).join(', ')}`)
+}
+
+const forceKillTestProcesses = pids => {
+  for (const pid of pids) {
+    if (!Number.isInteger(pid) || pid <= 0) continue
+    if (process.platform === 'win32') {
+      spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+    } else {
+      try { process.kill(pid, 'SIGKILL') } catch { /* The test process already exited. */ }
+    }
+  }
+}
+
+const createProcessTreeCommand = (pidFile, outputBytes = 0) => {
+  const scriptFile = path.join(path.dirname(pidFile), 'spawn-tree.js')
+  const output = outputBytes ? `process.stdout.write('x'.repeat(${outputBytes}));` : ''
+  const source = [
+    "const { spawn } = require('node:child_process');",
+    "const fs = require('node:fs');",
+    "const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });",
+    `fs.writeFileSync(${JSON.stringify(pidFile)}, JSON.stringify([process.pid, child.pid]));`,
+    output,
+    'setInterval(() => {}, 1000);',
+  ].join('')
+  writeFileSync(scriptFile, source)
+  return commandForNode(scriptFile)
+}
+
+const runCommandProcessTree = async ({ timeoutMs, outputBytes = 0 }) => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-command-tree-'))
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const pidFile = path.join(project, 'processes.json')
+  const controller = new AbortController()
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    onEvent: () => undefined,
+  })
+  const result = runtime.runCommand({ command: createProcessTreeCommand(pidFile, outputBytes), timeout_ms: timeoutMs }, controller.signal)
+  try {
+    const pids = await Promise.race([
+      waitForProcessTreePids(pidFile),
+      result.then(output => { throw new Error(`The command exited before writing its process IDs: ${output}`) }),
+    ])
+    return { project, checkpointDirectory, pids, result, cancel: () => controller.abort() }
+  } catch (error) {
+    controller.abort()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+    throw error
+  }
+}
+
+const cleanProcessTreeRun = run => {
+  forceKillTestProcesses(run.pids)
+  rmSync(run.checkpointDirectory, { recursive: true, force: true })
+  rmSync(run.project, { recursive: true, force: true })
+}
+
+test('cancellation terminates the command and its descendants', async () => {
+  const run = await runCommandProcessTree({ timeoutMs: 10_000 })
+  try {
+    run.cancel()
+    assert.match(await run.result, /\[command cancelled\]/)
+    await waitForProcessesToExit(run.pids)
+  } finally {
+    cleanProcessTreeRun(run)
+  }
+})
+
+test('timeout terminates the command and its descendants', async () => {
+  const run = await runCommandProcessTree({ timeoutMs: 1_000 })
+  try {
+    assert.match(await run.result, /\[output capped or process stopped at timeout\]/)
+    await waitForProcessesToExit(run.pids)
+  } finally {
+    cleanProcessTreeRun(run)
+  }
+})
+
+test('output limit terminates the command and its descendants', async () => {
+  const run = await runCommandProcessTree({ timeoutMs: 10_000, outputBytes: 250_000 })
+  try {
+    assert.match(await run.result, /\[output capped or process stopped at timeout\]/)
+    await waitForProcessesToExit(run.pids)
+  } finally {
+    cleanProcessTreeRun(run)
+  }
+})
+
+test('safe-read approval policy only auto-approves exact read-only commands', () => {
+  for (const command of ['pwd', 'Get-Location', 'git status --short', 'git diff --stat', 'git branch --show-current', 'Get-ChildItem -Name']) assert.equal(isSafeReadOnlyCommand(command), true)
+  for (const command of ['git push', 'git status; whoami', 'git diff > patch.txt', 'npm install', 'curl https://example.test', 'Remove-Item file.txt', '']) assert.equal(isSafeReadOnlyCommand(command), false)
+  assert.equal(isSafeReadOnlyCommand({ command: 'git status' }), false)
+})
+
+test('read-only helper paths use the checked canonical target if a symlink is replaced before open', async () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'codic-runtime-read-path-'))
+  const project = path.join(base, 'workspace')
+  const outside = path.join(base, 'outside')
+  const internal = path.join(project, 'internal')
+  const link = path.join(project, 'linked')
+  mkdirSync(internal, { recursive: true })
+  mkdirSync(outside, { recursive: true })
+  writeFileSync(path.join(internal, 'notes.txt'), 'in-project content')
+  writeFileSync(path.join(outside, 'notes.txt'), 'outside secret')
+
+  const linkType = process.platform === 'win32' ? 'junction' : 'dir'
+  try {
+    symlinkSync(internal, link, linkType)
+    const safeInput = constrainReadOnlyToolPaths(project, { path: path.join('linked', 'notes.txt') })
+
+    assert.equal(safeInput.path, path.join(internal, 'notes.txt'))
+    unlinkSync(link)
+    symlinkSync(outside, link, linkType)
+
+    const output = await readFileTool.execute(safeInput, { cwd: project })
+    assert.match(output, /in-project content/)
+    assert.doesNotMatch(output, /outside secret/)
+    assert.throws(
+      () => constrainReadOnlyToolPaths(project, { path: path.join('linked', 'notes.txt') }),
+      /limited to the selected workspace/,
+    )
+  } finally {
+    rmSync(base, { recursive: true, force: true })
+  }
+})
+
+test('read-only helper grep skips symlinked directories that point outside the selected workspace', async () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'codic-runtime-grep-boundary-'))
+  const project = path.join(base, 'workspace')
+  const outside = path.join(base, 'outside')
+  const link = path.join(project, 'linked-outside')
+  mkdirSync(project, { recursive: true })
+  mkdirSync(outside, { recursive: true })
+  writeFileSync(path.join(project, 'inside.txt'), 'CODEC_BOUNDARY_SENTINEL inside project')
+  writeFileSync(path.join(outside, 'secret.txt'), 'CODEC_BOUNDARY_SENTINEL outside secret')
+
+  try {
+    symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir')
+    const safeInput = constrainReadOnlyToolPaths(project, { path: '.' })
+    const output = await grepTool.execute(
+      { ...safeInput, pattern: 'CODEC_BOUNDARY_SENTINEL', include: '*.txt' },
+      { cwd: project },
+    )
+
+    assert.match(output, /inside project/)
+    assert.doesNotMatch(output, /outside secret/)
+    assert.doesNotMatch(output, /linked-outside/)
+  } finally {
+    rmSync(base, { recursive: true, force: true })
+  }
+})
+
+test('Codic runtime edits only the selected project and can restore its checkpoint', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-edit-'))
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let call = 0
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    reasoningEffort: 'high',
+    fetchImpl: async (_url, init) => {
+      assert.equal(new Headers(init.headers).get('authorization'), 'Bearer test-session')
+      const request = JSON.parse(init.body)
+      assert.equal(request.effort, 'high')
+      assert.ok(request.tools.some((tool) => tool.function.name === 'write_file'))
+      call += 1
+      return call === 1
+        ? stream([
+            { type: 'tool_call', toolCall: { id: 'write-1', name: 'write_file', input: { path: 'notes.txt', content: 'Created by the local agent.' } } },
+            { type: 'done', reason: 'tool_calls' },
+          ])
+        : stream([
+            { type: 'text', text: 'I created notes.txt inside the selected project.' },
+            { type: 'done', reason: 'end_turn' },
+          ])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Create notes.txt with a short note.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn')
+    assert.equal(call, 2)
+    assert.equal(readFileSync(path.join(project, 'notes.txt'), 'utf8'), 'Created by the local agent.')
+    const checkpoint = events.find((event) => event.type === 'checkpoint_created')
+    assert.ok(checkpoint)
+    assert.deepEqual(checkpoint.checkpoint.files, ['notes.txt'])
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.deepEqual(runtime.restoreCheckpoint(checkpoint.checkpoint.seq), { restored: 0, deleted: 1 })
+    assert.equal(existsSync(path.join(project, 'notes.txt')), false)
+  } finally {
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+  }
+})
+
+test('safe-read policy skips approval for an exact status command but continues the task', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-safe-read-'))
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let call = 0
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    approvalPolicy: 'safe-reads',
+    fetchImpl: async (_url, init) => {
+      call += 1
+      if (call === 1) {
+        const request = JSON.parse(init.body)
+        assert.equal(request.effort, 'low')
+        return stream([
+          { type: 'tool_call', toolCall: { id: 'read-status', name: 'run_command', input: { command: 'git status --short' } } },
+          { type: 'done', reason: 'tool_calls' },
+        ])
+      }
+      return stream([{ type: 'text', text: 'Status checked.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: event => { events.push(event); if (event.type === 'run_finished') events.finish?.(event) },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Check the working tree.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn')
+    assert.equal(events.some(event => event.type === 'approval_required'), false)
+    assert.equal(events.some(event => event.type === 'agent_event' && event.event.type === 'tool_result' && event.event.ok), true)
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+  }
+})
+
+test('Codic runs parallel read-only specialist agents and streams their progress', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-subagents-'))
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let parentCalls = 0
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    model: 'codeva/ravan',
+    reasoningEffort: 'high',
+    fetchImpl: async (_url, init) => {
+      const request = JSON.parse(init.body)
+      assert.equal(request.model, 'codeva/ravan')
+      assert.equal(request.effort, 'high')
+      const toolNames = (request.tools ?? []).map((tool) => tool.function.name)
+      if (toolNames.includes('spawn_subagents')) {
+        parentCalls += 1
+        if (parentCalls === 1) {
+          assert.ok(toolNames.includes('write_file'))
+          assert.ok(toolNames.includes('run_command'))
+          assert.equal(request.tools.find((tool) => tool.function.name === 'spawn_subagents').function.parameters.properties.tasks.maxItems, 3)
+          return stream([{
+            type: 'tool_call',
+            toolCall: {
+              id: 'team-1',
+              name: 'spawn_subagents',
+              input: {
+                tasks: [
+                  { skill: 'research', label: 'Find auth flow', prompt: 'Trace the sign-in flow.' },
+                  { skill: 'code-review', label: 'Review boundary', prompt: 'Review the path boundary.' },
+                ],
+              },
+            },
+          }, { type: 'done', reason: 'tool_calls' }])
+        }
+        const toolResult = request.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'team-1')
+        assert.match(toolResult.content, /Find auth flow/)
+        assert.match(toolResult.content, /Review boundary/)
+        return stream([{ type: 'text', text: 'Both specialists finished their read-only analysis.' }, { type: 'done', reason: 'end_turn' }])
+      }
+
+      assert.ok(toolNames.includes('read_file'))
+      assert.ok(toolNames.includes('grep'))
+      assert.equal(toolNames.some((name) => ['write_file', 'edit_file', 'run_command', 'spawn_subagents'].includes(name)), false)
+      const systemPrompt = request.messages.find((message) => message.role === 'system')?.content ?? ''
+      assert.match(systemPrompt, /specialist/)
+      return stream([
+        { type: 'text', text: `Analysis from ${systemPrompt.includes('code-review') ? 'review' : 'research'} specialist.` },
+        { type: 'usage', inputTokens: 23, outputTokens: 12 },
+        { type: 'done', reason: 'end_turn' },
+      ])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Understand and review this project.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn', JSON.stringify(events, null, 2))
+    assert.equal(parentCalls, 2)
+    assert.equal(events.filter((event) => event.type === 'subagent_progress' && event.status === 'running').length, 2)
+    assert.equal(events.filter((event) => event.type === 'subagent_progress' && event.status === 'done').length, 2)
+    assert.ok(events.filter((event) => event.type === 'subagent_progress').every((event) => event.model === 'codeva/ravan'))
+    assert.ok(events.filter((event) => event.type === 'subagent_progress' && event.status === 'done').every((event) => event.toolCalls === 0 && event.inputTokens === 23 && event.outputTokens === 12))
+    assert.ok(events.some((event) => event.type === 'subagent_progress' && /Analysis from/.test(event.summary ?? '')))
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+  }
+})
+
+test('Codic can stop one helper without cancelling its parent or sibling', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-subagent-cancel-'))
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let runtime
+  let parentCalls = 0
+  let cancelledId = null
+  runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    model: 'codeva/ravan',
+    reasoningEffort: 'medium',
+    maxParallelSubagents: 2,
+    fetchImpl: async (_url, init) => {
+      const request = JSON.parse(init.body)
+      const toolNames = (request.tools ?? []).map((tool) => tool.function.name)
+      if (toolNames.includes('spawn_subagents')) {
+        parentCalls += 1
+        if (parentCalls === 1) {
+          assert.equal(request.tools.find((tool) => tool.function.name === 'spawn_subagents').function.parameters.properties.tasks.maxItems, 2)
+          return stream([
+          { type: 'tool_call', toolCall: { id: 'cancel-team-1', name: 'spawn_subagents', input: { tasks: [
+            { skill: 'research', label: 'Slow researcher', prompt: 'Inspect the account flow.' },
+            { skill: 'plan', label: 'Fast planner', prompt: 'Outline a small UI plan.' },
+          ] } } },
+          { type: 'done', reason: 'tool_calls' },
+          ])
+        }
+        const toolResult = request.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'cancel-team-1')
+        assert.match(toolResult.content, /Slow researcher · research · cancelled/)
+        assert.match(toolResult.content, /Fast planner · plan · done/)
+        return stream([{ type: 'text', text: 'The remaining helper completed and the task continued.' }, { type: 'done', reason: 'end_turn' }])
+      }
+      assert.equal(request.model, 'codeva/ravan')
+      assert.equal(request.effort, 'medium')
+      assert.equal(toolNames.some((name) => ['write_file', 'edit_file', 'run_command'].includes(name)), false)
+      const userContent = request.messages.find((message) => message.role === 'user')?.content ?? ''
+      if (userContent.includes('Inspect the account flow')) return new Promise((_resolve, reject) => {
+        if (init.signal.aborted) {
+          const error = new Error('aborted')
+          error.name = 'AbortError'
+          reject(error)
+          return
+        }
+        init.signal.addEventListener('abort', () => {
+          const error = new Error('aborted')
+          error.name = 'AbortError'
+          reject(error)
+        }, { once: true })
+      })
+      return stream([{ type: 'text', text: 'Planning result.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'subagent_progress' && event.status === 'running' && event.label === 'Slow researcher' && !cancelledId) {
+        cancelledId = event.agentId
+        assert.equal(runtime.cancelSubagent(event.agentId), true)
+      }
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Ask independent helpers to inspect this project.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn', JSON.stringify(events, null, 2))
+    assert.ok(cancelledId)
+    assert.ok(events.some((event) => event.type === 'subagent_progress' && event.agentId === cancelledId && event.status === 'cancelled'))
+    assert.ok(events.some((event) => event.type === 'subagent_progress' && event.label === 'Fast planner' && event.status === 'done'))
+    assert.equal(parentCalls, 2)
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+  }
+})
+
+test('Codic read-only specialists cannot inspect paths outside the selected project, even with Full access', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'codic-runtime-helper-boundary-'))
+  const project = path.join(temp, 'project')
+  mkdirSync(project)
+  const outsideFile = path.join(temp, 'private.txt')
+  writeFileSync(outsideFile, 'outside project secret', 'utf8')
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let parentCalls = 0
+  let helperCalls = 0
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    approvalPolicy: 'full-access',
+    model: 'codeva/ravan',
+    maxParallelSubagents: 1,
+    fetchImpl: async (_url, init) => {
+      const request = JSON.parse(init.body)
+      const toolNames = (request.tools ?? []).map((tool) => tool.function.name)
+      if (toolNames.includes('spawn_subagents')) {
+        parentCalls += 1
+        if (parentCalls === 1) return stream([
+          { type: 'tool_call', toolCall: { id: 'boundary-team', name: 'spawn_subagents', input: { tasks: [
+            { skill: 'research', label: 'Boundary check', prompt: 'Try the requested external file path.' },
+          ] } } },
+          { type: 'done', reason: 'tool_calls' },
+        ])
+        const result = request.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'boundary-team')
+        assert.match(result.content, /Boundary check/)
+        return stream([{ type: 'text', text: 'The helper stayed inside the selected project.' }, { type: 'done', reason: 'end_turn' }])
+      }
+
+      helperCalls += 1
+      assert.ok(toolNames.includes('read_file'))
+      assert.equal(toolNames.some((name) => ['write_file', 'edit_file', 'run_command', 'spawn_subagents'].includes(name)), false)
+      if (helperCalls === 1) return stream([
+        { type: 'tool_call', toolCall: { id: 'outside-read', name: 'read_file', input: { path: outsideFile } } },
+        { type: 'done', reason: 'tool_calls' },
+      ])
+      const readResult = request.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'outside-read')
+      assert.match(readResult.content, /limited to the selected workspace/)
+      assert.doesNotMatch(readResult.content, /outside project secret/)
+      return stream([{ type: 'text', text: 'The requested path was outside the selected workspace and was blocked.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Have a helper inspect a path.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn', JSON.stringify(events, null, 2))
+    assert.equal(parentCalls, 2)
+    assert.equal(helperCalls, 2)
+    assert.equal(events.some((event) => event.type === 'approval_required'), false)
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(temp, { recursive: true, force: true })
+  }
+})
+
+test('Codic runtime blocks a path escape and waits for approval before shell execution', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-boundary-'))
+  const parent = path.dirname(project)
+  const outsideFile = path.join(parent, `${path.basename(project)}-outside.txt`)
+  const sentinelFile = path.join(project, 'must-not-run.txt')
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let runtime
+  let call = 0
+  runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    fetchImpl: async (_url, init) => {
+      call += 1
+      if (call === 1) {
+        const request = JSON.parse(init.body)
+        assert.ok(request.tools.some((tool) => tool.function.name === 'run_command'))
+        const command = `node -e "require('node:fs').writeFileSync('${sentinelFile.replace(/\\/g, '\\\\')}', 'ran')"`
+        return stream([
+          { type: 'tool_call', toolCall: { id: 'escape-1', name: 'write_file', input: { path: '../must-not-write.txt', content: 'blocked' } } },
+          { type: 'tool_call', toolCall: { id: 'shell-1', name: 'run_command', input: { command } } },
+          { type: 'done', reason: 'tool_calls' },
+        ])
+      }
+      return stream([{ type: 'text', text: 'The path was blocked and the shell command was denied.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'approval_required') {
+        assert.ok(['write_file', 'run_command'].includes(event.toolName))
+        assert.equal(runtime.resolveApproval(event.approvalId, false), true)
+      }
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: 'Try the requested project change.' }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn')
+    assert.ok(events.some((event) => event.type === 'tool_blocked' && event.toolName === 'write_file'))
+    assert.ok(events.some((event) => event.type === 'approval_required' && event.toolName === 'write_file'))
+    assert.ok(events.some((event) => event.type === 'approval_required' && event.toolName === 'run_command'))
+    const toolResult = events.find((event) => event.type === 'agent_event' && event.event.type === 'tool_result' && event.event.id === 'shell-1')
+    assert.match(toolResult.event.output, /user denied/)
+    assert.equal(existsSync(outsideFile), false)
+    assert.equal(existsSync(sentinelFile), false)
+  } finally {
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+    rmSync(outsideFile, { force: true })
+  }
+})
+
+test('full-access policy writes an explicitly requested file outside the selected project and checkpoints it', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-full-access-'))
+  const outsideDirectory = mkdtempSync(path.join(tmpdir(), 'codic-runtime-full-access-outside-'))
+  const outsideFile = path.join(outsideDirectory, 'preview.txt')
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let call = 0
+  const runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    approvalPolicy: 'full-access',
+    fetchImpl: async () => {
+      call += 1
+      return call === 1
+        ? stream([
+            { type: 'tool_call', toolCall: { id: 'external-write-1', name: 'write_file', input: { path: outsideFile, content: 'Created with full access.' } } },
+            { type: 'tool_call', toolCall: { id: 'full-shell-1', name: 'run_command', input: { command: 'pwd' } } },
+            { type: 'done', reason: 'tool_calls' },
+          ])
+        : stream([{ type: 'text', text: 'The requested file was created.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: (event) => { events.push(event); if (event.type === 'run_finished') events.finish?.(event) },
+  })
+  const finished = waitForFinish(events)
+  try {
+    runtime.start([{ role: 'user', content: `Create ${outsideFile}.` }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn')
+    assert.equal(readFileSync(outsideFile, 'utf8'), 'Created with full access.')
+    assert.equal(events.some((event) => event.type === 'approval_required'), false)
+    const shellResult = events.find((event) => event.type === 'agent_event' && event.event.type === 'tool_result' && event.event.id === 'full-shell-1')
+    assert.match(shellResult.event.output, new RegExp(project.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'))
+    const checkpoint = events.find((event) => event.type === 'checkpoint_created')
+    assert.ok(checkpoint)
+    assert.equal(checkpoint.checkpoint.files[0], path.relative(project, outsideFile))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.deepEqual(runtime.restoreCheckpoint(checkpoint.checkpoint.seq), { restored: 0, deleted: 1 })
+    assert.equal(existsSync(outsideFile), false)
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+    rmSync(outsideDirectory, { recursive: true, force: true })
+  }
+})
+
+test('ask policy requires a one-time approval before reading outside the selected project', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'codic-runtime-external-read-'))
+  const outsideDirectory = mkdtempSync(path.join(tmpdir(), 'codic-runtime-external-read-outside-'))
+  const outsideFile = path.join(outsideDirectory, 'context.txt')
+  const checkpointSession = `codic-test-${randomUUID()}`
+  const checkpointDirectory = path.join(homedir(), '.codeva', 'checkpoints', checkpointSession)
+  const events = []
+  let runtime
+  let call = 0
+  runtime = new CodicRuntime({
+    workspaceRoot: project,
+    apiBaseUrl: 'https://api.example.test/api/v1',
+    getAccessToken: async () => 'test-session',
+    checkpointSessionId: checkpointSession,
+    fetchImpl: async () => {
+      call += 1
+      return call === 1
+        ? stream([
+            { type: 'tool_call', toolCall: { id: 'external-read-1', name: 'read_file', input: { path: outsideFile } } },
+            { type: 'done', reason: 'tool_calls' },
+          ])
+        : stream([{ type: 'text', text: 'The approved file content was read.' }, { type: 'done', reason: 'end_turn' }])
+    },
+    onEvent: (event) => {
+      events.push(event)
+      if (event.type === 'approval_required') assert.equal(runtime.resolveApproval(event.approvalId, true), true)
+      if (event.type === 'run_finished') events.finish?.(event)
+    },
+  })
+  const finished = waitForFinish(events)
+  try {
+    writeFileSync(outsideFile, 'Private context the user approved.')
+    runtime.start([{ role: 'user', content: `Read ${outsideFile}.` }])
+    const result = await finished
+    assert.equal(result.reason, 'end_turn')
+    const approval = events.find((event) => event.type === 'approval_required')
+    assert.equal(approval.unsandboxed, true)
+    assert.match(approval.summary, /context\.txt/)
+    const toolResult = events.find((event) => event.type === 'agent_event' && event.event.type === 'tool_result' && event.event.id === 'external-read-1')
+    assert.match(toolResult.event.output, /Private context the user approved\./)
+  } finally {
+    runtime.cancel()
+    rmSync(checkpointDirectory, { recursive: true, force: true })
+    rmSync(project, { recursive: true, force: true })
+    rmSync(outsideDirectory, { recursive: true, force: true })
+  }
+})

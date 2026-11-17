@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text, useStdout } from 'ink';
+import { Box, Text } from 'ink';
 import type { SessionStatus } from '../state/session.js';
 import { useTheme } from '../theme/useTheme.js';
 
@@ -20,9 +20,6 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
 
 export const StatusBar: React.FC<Props> = ({ status, model, provider, tokens = 0, cost = 0 }) => {
   const t = useTheme();
-  const { stdout } = useStdout();
-  const termWidth = stdout?.columns ?? 80;
-
   const statusColor: Record<SessionStatus, string> = {
     idle: t.success,
     thinking: t.warning,
@@ -37,15 +34,14 @@ export const StatusBar: React.FC<Props> = ({ status, model, provider, tokens = 0
     return num.toString();
   };
 
-  // Claude Code style: compact single line with status info
-  // Left: [ready]  model · provider
-  // Right: tokens · cost · shortcuts
-  const leftPart = `[${STATUS_LABEL[status]}]  ${model} · ${provider} | tokens: ${formatTokens(tokens)} | cost: $${cost.toFixed(2)} | ? shortcuts`;
-
   return (
     <Box width="100%" justifyContent="flex-end" paddingRight={1} marginTop={0}>
-      <Text color={statusColor[status]}>⚙ </Text>
+      <Text color={statusColor[status]}>[{STATUS_LABEL[status]}] </Text>
       <Text color={t.text} bold>{model}</Text>
+      <Text color={t.dim}> · </Text>
+      <Text color={t.success}>{provider}</Text>
+      <Text color={t.dim}> · </Text>
+      <Text color={t.text}>{formatTokens(tokens)} tokens</Text>
       <Text color={t.dim}> · </Text>
       <Text color={t.success}>${cost.toFixed(4)}</Text>
     </Box>

@@ -67,14 +67,10 @@ async function main(): Promise<void> {
     .description('Show CyberCoder authentication status')
     .action(() => {
       const loggedIn = isOnboardingComplete();
-      // eslint-disable-next-line no-console
       console.log('🔐 CyberCoder Status');
-      // eslint-disable-next-line no-console
       console.log(`   Authentication: ${loggedIn ? '✅ Logged in' : '❌ Not logged in'}`);
-      // eslint-disable-next-line no-console
       console.log(`   Version: ${CYBERMIND_VERSION}`);
       if (!loggedIn) {
-        // eslint-disable-next-line no-console
         console.log('   Run `cm` to start the login flow.');
       }
       process.exit(0);
@@ -87,22 +83,16 @@ async function main(): Promise<void> {
     .action(() => {
       const loggedIn = isOnboardingComplete();
       if (loggedIn) {
-        // eslint-disable-next-line no-console
         console.log('✅ Already logged in to CyberCoder.');
-        // eslint-disable-next-line no-console
         console.log('   Run `cm` to start coding.');
       } else {
-        // eslint-disable-next-line no-console
         console.log('🔐 CyberCoder Login');
-        // eslint-disable-next-line no-console
         console.log('   Opening browser to https://cybercodercli.info/login ...');
         import('open').then((mod) => {
           mod.default('https://cybercodercli.info/login?redirect=cli');
-          // eslint-disable-next-line no-console
           console.log('   Browser opened. Complete login there, then run `cm`.');
           process.exit(0);
         }).catch(() => {
-          // eslint-disable-next-line no-console
           console.log('   Visit: https://cybercodercli.info/login?redirect=cli');
           process.exit(0);
         });
@@ -117,11 +107,8 @@ async function main(): Promise<void> {
     .description('Logout from CyberCoder and clear all session data')
     .action(() => {
       clearLogin();
-      // eslint-disable-next-line no-console
       console.log('👋 Logged out from CyberCoder.');
-      // eslint-disable-next-line no-console
       console.log('   All session data and API keys cleared.');
-      // eslint-disable-next-line no-console
       console.log('   Run `cm` again to log in.');
       process.exit(0);
     });
@@ -166,7 +153,6 @@ async function runPrintMode(prompt: string, model?: string): Promise<void> {
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('[cybercoder] fatal:', err);
   process.exit(1);
 });

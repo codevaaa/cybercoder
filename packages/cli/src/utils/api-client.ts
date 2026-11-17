@@ -13,7 +13,7 @@ interface AuthResponse {
     name?: string;
     plan?: string;
   };
-  quota: any;
+  quota: Record<string, unknown>;
   expires_at: string;
 }
 
@@ -26,19 +26,37 @@ interface StatsResponse {
     status: string;
   };
   usage: {
-    quota: any;
+    quota: Record<string, unknown>;
     this_session: {
       tokens: number;
       cost: number;
       commands: number;
     };
-    today: any;
+    today: Record<string, unknown>;
     this_month: {
       total_requests: number;
       total_cost: number;
       total_commands: number;
     };
   };
+}
+
+interface KnowledgeContextResponse {
+  knowledge?: {
+    skills?: Array<{ technology: string; level: number }>;
+  };
+  current_session?: {
+    working_directory?: string;
+  };
+  recent_sessions?: Array<{ directory: string; commands: number }>;
+}
+
+function responseErrorMessage(value: unknown, fallback: string): string {
+  if (typeof value === 'object' && value !== null && 'error' in value) {
+    const error = value.error;
+    if (typeof error === 'string' && error.length > 0) return error;
+  }
+  return fallback;
 }
 
 class ApiClient {
@@ -79,14 +97,14 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: 'Authentication failed' }));
-      throw new Error(err.error || 'Authentication failed');
+      const errorBody: unknown = await response.json().catch(() => null);
+      throw new Error(responseErrorMessage(errorBody, 'Authentication failed'));
     }
 
     return response.json() as Promise<AuthResponse>;
   }
 
-  async refreshSession(): Promise<any> {
+  async refreshSession(): Promise<unknown> {
     const response = await fetch(`${BACKEND_URL}/cli/auth/refresh`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -97,7 +115,7 @@ class ApiClient {
     return response.json();
   }
 
-  async logout(): Promise<any> {
+  async logout(): Promise<unknown> {
     const response = await fetch(`${BACKEND_URL}/cli/auth/logout`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -108,7 +126,7 @@ class ApiClient {
     return response.json();
   }
 
-  async getModels(): Promise<any> {
+  async getModels(): Promise<unknown> {
     const response = await fetch(`${BACKEND_URL}/cli/models`, {
       method: 'GET',
       headers: this.getHeaders(),
@@ -130,7 +148,7 @@ class ApiClient {
     return response.json() as Promise<StatsResponse>;
   }
 
-  async getContext(prompt: string): Promise<any> {
+  async getContext(prompt: string): Promise<KnowledgeContextResponse> {
     const response = await fetch(`${BACKEND_URL}/cli/context?prompt=${encodeURIComponent(prompt)}`, {
       method: 'GET',
       headers: this.getHeaders(),
@@ -141,7 +159,7 @@ class ApiClient {
     return response.json();
   }
 
-  async updateContext(technologies: string[], codeQuality: number, patternsDetected: string[]): Promise<any> {
+  async updateContext(technologies: string[], codeQuality: number, patternsDetected: string[]): Promise<unknown> {
     const response = await fetch(`${BACKEND_URL}/cli/context/update`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -157,7 +175,7 @@ class ApiClient {
     return response.json();
   }
 
-  async trackCommand(command: string, args: string, cwd: string, exitCode: number, outputPreview: string, durationMs: number): Promise<any> {
+  async trackCommand(command: string, args: string, cwd: string, exitCode: number, outputPreview: string, durationMs: number): Promise<unknown> {
     const response = await fetch(`${BACKEND_URL}/cli/track/command`, {
       method: 'POST',
       headers: this.getHeaders(),

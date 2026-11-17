@@ -1,5 +1,5 @@
 import { createLogger, getDataDir } from './logger.js';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 
@@ -14,7 +14,7 @@ export interface MCPServer {
   repository?: string;
   tags: string[];
   installed: boolean;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   lastUpdated: number;
 }
 
@@ -27,7 +27,7 @@ export interface SkillPackage {
   category: 'development' | 'design' | 'testing' | 'deployment' | 'monitoring' | 'security' | 'data' | 'ai';
   tags: string[];
   installed: boolean;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   dependencies?: string[];
   lastUpdated: number;
   downloadCount: number;
@@ -226,8 +226,9 @@ export class EcosystemManager {
     return this.telemetrySettings.enabled;
   }
 
-  recordUsage(event: string, _data?: Record<string, any>): void {
+  recordUsage(event: string, data?: Record<string, unknown>): void {
     if (!this.telemetrySettings.enabled) return;
+    void data;
     
     // In a real implementation, this would send to telemetry service
     log.debug('Usage recorded', { event, level: this.telemetrySettings.level });
@@ -347,8 +348,7 @@ export class EcosystemManager {
   private getInstalledSkills(): SkillPackage[] {
     try {
       if (!existsSync(this.skillsDir)) return [];
-      const { readdirSync } = require('node:fs');
-      const files = readdirSync(this.skillsDir).filter((f: string) => f.endsWith('.json'));
+      const files = readdirSync(this.skillsDir).filter((file) => file.endsWith('.json'));
       const skills: SkillPackage[] = [];
       for (const file of files) {
         try {

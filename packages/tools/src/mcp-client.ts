@@ -1,8 +1,8 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { CYBERCODER_VERSION } from '@cybermind/shared';
+import { ApprovalGate } from './approval.js';
 import type { AgentTool } from './core-types.js';
+import { readMcpConfig, type McpServerConfig } from './mcp-config.js';
 
 /**
  * Lightweight MCP (Model Context Protocol) client over stdio — dependency-free.
@@ -14,7 +14,8 @@ import type { AgentTool } from './core-types.js';
  * instantly becomes available to the agent — the same extensibility Claude Code
  * has, with zero extra runtime deps.
  *
- * Config (.codeva/mcp.json project, or ~/.codeva/mcp.json global):
+ * Config (.cyber/mcp.json project, or ~/.cyber/mcp.json global; legacy .codeva
+ * locations are still read for existing installations):
  * {
  *   "mcpServers": {
  *     "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] },
@@ -22,16 +23,6 @@ import type { AgentTool } from './core-types.js';
  *   }
  * }
  */
-
-interface McpServerConfig {
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
-}
-
-interface McpConfig {
-  mcpServers?: Record<string, McpServerConfig>;
-}
 
 interface McpToolDef {
   name: string;
@@ -51,15 +42,28 @@ class McpServer {
   private buffer = '';
   public tools: McpToolDef[] = [];
 
-  constructor(public readonly name: string, private readonly cfg: McpServerConfig) {}
+  constructor(
+    public readonly name: string,
+    private readonly cfg: McpServerConfig,
+    private readonly cwd: string,
+    private readonly toolCallTimeoutMs: number,
+  ) {}
 
   async start(timeoutMs = 15_000): Promise<void> {
+    if (!this.cfg || typeof this.cfg.command !== 'string' || !this.cfg.command.trim()) {
+      throw new Error(`MCP server '${this.name}' has no valid command`);
+    }
+    if (this.cfg.args !== undefined && (!Array.isArray(this.cfg.args) || this.cfg.args.some((arg) => typeof arg !== 'string'))) {
+      throw new Error(`MCP server '${this.name}' has invalid arguments`);
+    }
+
     // On Windows, npx/npm resolve to .cmd shims that need the shell; on POSIX
     // we spawn directly (no shell) to avoid argument-injection risk.
     const isWin = process.platform === 'win32';
     const needsShell = isWin && /^(npx|npm|yarn|pnpm)(\.cmd)?$/i.test(this.cfg.command);
     this.proc = spawn(this.cfg.command, this.cfg.args ?? [], {
       env: { ...process.env, ...(this.cfg.env ?? {}) },
+      cwd: this.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
       shell: needsShell,
@@ -67,21 +71,30 @@ class McpServer {
 
     this.proc.stdout.setEncoding('utf8');
     this.proc.stdout.on('data', (chunk: string) => this.onData(chunk));
+    // Drain server diagnostics so a verbose child cannot block on a full pipe.
+    this.proc.stderr.resume();
     this.proc.on('error', () => this.failAll(new Error(`MCP server '${this.name}' failed to spawn`)));
     this.proc.on('exit', () => this.failAll(new Error(`MCP server '${this.name}' exited`)));
 
-    // Handshake: initialize → tools/list.
-    await this.rpc('initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {},
-      clientInfo: { name: 'cybercoder', version: '0.1.0' },
-    }, timeoutMs);
-    this.notify('notifications/initialized', {});
-    const listed = (await this.rpc('tools/list', {}, timeoutMs)) as { tools?: McpToolDef[] };
-    this.tools = listed?.tools ?? [];
+    try {
+      // Handshake: initialize → tools/list.
+      await this.rpc('initialize', {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'cybercoder', version: CYBERCODER_VERSION },
+      }, timeoutMs);
+      this.notify('notifications/initialized', {});
+      const listed = (await this.rpc('tools/list', {}, timeoutMs)) as { tools?: McpToolDef[] };
+      this.tools = Array.isArray(listed?.tools)
+        ? listed.tools.filter((tool) => tool && typeof tool.name === 'string' && typeof tool.description === 'string')
+        : [];
+    } catch (error) {
+      await this.stop();
+      throw error;
+    }
   }
 
-  async callTool(toolName: string, args: Record<string, unknown>, timeoutMs = 60_000): Promise<string> {
+  async callTool(toolName: string, args: Record<string, unknown>, timeoutMs = this.toolCallTimeoutMs): Promise<string> {
     const res = (await this.rpc('tools/call', { name: toolName, arguments: args }, timeoutMs)) as {
       content?: Array<{ type: string; text?: string }>;
       isError?: boolean;
@@ -92,9 +105,40 @@ class McpServer {
     return res?.isError ? `[MCP error] ${text}` : text || '[no content]';
   }
 
-  stop(): void {
+  async stop(timeoutMs = 1_000): Promise<void> {
+    const proc = this.proc;
+    this.proc = null;
+    this.failAll(new Error(`MCP server '${this.name}' was stopped`));
+    if (!proc || !proc.pid || proc.exitCode !== null || proc.signalCode !== null) return;
+
     try {
-      this.proc?.kill();
+      await new Promise<void>((resolve) => {
+        let forceTimer: ReturnType<typeof setTimeout> | undefined;
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (gracefulTimer) clearTimeout(gracefulTimer);
+          if (forceTimer) clearTimeout(forceTimer);
+          proc.removeListener('exit', finish);
+          resolve();
+        };
+        proc.once('exit', finish);
+        const gracefulTimer = setTimeout(() => {
+          if (proc.exitCode !== null || proc.signalCode !== null) return finish();
+          try { proc.kill('SIGTERM'); } catch { /* already exited */ }
+          forceTimer = setTimeout(() => {
+            if (proc.exitCode === null && proc.signalCode === null) {
+              try { proc.kill('SIGKILL'); } catch { /* already exited */ }
+            }
+            finish();
+          }, timeoutMs);
+        }, timeoutMs);
+        if (proc.exitCode !== null || proc.signalCode !== null) return finish();
+        try { proc.stdin.end(); } catch {
+          try { proc.kill('SIGTERM'); } catch { finish(); }
+        }
+      });
     } catch {
       /* ignore */
     }
@@ -142,7 +186,21 @@ class McpServer {
           reject(e);
         },
       });
-      this.proc!.stdin.write(payload);
+      try {
+        this.proc!.stdin.write(payload, (error) => {
+          if (!error) return;
+          const pending = this.pending.get(id);
+          if (!pending) return;
+          this.pending.delete(id);
+          pending.reject(new Error(`MCP '${this.name}' ${method} write failed: ${error.message}`));
+        });
+      } catch (error) {
+        const pending = this.pending.get(id);
+        if (pending) {
+          this.pending.delete(id);
+          pending.reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      }
     });
   }
 
@@ -157,23 +215,20 @@ class McpServer {
   }
 }
 
-function readMcpConfig(cwd: string): McpConfig {
-  for (const path of [join(cwd, '.cyber', 'mcp.json'), join(homedir(), '.cyber', 'mcp.json')]) {
-    try {
-      if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8')) as McpConfig;
-    } catch {
-      /* ignore malformed */
-    }
-  }
-  return {}
-}
-
 /**
  * Connect to all configured MCP servers and return their tools as AgentTools.
  * Returns an empty array (and never throws) when no servers are configured or a
  * server fails — MCP is additive and must never break the core session.
  */
-export async function loadMcpTools(cwd: string = process.cwd()): Promise<{ tools: AgentTool[]; servers: McpServer[] }> {
+export interface LoadMcpToolsOptions {
+  startupTimeoutMs?: number;
+  toolCallTimeoutMs?: number;
+}
+
+export async function loadMcpTools(
+  cwd: string = process.cwd(),
+  options: LoadMcpToolsOptions = {},
+): Promise<{ tools: AgentTool[]; servers: McpServer[] }> {
   const cfg = readMcpConfig(cwd);
   const servers: McpServer[] = [];
   const tools: AgentTool[] = [];
@@ -181,9 +236,9 @@ export async function loadMcpTools(cwd: string = process.cwd()): Promise<{ tools
 
   await Promise.all(
     entries.map(async ([name, sc]) => {
-      const server = new McpServer(name, sc);
+      const server = new McpServer(name, sc, cwd, options.toolCallTimeoutMs ?? 60_000);
       try {
-        await server.start();
+        await server.start(options.startupTimeoutMs ?? 15_000);
         servers.push(server);
         for (const t of server.tools) {
           tools.push({
@@ -199,14 +254,31 @@ export async function loadMcpTools(cwd: string = process.cwd()): Promise<{ tools
           });
         }
       } catch (err) {
+        await server.stop();
         // Surface as a no-op; the session continues without this server.
-        // eslint-disable-next-line no-console
         console.error(`[mcp] ${name} unavailable: ${err instanceof Error ? err.message : String(err)}`);
       }
     }),
   );
 
   return { tools, servers };
+}
+
+/** Keep every MCP call behind the same serialized approval gate as local tools. */
+export function gateMcpTools(tools: AgentTool[], gate: ApprovalGate): AgentTool[] {
+  return tools.map((tool) => ({
+    schema: tool.schema,
+    destructive: true,
+    async execute(input, ctx) {
+      const result = await gate.withApproval({
+        toolName: tool.schema.name,
+        input,
+        destructive: true,
+        summary: `MCP: ${tool.schema.name}`,
+      }, () => tool.execute(input, ctx));
+      return result.allowed ? result.value : `[user denied tool '${tool.schema.name}']`;
+    },
+  }));
 }
 
 export { McpServer };

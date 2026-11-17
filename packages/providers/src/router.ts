@@ -1,6 +1,11 @@
 import { createLogger } from '@cybermind/shared';
 import { CybermindCloudProvider } from './cybermind-cloud.js';
+import { AnthropicProvider } from './anthropic.js';
+import { GoogleProvider } from './google.js';
+import { GroqProvider } from './groq.js';
 import { OllamaProvider } from './ollama.js';
+import { OpenAIProvider } from './openai.js';
+import { OpenRouterProvider } from './openrouter.js';
 import type { ChatChunk, ChatRequest, LLMProvider, ProviderInfo } from './types.js';
 
 const log = createLogger('providers:router');
@@ -13,7 +18,12 @@ export interface RouterOptions {
   /** Always-on local fallback. Defaults to Ollama. */
   fallback?: LLMProvider;
   /** CyberMind cloud opts (your backend). */
-  cloud?: { apiKey?: string; baseURL?: string };
+  cloud?: { apiKey?: string; baseURL?: string; defaultModel?: string; sessionId?: string };
+  anthropic?: { apiKey?: string; baseURL?: string; defaultModel?: string };
+  openai?: { apiKey?: string; baseURL?: string; defaultModel?: string };
+  groq?: { apiKey?: string; baseURL?: string; defaultModel?: string };
+  google?: { apiKey?: string; baseURL?: string; defaultModel?: string };
+  openrouter?: { apiKey?: string; baseURL?: string; defaultModel?: string };
   /** Ollama opts. */
   ollama?: { baseURL?: string; defaultModel?: string };
 }
@@ -32,6 +42,11 @@ export class ProviderRouter implements LLMProvider {
 
   constructor(opts: RouterOptions = {}) {
     this.providers.set('cybermind-cloud', new CybermindCloudProvider(opts.cloud));
+    this.providers.set('anthropic', new AnthropicProvider(opts.anthropic));
+    this.providers.set('openai', new OpenAIProvider(opts.openai));
+    this.providers.set('groq', new GroqProvider(opts.groq));
+    this.providers.set('gemini', new GoogleProvider(opts.google));
+    this.providers.set('openrouter', new OpenRouterProvider(opts.openrouter));
     const ollama = new OllamaProvider(opts.ollama);
     this.providers.set('ollama', ollama);
 
@@ -49,13 +64,9 @@ export class ProviderRouter implements LLMProvider {
 
   /** First preferred-and-ready provider, or the fallback. */
   activeProvider(model?: string): LLMProvider {
-    // Cloud models route to Codeva backend
-    const cloudModels = ['ravan', 'madhav', 'kali', 'abhimanyu', 'arjun', 'trinity', 'auto']
-    const isCloudModel = cloudModels.includes(model || '')
-    
-    if (isCloudModel && this.providers.has('cybermind-cloud')) {
-      return this.providers.get('cybermind-cloud')!
-    }
+    const requestedProvider = providerForModel(model);
+    const requested = requestedProvider ? this.providers.get(requestedProvider) : undefined;
+    if (requested) return requested;
 
     for (const id of this.preferred) {
       const p = this.providers.get(id);
@@ -73,10 +84,14 @@ export class ProviderRouter implements LLMProvider {
   }
 
   async *chat(req: ChatRequest): AsyncIterable<ChatChunk> {
-    const isCloudModel = ['madhav', 'kali', 'abhimanyu', 'trinity'].includes(req.model || '');
-    
-    if (isCloudModel && !this.preferred.includes('cybermind-cloud')) {
+    const requestedProvider = providerForModel(req.model);
+    const selected = requestedProvider ? this.providers.get(requestedProvider) : undefined;
+    if (requestedProvider === 'cybermind-cloud' && !this.preferred.includes('cybermind-cloud')) {
       yield { type: 'done', reason: 'error', error: `Model '${req.model}' requires Codeva Cloud authentication. Please run /login` };
+      return;
+    }
+    if (selected && !selected.info.ready) {
+      yield { type: 'done', reason: 'error', error: `${selected.info.displayName} is selected but its API key is not configured.` };
       return;
     }
 
@@ -109,4 +124,18 @@ export class ProviderRouter implements LLMProvider {
       yield { type: 'done', reason: 'error', error: primaryError };
     }
   }
+}
+
+function providerForModel(model?: string): ProviderId | undefined {
+  if (!model || model === 'auto') return undefined;
+  const name = model.toLowerCase();
+  if (['ravan', 'madhav', 'kali', 'abhimanyu', 'arjun', 'trinity'].includes(name) || name.startsWith('codeva-')) {
+    return 'cybermind-cloud';
+  }
+  if (name.startsWith('claude-')) return 'anthropic';
+  if (name.startsWith('gpt-') || /^o[134](?:-|$)/.test(name)) return 'openai';
+  if (name.startsWith('gemini-')) return 'gemini';
+  if (name.startsWith('llama-') || name.startsWith('mixtral-')) return 'groq';
+  if (name.includes('/')) return 'openrouter';
+  return undefined;
 }

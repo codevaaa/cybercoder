@@ -1,11 +1,38 @@
 CyberMind CLI — multi-session progress log
 ============================================
 
-LAST UPDATED: 2026-05-24 (session 1)
+LAST UPDATED: 2026-11-13 (CyberCoder continuation)
 
 ═══════════════════════════════════════════
 WHAT WORKS RIGHT NOW
 ═══════════════════════════════════════════
+
+Recent verified continuation:
+  ✓ v0.1.51 model access guidance now points to Codeva pricing and no longer contains the unrelated OpenCode URL.
+  ✓ v0.1.50 interactive `/model` now loads the selected provider's real model IDs and displays honest loading/error/empty states.
+  ✓ Long provider model lists remain searchable and reachable by keyboard and mouse wheel; 120-item fixture reaches and selects the last row.
+  ✓ v0.1.49 task routing recognizes documentation/documented phrasing and dispatches to the real docs specialist.
+  ✓ Routing cases run against both source and packaged catalogs; every declared bundled skill tool is checked against registered runtime tools.
+  ✓ v0.1.48 team orchestration retains parallel read-only work and serializes tasks whenever a declared tool can mutate or access external state.
+  ✓ Mixed read/write agent-team self-check confirms a single shared-workspace task runs at a time; automatic per-agent worktree routing remains open.
+  ✓ v0.1.47 `/worktree create|list|sync|close` manages real isolated Git worktrees and merges locally without pushing.
+  ✓ Worktree setup refuses dirty repositories; merge/remove reject tampered paths and session closure refuses to orphan worktrees.
+  ✓ v0.1.40 model picker search and bounded viewport; keyboard and SGR mouse-wheel navigation.
+  ✓ Long-list self-check reaches and selects mock model 120; partial wheel reports and non-wheel events are covered.
+  ✓ v0.1.41 configured hook shell commands require explicit approval; unattended runs fail closed.
+  ✓ Hook checks cover denial, approval, headless execution, and pre-command blocking.
+  ✓ v0.1.42 skills self-check verifies tool allowlists and bounded parallel team ordering.
+  ✓ v0.1.43 `/compact [focus]` uses the selected model, bounds its summary, and preserves history after provider/empty-output failure.
+  ✓ `/compact` checks cover success, focus/model forwarding, provider failure, whitespace-only output, and short-history skip.
+  ✓ v0.1.44 MCP tools run in the selected project through explicit allow/deny approval and close their child process cleanly.
+  ✓ MCP checks recover from malformed handshake data and unavailable server commands.
+  ✓ v0.1.45 delegated agents inherit the selected project directory; approved subagent edits are checkpointed and can be restored.
+  ✓ Denied delegated edits leave files and checkpoint history untouched.
+  ✓ v0.1.46 skill router prioritizes the specialist role and the catalog test verifies every declared tool exists.
+  ✓ Generated CLI skill catalog now matches source; the autonomous recon placeholder no longer implies that scanning is operational.
+  ✓ Current harness completion ticks and remaining acceptance gaps are recorded in ./SPEC.md.
+  ✓ Skills.sh review shortlist recorded in ./docs/SKILLS-CATALOG.md; no third-party skill was auto-installed.
+  ✓ Full workspace self-check passed after each change (typecheck and all configured package tests).
 
 A working CLI exists at d:\claudealternative\. You can run:
 
@@ -28,6 +55,8 @@ Otherwise it falls back to local Ollama at 127.0.0.1:11434.
 ═══════════════════════════════════════════
 MILESTONE STATUS
 ═══════════════════════════════════════════
+
+2026-11-13 update: `spawn_team` now routes mutation-capable specialists into independent Git worktrees, keeps edits isolated for review, and provides local merge/cleanup commands. Fixed the Windows RPC compile scripts to build their expected entry and added a disposable-workspace binary smoke check. Windows Terminal mouse input and non-Windows terminal smoke checks remain outstanding.
 
 M1  ✅ Skeleton — pnpm monorepo (9 packages), Ink CLI, welcome card, /help /clear /exit + 40+ stub slash commands
 M2  ✅ Providers + agent loop — Anthropic, Ollama, cybermind-cloud, ProviderRouter with auto-fallback, multi-model consensus runner

@@ -17,7 +17,7 @@ export const MessageSchema = z.object({
       z.object({
         id: z.string(),
         name: z.string(),
-        input: z.record(z.unknown()),
+        input: z.record(z.string(), z.unknown()),
       }),
     )
     .optional(),

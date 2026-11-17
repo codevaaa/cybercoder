@@ -4,7 +4,7 @@ import { Welcome } from './components/Welcome.js';
 import { Onboarding } from './components/Onboarding.js';
 import { ThemePicker, type ThemeConfig } from './components/ThemePicker.js';
 import { Settings } from './components/Settings.js';
-import { ModelPicker } from './components/ModelPicker.js';
+import { ModelPicker, modelInfosFromIds, type ModelInfo } from './components/ModelPicker.js';
 import { ReleaseNotes } from './components/ReleaseNotes.js';
 import { Prompt } from './components/Prompt.js';
 import { MessageList } from './components/MessageList.js';
@@ -16,9 +16,11 @@ import { ApprovalDialog, type PendingApproval } from './components/ApprovalDialo
 import { HintBar } from './components/HintBar.js';
 import { buildCommandRegistry } from './commands/index.js';
 import { runChat, runGoalChat } from './runtime/chat.js';
+import { getRouter } from './runtime/chat.js';
 import { runHooks } from './runtime/hooks.js';
 import { isOnboardingComplete, getTheme, setTheme, clearLogin, isAuthenticated, getUserProfile, isWorkspaceTrusted, trustWorkspace } from './utils/config.js';
 import { getUpdateMessage } from './utils/update.js';
+import { getModelPlanRestrictionMessage } from './utils/model-access.js';
 import { setActiveTheme, type ThemeMode } from './theme/theme.js';
 import type { ApprovalDecision, ApprovalPrompt, ApprovalUI } from '@cybermind/tools';
 import type { SessionMessage, SessionStatus } from './state/session.js';
@@ -63,6 +65,9 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
   const [totalCost, setTotalCost] = useState<number>(0);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const [model, setModel] = useState<string>(initialModel ?? 'auto');
+  const [modelOptions, setModelOptions] = useState<readonly ModelInfo[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState<string | undefined>();
   const [provider, setProvider] = useState<string>(initialProvider ?? 'auto');
   const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined);
   const [, setPromptColor] = useState<string>('cyan');
@@ -79,6 +84,31 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       process.stdout.off('resize', handleResize);
     };
   }, []);
+
+  useEffect(() => {
+    if (screen !== 'model') return;
+    let current = true;
+    setModelsLoading(true);
+    setModelLoadError(undefined);
+    setModelOptions([]);
+    void (async () => {
+      try {
+        const provider = getRouter().activeProvider(model);
+        const ids = await provider.listModels();
+        if (!current) return;
+        const options = modelInfosFromIds(ids, provider.info.displayName);
+        setModelOptions(options);
+        if (options.length === 0) setModelLoadError(`${provider.info.displayName} did not return any available models.`);
+      } catch (error) {
+        if (!current) return;
+        const detail = error instanceof Error ? error.message : String(error);
+        setModelLoadError(`Could not load models: ${detail}`);
+      } finally {
+        if (current) setModelsLoading(false);
+      }
+    })();
+    return () => { current = false; };
+  }, [screen, model]);
 
   // Check for updates on startup (chat/welcome screens only)
   useEffect(() => {
@@ -203,9 +233,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
           model,
           approvalUI,
           onEvent: (evt) => {
-            if ((evt as any).type === 'status') {
-              setStatusMessage((evt as any).text || (evt as any).content || (evt as any).message);
-            } else if (evt.type === 'text') {
+            if (evt.type === 'text') {
               if (statusMessage) setStatusMessage(undefined);
               appendDelta(evt.text);
             } else if (evt.type === 'tool_call') {
@@ -217,11 +245,14 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
               appendDelta(`\n${trimmed}\n`);
             } else if (evt.type === 'usage') {
               setTotalTokens((prev) => prev + evt.inputTokens + evt.outputTokens);
-              const costAmt = evt.cost !== undefined ? evt.cost : (evt.inputTokens * 0.000003 + evt.outputTokens * 0.000015);
+              const costAmt = evt.cost ?? (evt.inputTokens * 0.000003 + evt.outputTokens * 0.000015);
               setTotalCost((prev) => prev + costAmt);
             } else if (evt.type === 'context') {
               // Surface auto-compaction / retry notices inline, dimmed.
               appendDelta(`\n[· ${evt.note} ·]\n`);
+            } else if (evt.type === 'subagent_progress') {
+              const detail = evt.message ? ` — ${evt.message}` : '';
+              appendDelta(`\n[agent ${evt.agentId} · ${evt.skill} · ${evt.status}${detail}]\n`);
             } else if (evt.type === 'done') {
               if (evt.reason === 'error') {
                 appendDelta(`\n[error] ${evt.error ?? 'unknown'}`);
@@ -236,7 +267,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
         setStatus('idle');
         // postTask hooks (e.g. auto-run tests after the agent finishes).
         try {
-          const h = runHooks('postTask', userText);
+          const h = await runHooks('postTask', userText, process.cwd(), approvalUI);
           if (h.output) {
             appendMessage({ id: cryptoRandomId(), role: 'system', content: h.output, createdAt: Date.now() });
           }
@@ -352,7 +383,7 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
         appendMessage({
           id: cryptoRandomId(),
           role: 'system',
-          content: `❌ Access Denied: The '${modelId}' model is only available on PRO tiers.\nPlease upgrade your plan at https://opencode.ai/zen to use this model.\nYou can use 'trinity' or 'kali' on the free tier.`,
+          content: getModelPlanRestrictionMessage(modelId),
           createdAt: Date.now(),
         });
         setScreen('chat');
@@ -381,7 +412,16 @@ export const App: React.FC<AppProps> = ({ showWelcome, initialModel, initialProv
       case 'settings':
         return <Settings onClose={handleSettingsClose} />;
       case 'model':
-        return <ModelPicker currentModel={model} onSelect={handleModelSelect} onClose={handleModelClose} />;
+        return (
+          <ModelPicker
+            currentModel={model}
+            onSelect={handleModelSelect}
+            onClose={handleModelClose}
+            models={modelOptions}
+            loading={modelsLoading}
+            loadError={modelLoadError}
+          />
+        );
       case 'release-notes':
         return <ReleaseNotes onClose={handleReleaseNotesClose} />;
       case 'trust-workspace':

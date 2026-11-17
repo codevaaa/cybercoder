@@ -164,7 +164,7 @@ export class CustomServerManager {
     }
   }
 
-  async generateResponse(modelId: string, messages: any[]): Promise<string> {
+  async generateResponse(modelId: string, messages: Array<Record<string, unknown>>): Promise<string> {
     if (!this.apiKey) {
       throw new Error('API key required for custom server');
     }

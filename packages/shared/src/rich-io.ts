@@ -55,7 +55,7 @@ export interface ScreenshotAnalysis {
 const CostMetricsSchema = z.object({
   totalTokens: z.number(),
   totalCost: z.number(),
-  modelBreakdown: z.record(z.object({
+  modelBreakdown: z.record(z.string(), z.object({
     tokens: z.number(),
     cost: z.number(),
   })),

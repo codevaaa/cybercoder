@@ -61,6 +61,12 @@ cybercoder debug "Why is my useEffect running twice?"
 
 ## ✨ Core Features
 
+### 🧩 Isolated Agent Teams
+- `spawn_team` runs write-capable specialists in separate Git worktrees when the selected repository is clean.
+- Each specialist can use its declared file and shell tools behind the normal approval gate; its edits remain isolated until you review and sync them locally.
+- If the project is not a clean Git repository, the team runs serially in the selected workspace.
+- No worktree changes are pushed to a remote automatically.
+
 ### 🤖 Multi-Model AI Power
 Access the best AI models through a single interface:
 - **GPT-4o, Claude 3.5, Gemini 1.5, Groq, Cerebras**

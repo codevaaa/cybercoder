@@ -8,7 +8,7 @@ const TIMEOUT_MS = 15_000;
  * endpoint (no API key, no tracking) and parses the result list. This gives
  * CyberCoder live web research, something Claude Code lacks natively.
  *
- * Read-only (non-destructive) but performs network I/O.
+ * Read-only but external network access still requires approval.
  */
 export const webSearchTool: AgentTool = {
   schema: {
@@ -24,7 +24,7 @@ export const webSearchTool: AgentTool = {
       required: ['query'],
     },
   },
-  destructive: false,
+  destructive: true,
   async execute(input) {
     const query = String(input.query ?? '').trim();
     if (!query) throw new Error('web_search requires a non-empty query');

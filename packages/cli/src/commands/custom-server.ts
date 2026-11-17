@@ -34,7 +34,6 @@ export function buildCustomCommand(ctx: CommandContext): SlashCommandHandler {
 
       const command = parts[0];
       const customServer = new CustomServerManager();
-
       switch (command) {
         case 'connect':
           if (parts.length < 2) {
@@ -81,7 +80,7 @@ export function buildCustomCommand(ctx: CommandContext): SlashCommandHandler {
             return;
           }
 
-          let modelList = ['📋 Available Custom Models:', ''];
+          const modelList = ['📋 Available Custom Models:', ''];
           models.forEach((model, index) => {
             const status = model.isActive ? '🟢' : '🔴';
             modelList.push(`${status} ${index + 1}. ${model.name}`);
@@ -218,7 +217,6 @@ export function buildCyberCoderCommand(ctx: CommandContext): SlashCommandHandler
       }
 
       const command = parts[0];
-      const customServer = new CustomServerManager();
 
       switch (command) {
         case 'models':
@@ -230,7 +228,7 @@ export function buildCyberCoderCommand(ctx: CommandContext): SlashCommandHandler
             { id: 'codeva-creative', name: 'Codeva Creative', desc: 'Creative and design tasks', cost: '$1/$3 per 1M' },
           ];
 
-          let modelInfo = ['🧠 Codeva Exclusive Models:', ''];
+          const modelInfo = ['🧠 Codeva Exclusive Models:', ''];
           cybercoderModels.forEach((model, index) => {
             modelInfo.push(`${index + 1}. 🤖 ${model.name}`);
             modelInfo.push(`   ${model.desc}`);
@@ -253,7 +251,6 @@ export function buildCyberCoderCommand(ctx: CommandContext): SlashCommandHandler
           }
 
           const cybercoderModelId = `codeva-${command}`;
-          const cybercoderModel = customServer.getModel(cybercoderModelId);
           const cybercoderPrompt = parts.slice(1).join(' ');
 
           if (!cybercoderPrompt) {

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@cybermind/shared": ["src/shared-bridge.ts"],
+      "@cybermind/providers": ["../providers/src/types.ts"]
+    },
+    "outDir": "./dist",
+    "rootDir": "../.."
+  },
+  "include": ["src/**/*"]
+}

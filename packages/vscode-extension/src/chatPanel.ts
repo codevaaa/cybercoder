@@ -70,7 +70,7 @@ export class ChatPanel {
     this.agent = new Agent(api)
     this.cliBridge = new CliBridge(context.extensionPath)
     panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'icon.png')
-    panel.webview.html = getChatHtml(panel.webview, context.extensionUri)
+    panel.webview.html = getChatHtml(panel.webview)
     panel.webview.onDidReceiveMessage((m: WebviewMessage) => this.onMessage(m), null, this.disposables)
     panel.onDidDispose(() => this.dispose(), null, this.disposables)
     this.store.onDidChange(() => this.pushSessions(), null, this.disposables)
@@ -347,6 +347,7 @@ export class ChatPanel {
           approve: (summary) => this.approve(summary),
           status: (t) => this.post({ type: 'status', text: t }),
           signal: this.abort.signal,
+          cliBridge: this.cliBridge,
         },
       )
       s.history.push({ role: 'assistant', content: full })
@@ -380,7 +381,7 @@ export class ChatPanel {
         history: s.history.slice(-20), // Last 20 messages for context
       }) as { text?: string } | string
 
-      const responseText = typeof result === 'string' ? result : (result as any)?.text || ''
+      const responseText = typeof result === 'string' ? result : typeof result.text === 'string' ? result.text : ''
       if (responseText) {
         s.history.push({ role: 'assistant', content: responseText })
         this.store.touch()

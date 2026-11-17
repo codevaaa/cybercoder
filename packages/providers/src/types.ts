@@ -36,6 +36,7 @@ export interface ChatRequest {
   tools?: ToolSchema[];
   temperature?: number;
   maxTokens?: number;
+  effort?: 'low' | 'medium' | 'high';
   /** Abort the underlying HTTP request. */
   signal?: AbortSignal;
 }
@@ -44,6 +45,8 @@ export interface UsageChunk {
   type: 'usage';
   inputTokens: number;
   outputTokens: number;
+  /** True when the gateway provides an estimate instead of provider token counts. */
+  estimated?: boolean;
   cost?: number;
 }
 

@@ -110,7 +110,7 @@ export class AutoAgentAssignment {
     let type: TaskAnalysis['type'] = 'coding';
     let complexity: TaskAnalysis['complexity'] = 'medium';
     let priority: TaskAnalysis['priority'] = 'medium';
-    let domain: string[] = [];
+    const domain: string[] = [];
     let estimatedTime = 30; // minutes
 
     // Detect task type
@@ -123,7 +123,7 @@ export class AutoAgentAssignment {
     } else if (input.includes('test') || input.includes('testing') || input.includes('spec')) {
       type = 'testing';
       complexity = input.includes('e2e') || input.includes('integration') ? 'complex' : 'medium';
-    } else if (input.includes('deploy') || input.includes('deploy') || input.includes('production')) {
+    } else if (input.includes('deploy') || input.includes('production')) {
       type = 'deployment';
       complexity = input.includes('kubernetes') || input.includes('microservices') ? 'complex' : 'medium';
     } else if (input.includes('document') || input.includes('readme') || input.includes('guide')) {
